@@ -1,0 +1,42 @@
+# --- Keil MDK-ARM 编译产物 ---
+**/MDK-ARM/Listing/
+**/MDK-ARM/Objects/
+**/MDK-ARM/*.dep
+**/MDK-ARM/*.bak
+**/MDK-ARM/*.crf
+**/MDK-ARM/*.o
+**/MDK-ARM/*.d
+**/MDK-ARM/*.axf
+**/MDK-ARM/*.htm
+**/MDK-ARM/*.lnp
+**/MDK-ARM/*.sct
+**/MDK-ARM/*.map
+**/MDK-ARM/*.iex
+**/MDK-ARM/*.build_log.htm
+**/MDK-ARM/DebugConfig/
+**/MDK-ARM/RTE/
+
+# --- Keil 本地个人设置 (不同电脑配置不同) ---
+**/MDK-ARM/*.uvguix.*
+**/MDK-ARM/*.uvgui.*
+
+# --- VS Code 个人配置 ---
+.vscode/ipch/
+.vscode/msvc.cache
+.vscode/browse.vc.db
+# 注意：如果你想分享通用的任务定义（tasks.json），请保留 .vscode/，只忽略下面的具体设置
+# .vscode/settings.json
+# .vscode/launch.json
+
+# --- STM32CubeIDE / Eclipse 编译产物 (如果以后有人用) ---
+Debug/
+Release/
+.settings/
+
+# --- 操作系统临时文件 ---
+.DS_Store
+Thumbs.db
+
+# --- 其它常见中间文件 ---
+*.tmp
+*.log
