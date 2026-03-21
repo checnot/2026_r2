@@ -155,6 +155,7 @@ void StartDefaultTask(void const * argument)
     data_send_anotc[7] = arm_cos_f32(debug_test_time*128.0f*PI);
     Usart_Send_To_Show32(&huart6, data_send_anotc);
     //this is from branch_test
+    //假装开发完毕
     debug_test_time += 0.001f;
     osDelay(1);
   }
