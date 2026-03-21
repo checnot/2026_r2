@@ -134,27 +134,27 @@ void StartDefaultTask(void const * argument)
   /* Infinite loop */
   for(;;)
   {
-    data_send_vofa[0] = arm_cos_f32(debug_test_time * PI);
-    data_send_vofa[1] = arm_cos_f32(debug_test_time*2.0f*PI);
-    data_send_vofa[2] = arm_cos_f32(debug_test_time*4.0f*PI);
-    data_send_vofa[3] = arm_cos_f32(debug_test_time*8.0f*PI);
-    data_send_vofa[4] = arm_cos_f32(debug_test_time*16.0f*PI);
-    data_send_vofa[5] = arm_cos_f32(debug_test_time*32.0f*PI);
-    data_send_vofa[6] = arm_cos_f32(debug_test_time*64.0f*PI);
-    data_send_vofa[7] = arm_cos_f32(debug_test_time*128.0f*PI);
-    vofa_send_to_show_justfloat(&huart6, data_send_vofa);
-    osDelay(1);
+    // data_send_vofa[0] = arm_cos_f32(debug_test_time * PI);
+    // data_send_vofa[1] = arm_cos_f32(debug_test_time*2.0f*PI);
+    // data_send_vofa[2] = arm_cos_f32(debug_test_time*4.0f*PI);
+    // data_send_vofa[3] = arm_cos_f32(debug_test_time*8.0f*PI);
+    // data_send_vofa[4] = arm_cos_f32(debug_test_time*16.0f*PI);
+    // data_send_vofa[5] = arm_cos_f32(debug_test_time*32.0f*PI);
+    // data_send_vofa[6] = arm_cos_f32(debug_test_time*64.0f*PI);
+    // data_send_vofa[7] = arm_cos_f32(debug_test_time*128.0f*PI);
+    // vofa_send_to_show_justfloat(&huart6, data_send_vofa);
+    // osDelay(1);
 
-    // data_send_anotc[0] = arm_cos_f32(debug_test_time * PI);
-    // data_send_anotc[1] = arm_cos_f32(debug_test_time*2.0f*PI);
-    // data_send_anotc[2] = arm_cos_f32(debug_test_time*4.0f*PI);
-    // data_send_anotc[3] = arm_cos_f32(debug_test_time*8.0f*PI);
-    // data_send_anotc[4] = arm_cos_f32(debug_test_time*16.0f*PI);
-    // data_send_anotc[5] = arm_cos_f32(debug_test_time*32.0f*PI);
-    // data_send_anotc[6] = arm_cos_f32(debug_test_time*64.0f*PI);
-    // data_send_anotc[7] = arm_cos_f32(debug_test_time*128.0f*PI);
-    // Usart_Send_To_Show32(&huart6, data_send_anotc);
-    // osDelay(5);
+    data_send_anotc[0] = arm_cos_f32(debug_test_time * PI);
+    data_send_anotc[1] = arm_cos_f32(debug_test_time*2.0f*PI);
+    data_send_anotc[2] = arm_cos_f32(debug_test_time*4.0f*PI);
+    data_send_anotc[3] = arm_cos_f32(debug_test_time*8.0f*PI);
+    data_send_anotc[4] = arm_cos_f32(debug_test_time*16.0f*PI);
+    data_send_anotc[5] = arm_cos_f32(debug_test_time*32.0f*PI);
+    data_send_anotc[6] = arm_cos_f32(debug_test_time*64.0f*PI);
+    data_send_anotc[7] = arm_cos_f32(debug_test_time*128.0f*PI);
+    Usart_Send_To_Show32(&huart6, data_send_anotc);
+    osDelay(5);
 
     debug_test_time += 0.001f;
     osDelay(1);
