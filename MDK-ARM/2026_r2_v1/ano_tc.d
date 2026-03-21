@@ -1,6 +1,6 @@
 2026_r2_v1\ano_tc.o: ..\user_lib\ANO_TC.c
 2026_r2_v1\ano_tc.o: ..\user_lib\ANO_TC.h
-2026_r2_v1\ano_tc.o: D:\keil5\ARM\ARMCC\Bin\..\include\stdint.h
+2026_r2_v1\ano_tc.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdint.h
 2026_r2_v1\ano_tc.o: ../Core/Inc/usart.h
 2026_r2_v1\ano_tc.o: ../Core/Inc/main.h
 2026_r2_v1\ano_tc.o: ../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal.h
@@ -17,8 +17,8 @@
 2026_r2_v1\ano_tc.o: ../Drivers/CMSIS/Device/ST/STM32H7xx/Include/system_stm32h7xx.h
 2026_r2_v1\ano_tc.o: ../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal.h
 2026_r2_v1\ano_tc.o: ../Drivers/STM32H7xx_HAL_Driver/Inc/Legacy/stm32_hal_legacy.h
-2026_r2_v1\ano_tc.o: D:\keil5\ARM\ARMCC\Bin\..\include\stddef.h
-2026_r2_v1\ano_tc.o: D:\keil5\ARM\ARMCC\Bin\..\include\math.h
+2026_r2_v1\ano_tc.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stddef.h
+2026_r2_v1\ano_tc.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\math.h
 2026_r2_v1\ano_tc.o: ../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_rcc_ex.h
 2026_r2_v1\ano_tc.o: ../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_gpio.h
 2026_r2_v1\ano_tc.o: ../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_gpio_ex.h
@@ -41,9 +41,9 @@
 2026_r2_v1\ano_tc.o: ../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_uart_ex.h
 2026_r2_v1\ano_tc.o: ../cmsis_dsp/Include/arm_math.h
 2026_r2_v1\ano_tc.o: ../cmsis_dsp/Include/arm_math_types.h
-2026_r2_v1\ano_tc.o: D:\keil5\ARM\ARMCC\Bin\..\include\string.h
-2026_r2_v1\ano_tc.o: D:\keil5\ARM\ARMCC\Bin\..\include\float.h
-2026_r2_v1\ano_tc.o: D:\keil5\ARM\ARMCC\Bin\..\include\limits.h
+2026_r2_v1\ano_tc.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\string.h
+2026_r2_v1\ano_tc.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\float.h
+2026_r2_v1\ano_tc.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\limits.h
 2026_r2_v1\ano_tc.o: ../cmsis_dsp/Include/arm_math_memory.h
 2026_r2_v1\ano_tc.o: ../cmsis_dsp/Include/dsp/none.h
 2026_r2_v1\ano_tc.o: ../cmsis_dsp/Include/dsp/utils.h

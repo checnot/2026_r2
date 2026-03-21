@@ -1,7 +1,7 @@
 2026_r2_v1\port.o: ../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F/port.c
 2026_r2_v1\port.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/FreeRTOS.h
-2026_r2_v1\port.o: D:\keil5\ARM\ARMCC\Bin\..\include\stddef.h
-2026_r2_v1\port.o: D:\keil5\ARM\ARMCC\Bin\..\include\stdint.h
+2026_r2_v1\port.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stddef.h
+2026_r2_v1\port.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdint.h
 2026_r2_v1\port.o: ../Core/Inc/FreeRTOSConfig.h
 2026_r2_v1\port.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/projdefs.h
 2026_r2_v1\port.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/portable.h

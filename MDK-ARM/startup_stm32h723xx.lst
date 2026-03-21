@@ -1279,10 +1279,10 @@ interwork --depend=2026_r2_v1\startup_stm32h723xx.d -o2026_r2_v1\startup_stm32h
 7xx_HAL_Driver/Inc/Legacy -I../Middlewares/Third_Party/FreeRTOS/Source/include 
 -I../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS -I../Middlewares/Third_
 Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F -I../Drivers/CMSIS/Device/ST/STM32
-H7xx/Include -I../Drivers/CMSIS/Include -I.\RTE\_2026_r2_v1 -ID:\keil5\ARM\CMSI
-S\6.2.0\CMSIS\Core\Include --predefine="__UVISION_VERSION SETA 543" --predefine
-="STM32H723xx SETA 1" --predefine="_RTE_ SETA 1" --list=startup_stm32h723xx.lst
- startup_stm32h723xx.s
+H7xx/Include -I../Drivers/CMSIS/Include -I.\RTE\_2026_r2_v1 -IC:\Keil_v5\ARM\PA
+CK\ARM\CMSIS\5.9.0\CMSIS\Core\Include --predefine="__UVISION_VERSION SETA 538" 
+--predefine="_RTE_ SETA 1" --predefine="STM32H723xx SETA 1" --predefine="_RTE_ 
+SETA 1" --list=startup_stm32h723xx.lst startup_stm32h723xx.s
 
 
 
