@@ -1,8 +1,8 @@
 2026_r2_v1\list.o: ../Middlewares/Third_Party/FreeRTOS/Source/list.c
-2026_r2_v1\list.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdlib.h
+2026_r2_v1\list.o: D:\keil5\ARM\ARMCC\Bin\..\include\stdlib.h
 2026_r2_v1\list.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/FreeRTOS.h
-2026_r2_v1\list.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stddef.h
-2026_r2_v1\list.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdint.h
+2026_r2_v1\list.o: D:\keil5\ARM\ARMCC\Bin\..\include\stddef.h
+2026_r2_v1\list.o: D:\keil5\ARM\ARMCC\Bin\..\include\stdint.h
 2026_r2_v1\list.o: ../Core/Inc/FreeRTOSConfig.h
 2026_r2_v1\list.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/projdefs.h
 2026_r2_v1\list.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/portable.h

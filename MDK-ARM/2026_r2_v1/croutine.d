@@ -1,7 +1,7 @@
 2026_r2_v1\croutine.o: ../Middlewares/Third_Party/FreeRTOS/Source/croutine.c
 2026_r2_v1\croutine.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/FreeRTOS.h
-2026_r2_v1\croutine.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stddef.h
-2026_r2_v1\croutine.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdint.h
+2026_r2_v1\croutine.o: D:\keil5\ARM\ARMCC\Bin\..\include\stddef.h
+2026_r2_v1\croutine.o: D:\keil5\ARM\ARMCC\Bin\..\include\stdint.h
 2026_r2_v1\croutine.o: ../Core/Inc/FreeRTOSConfig.h
 2026_r2_v1\croutine.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/projdefs.h
 2026_r2_v1\croutine.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/portable.h
