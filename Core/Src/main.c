@@ -35,6 +35,8 @@
 #include "pid.h"
 #include "m3508.h"
 #include "a1_motor.h"
+#include "ht10a.h"
+#include "hi14.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -111,6 +113,10 @@ int main(void)
   MX_UART9_Init();
   MX_USART1_UART_Init();
   MX_USART6_UART_Init();
+  MX_FDCAN2_Init();
+  MX_FDCAN3_Init();
+  MX_USART10_UART_Init();
+  MX_UART8_Init();
   /* USER CODE BEGIN 2 */
 
   FDCan_Start(&FDCAN_Default_FilterConfig_1);//FDCAN初始化，配置过滤器并开启CAN
@@ -123,6 +129,14 @@ int main(void)
   memset(a1_usart9_raw_recv.RX_pData, 0, sizeof(a1_usart9_raw_recv.RX_pData));
   HAL_UARTEx_ReceiveToIdle_DMA(&huart9, a1_usart9_raw_recv.RX_pData, RX_LEN1);
   __HAL_DMA_DISABLE_IT(&hdma_uart9_rx, DMA_IT_HT);
+//uart10-ht10a
+  memset(ht10a_buffer, 0, sizeof(ht10a_buffer));
+  HAL_UARTEx_ReceiveToIdle_DMA(&huart10, ht10a_buffer, 30);
+  __HAL_DMA_DISABLE_IT(&hdma_usart10_rx, DMA_IT_HT);
+//uart8-hi14
+  memset(dma_rx_buf, 0, sizeof(dma_rx_buf));
+  HAL_UARTEx_ReceiveToIdle_DMA(&huart8, dma_rx_buf, 30);
+  __HAL_DMA_DISABLE_IT(&hdma_uart8_rx, DMA_IT_HT);
 
 //start tim6
 	TIM6->CNT = 0;
