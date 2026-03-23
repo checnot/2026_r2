@@ -283,10 +283,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	{
 		 switch(timer_flag)
 		 {
-		 	case 0:{A1_Motor_Send_Data(&A1_debug[0], &huart1); break;}
-		 	case 1:{A1_Motor_Send_Data(&A1_debug[1], &huart1); break;}
-		  case 2:{A1_Motor_Send_Data(&A1_debug[2], &huart9); break;}
-		 	case 3:{A1_Motor_Send_Data(&A1_debug[3], &huart9); break;}
+		 	case 0:{A1_Motor_Send_Data(&A1_debug_485_1[0], &huart1); break;}
+		 	case 1:{A1_Motor_Send_Data(&A1_debug_485_1[1], &huart1); break;}
+		  case 2:{A1_Motor_Send_Data(&A1_debug_485_2[0], &huart9); break;}
+		 	case 3:{A1_Motor_Send_Data(&A1_debug_485_2[1], &huart9); break;}
 		 }
 		 timer_flag++;
 		 if (timer_flag > 3)	timer_flag = 0;

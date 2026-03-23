@@ -219,7 +219,8 @@ typedef struct
 } A1_Motor_Struct;//A1电机总结构体
 
 
-extern A1_Motor_Struct A1_debug[4];
+extern A1_Motor_Struct A1_debug_485_1[3];
+extern A1_Motor_Struct A1_debug_485_2[3];
 // extern MOTOR_send a1_motor_send;
 extern MOTOR_recv a1_motor_recv_1[3];
 extern MOTOR_recv a1_motor_recv_9[3];

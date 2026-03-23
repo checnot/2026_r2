@@ -17,14 +17,14 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
             if(id == 0 || id == 1)
             {
                 //等待一段时间使电机位置稳定，再进行位置初始化
-                if(A1_debug[id].Pos_init_flag < 200)
+                if(A1_debug_485_1[id].Pos_init_flag < 200)
                 {
-                    A1_debug[id].Pos_init_flag +=1 ;
-                    A1_debug[id].init_Pos = a1_motor_recv_1[id].motor_recv_data.Mdata.Pos * 2 * PI / 16384.0f / 9.0f;
+                    A1_debug_485_1[id].Pos_init_flag +=1 ;
+                    A1_debug_485_1[id].init_Pos = a1_motor_recv_1[id].motor_recv_data.Mdata.Pos * 2 * PI / 16384.0f / 9.0f;
                 }
-                A1_debug[id].measure.Pos = a1_motor_recv_1[id].motor_recv_data.Mdata.Pos * 2 * PI / 16384.0f / 9.0f - A1_debug[id].init_Pos;
-                A1_debug[id].measure.W = a1_motor_recv_1[id].motor_recv_data.Mdata.W / 128.0f / 9.0f;
-                A1_debug[id].measure.T = a1_motor_recv_1[id].motor_recv_data.Mdata.T / 256.0f;
+                A1_debug_485_1[id].measure.Pos = a1_motor_recv_1[id].motor_recv_data.Mdata.Pos * 2 * PI / 16384.0f / 9.0f - A1_debug_485_1[id].init_Pos;
+                A1_debug_485_1[id].measure.W = a1_motor_recv_1[id].motor_recv_data.Mdata.W / 128.0f / 9.0f;
+                A1_debug_485_1[id].measure.T = a1_motor_recv_1[id].motor_recv_data.Mdata.T / 256.0f;
             }
 		}
 
@@ -43,14 +43,14 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
             if(id == 0 || id == 1)
             {
                 //等待一段时间使电机位置稳定，再进行位置初始化
-                if(A1_debug[id+2].Pos_init_flag < 200)
+                if(A1_debug_485_2[id].Pos_init_flag < 200)
                 {
-                    A1_debug[id+2].Pos_init_flag +=1 ;
-                    A1_debug[id+2].init_Pos = a1_motor_recv_9[id].motor_recv_data.Mdata.Pos * 2 * PI / 16384.0f / 9.0f;
+                    A1_debug_485_2[id].Pos_init_flag +=1 ;
+                    A1_debug_485_2[id].init_Pos = a1_motor_recv_9[id].motor_recv_data.Mdata.Pos * 2 * PI / 16384.0f / 9.0f;
                 }
-                A1_debug[id+2].measure.Pos = a1_motor_recv_9[id].motor_recv_data.Mdata.Pos * 2 * PI / 16384.0f / 9.0f - A1_debug[id+2].init_Pos;
-                A1_debug[id+2].measure.W = a1_motor_recv_9[id].motor_recv_data.Mdata.W / 128.0f / 9.0f;
-                A1_debug[id+2].measure.T = a1_motor_recv_9[id].motor_recv_data.Mdata.T / 256.0f;
+                A1_debug_485_2[id].measure.Pos = a1_motor_recv_9[id].motor_recv_data.Mdata.Pos * 2 * PI / 16384.0f / 9.0f - A1_debug_485_2[id].init_Pos;
+                A1_debug_485_2[id].measure.W = a1_motor_recv_9[id].motor_recv_data.Mdata.W / 128.0f / 9.0f;
+                A1_debug_485_2[id].measure.T = a1_motor_recv_9[id].motor_recv_data.Mdata.T / 256.0f;
             }
         }
 

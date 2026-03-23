@@ -20,8 +20,6 @@ extern DMA_HandleTypeDef hdma_usart1_rx;
 extern DMA_HandleTypeDef hdma_uart9_tx;
 extern DMA_HandleTypeDef hdma_uart9_rx;
 
-
-
 //引入uart10供ht10a
 extern DMA_HandleTypeDef hdma_usart10_tx;
 extern DMA_HandleTypeDef hdma_usart10_rx;

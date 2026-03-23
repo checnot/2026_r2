@@ -3,7 +3,9 @@
 #define reduction_ratio 9.0f // A1减速比
 
 
-A1_Motor_Struct A1_debug[4];//调试用A1电机数组
+A1_Motor_Struct A1_debug_485_1[3];//第一组485对应的a1电机
+A1_Motor_Struct A1_debug_485_2[3];//第二组485对应的a1电机
+
 MOTOR_send a1_motor_send;   //电机发送公共缓冲区
 MOTOR_recv a1_motor_recv_1[3]; //属于串口1的a1电机接收缓冲区
 MOTOR_recv a1_motor_recv_9[3]; //属于串口9的a1电机接收缓冲区
