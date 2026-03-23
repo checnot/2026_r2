@@ -294,7 +294,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 //TIM7定时发送数据控制m3508电机，1ms会发送一次
   if(htim->Instance == TIM7)
   {
-    FDCAN_Send_M3508(&hfdcan1, m3508);
+    FDCAN_Send_M3508(&hfdcan1, m3508_fdcan1);
+    FDCAN_Send_M3508(&hfdcan2, m3508_fdcan2);
+    FDCAN_Send_M3508(&hfdcan3, m3508_fdcan3);
   }
 
 

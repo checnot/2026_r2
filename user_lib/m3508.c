@@ -1,6 +1,8 @@
 #include "m3508.h"
 
-M3508_Motor_Struct m3508[8];
+M3508_Motor_Struct m3508_fdcan1[8];
+M3508_Motor_Struct m3508_fdcan2[8];
+M3508_Motor_Struct m3508_fdcan3[8];
 
 extern FDCAN_TxFrame_TypeDef FDCAN1_TxFrame_m3508;
 
