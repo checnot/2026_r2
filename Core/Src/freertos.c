@@ -35,6 +35,7 @@
 #include "vofa.h"
 #include "ANO_TC.h"
 #include "arm_math.h"
+#include "robotic_arm.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -58,6 +59,7 @@ float debug_test_time;//用于测试的万能小变量
 
 /* USER CODE END Variables */
 osThreadId defaultTaskHandle;
+osThreadId robotic_armHandle;
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -65,6 +67,7 @@ osThreadId defaultTaskHandle;
 /* USER CODE END FunctionPrototypes */
 
 void StartDefaultTask(void const * argument);
+void entry_robotic_arm(void const * argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -115,6 +118,10 @@ void MX_FREERTOS_Init(void) {
   osThreadDef(defaultTask, StartDefaultTask, osPriorityNormal, 0, 128);
   defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
 
+  /* definition and creation of robotic_arm */
+  osThreadDef(robotic_arm, entry_robotic_arm, osPriorityIdle, 0, 256);
+  robotic_armHandle = osThreadCreate(osThread(robotic_arm), NULL);
+
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
   /* USER CODE END RTOS_THREADS */
@@ -142,7 +149,7 @@ void StartDefaultTask(void const * argument)
     data_send_vofa[5] = arm_cos_f32(debug_test_time*32.0f*PI);
     data_send_vofa[6] = arm_cos_f32(debug_test_time*64.0f*PI);
     data_send_vofa[7] = arm_cos_f32(debug_test_time*128.0f*PI);
-    vofa_send_to_show_justfloat(&huart6, data_send_vofa);
+    vofa_send_to_show_justfloat(&huart10, data_send_vofa);
 
     // data_send_anotc[0] = arm_cos_f32(debug_test_time * PI);
     // data_send_anotc[1] = arm_cos_f32(debug_test_time*2.0f*PI);
@@ -158,6 +165,25 @@ void StartDefaultTask(void const * argument)
     osDelay(1);
   }
   /* USER CODE END StartDefaultTask */
+}
+
+/* USER CODE BEGIN Header_entry_robotic_arm */
+/**
+* @brief Function implementing the robotic_arm thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_entry_robotic_arm */
+void entry_robotic_arm(void const * argument)
+{
+  /* USER CODE BEGIN entry_robotic_arm */
+  /* Infinite loop */
+  for(;;)
+  {
+    arm_joint_state_update(&arm);
+    osDelay(1);
+  }
+  /* USER CODE END entry_robotic_arm */
 }
 
 /* Private application code --------------------------------------------------*/

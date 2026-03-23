@@ -86,5 +86,11 @@ void M3508_Return_Process(FDCAN_RxHeaderTypeDef* RxHeader, uint8_t Data[], M3508
 
     Motor[num-1].Angle_Sum += angle_add_fin;
     Motor[num-1].Angle_Last = Motor[num-1].Now_Angle;
+    
+    if(Motor->Initial_flag < 200)
+    {
+        Motor->Angle_Sum = 0;
+        Motor->Initial_flag++;
+    }
 }
 

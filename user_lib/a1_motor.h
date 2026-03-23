@@ -188,7 +188,7 @@ typedef struct
 {
     float T;
     float W;
-    float Pos;//从限位处开始计数的位置
+    float Pos;//注意：A1从上电限位处开始计数的输出轴位置(rad)
 } A1_Motor_Recv_Struct;
 
 typedef struct
@@ -235,6 +235,7 @@ void A1_Motor_DataProcess(uint8_t* pData, MOTOR_recv* recv);
 void A1_Motor_Torque_Control(A1_Motor_Struct *A1_motor, float target_torque);
 void A1_Motor_Velocity_Control(A1_Motor_Struct *A1_motor, float target_velocity, float target_kw);
 void A1_Motor_Position_Control(A1_Motor_Struct *A1_motor, float target_position, float target_kp, float target_kw);
+void A1_Motor_Parameter_Init(A1_Motor_Struct *A1_motor, uint16_t id, uint16_t mode, float K_p, float K_w);
 
 
 #endif /* A1_MOTOR_H */

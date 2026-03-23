@@ -246,3 +246,15 @@ void A1_Motor_Position_Control(A1_Motor_Struct *A1_motor, float target_position,
 	A1_motor->target.T = 0.0f;
 	
 }
+
+/**
+ * @brief 对单个A1电机进行参数初始化
+*/
+void A1_Motor_Parameter_Init(A1_Motor_Struct *A1_motor, uint16_t id, uint16_t mode, float K_p, float K_w)
+{
+	A1_motor->id = id;
+	A1_motor->mode = mode;
+	A1_motor->K_p = K_p;
+	A1_motor->K_w = K_w;
+}
+

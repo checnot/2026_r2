@@ -129,14 +129,11 @@ int main(void)
   memset(a1_usart9_raw_recv.RX_pData, 0, sizeof(a1_usart9_raw_recv.RX_pData));
   HAL_UARTEx_ReceiveToIdle_DMA(&huart9, a1_usart9_raw_recv.RX_pData, RX_LEN1);
   __HAL_DMA_DISABLE_IT(&hdma_uart9_rx, DMA_IT_HT);
-//uart10-ht10a
+//uart8-ht10a
   memset(ht10a_buffer, 0, sizeof(ht10a_buffer));
-  HAL_UARTEx_ReceiveToIdle_DMA(&huart10, ht10a_buffer, 30);
-  __HAL_DMA_DISABLE_IT(&hdma_usart10_rx, DMA_IT_HT);
-//uart8-hi14
-  memset(dma_rx_buf, 0, sizeof(dma_rx_buf));
-  HAL_UARTEx_ReceiveToIdle_DMA(&huart8, dma_rx_buf, 30);
+  HAL_UARTEx_ReceiveToIdle_DMA(&huart8, ht10a_buffer, sizeof(ht10a_buffer));
   __HAL_DMA_DISABLE_IT(&hdma_uart8_rx, DMA_IT_HT);
+
 
 //start tim6
 	TIM6->CNT = 0;
@@ -144,6 +141,9 @@ int main(void)
 //start tim7
 	TIM7->CNT = 0;
 	HAL_TIM_Base_Start_IT(&htim7);
+
+  A1_Motor_Parameter_Init(&A1_debug_485_2[0], 0, 0, 0, 0);
+  A1_Motor_Parameter_Init(&A1_debug_485_2[1], 1, 0, 0, 0);
 
   /* USER CODE END 2 */
 

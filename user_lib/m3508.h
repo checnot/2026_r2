@@ -14,7 +14,9 @@ typedef struct
 	int16_t Now_Current;
 	int32_t Angle_Sum;
 	int16_t Angle_Last;
-	
+	// int32_t Initial_Angle;
+	int16_t Initial_flag;
+
 	int32_t Target_Angle;
 	int16_t Target_Speed;
 
