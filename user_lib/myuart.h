@@ -9,7 +9,7 @@
 #include "hi14.h"
 #include "ht10a.h"
 
-//引入uart6供vofa/anotc
+//引入uart6预留给其他设备
 extern DMA_HandleTypeDef hdma_usart6_tx;
 extern DMA_HandleTypeDef hdma_usart6_rx;
 
@@ -20,10 +20,12 @@ extern DMA_HandleTypeDef hdma_usart1_rx;
 extern DMA_HandleTypeDef hdma_uart9_tx;
 extern DMA_HandleTypeDef hdma_uart9_rx;
 
-//引入uart10供ht10a
+//--------注意：发现串口10存在接收问题，发送能够正常使用，暂时不清楚原因，先不使用uart10的接收功能，后续如果需要使用再进行调试--------
+//引入uart10供vofa/anotc输出调试数据
 extern DMA_HandleTypeDef hdma_usart10_tx;
 extern DMA_HandleTypeDef hdma_usart10_rx;
-//引入uart8供hi14
+
+//引入uart8供ht10a
 extern DMA_HandleTypeDef hdma_uart8_tx;
 extern DMA_HandleTypeDef hdma_uart8_rx;
 
