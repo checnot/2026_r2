@@ -198,14 +198,15 @@ void entry_robotic_arm(void const * argument)
 //此处输出表示为输出轴电流(力矩)
     if(m3508_fdcan1[0].Initial_flag == 200 && A1_debug_485_2[1].Pos_init_flag == 200)
     {
-      m3508_fdcan1[0].Current_Output = (int16_t)(arm.joint_torque_gc[1]/0.3f/10.0f*8192.0f);
+      // m3508_fdcan1[0].Current_Output = (int16_t)(arm.joint_torque_gc[1]/0.3f/10.0f*8192.0f);
+      m3508_fdcan1[0].Current_Output = 0;
     }
 //此处力矩表示为转子力矩
     if(m3508_fdcan1[1].Initial_flag == 200 && A1_debug_485_2[1].Pos_init_flag == 200)
     {
-      A1_Motor_Torque_Control(&A1_debug_485_2[1], arm.joint_torque_gc[0]/9.1f*0.9f);
-      // A1_Motor_Torque_Control(&A1_debug_485_2[1], 0.0f);
       // A1_Motor_Position_Control(&A1_debug_485_2[1], debug_position, 3.0f, 0.03f);
+      // A1_Motor_Torque_Control(&A1_debug_485_2[1], arm.joint_torque_gc[0]/9.1f*0.9f);
+      A1_Motor_Torque_Control(&A1_debug_485_2[1], 0.0f);
     }
 
     osDelay(1);
