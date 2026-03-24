@@ -36,6 +36,7 @@
 #include "ANO_TC.h"
 #include "arm_math.h"
 #include "robotic_arm.h"
+#include "chassis.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -57,6 +58,8 @@
 /* USER CODE BEGIN Variables */
 float debug_test_time;//用于测试的万能小变量
 
+int32_t debug_angle_sum;
+float debug_position;
 /* USER CODE END Variables */
 osThreadId defaultTaskHandle;
 osThreadId robotic_armHandle;
@@ -177,10 +180,34 @@ void StartDefaultTask(void const * argument)
 void entry_robotic_arm(void const * argument)
 {
   /* USER CODE BEGIN entry_robotic_arm */
+
+  // M3508_Parameter_Init(&m3508_fdcan3[0], 2.0f, 1.0f, 0.0f, 0.0f);
+  // M3508_Parameter_Init(&m3508_fdcan3[1], 2.0f, 1.0f, 0.0f, 0.0f);
+  // M3508_Parameter_Init(&m3508_fdcan3[2], 2.0f, 1.0f, 0.0f, 0.0f);
+  // M3508_Parameter_Init(&m3508_fdcan3[3], 2.0f, 1.0f, 0.0f, 0.0f);
+
   /* Infinite loop */
   for(;;)
   {
     arm_joint_state_update(&arm);
+
+    // omni_chassis_calculate(&chassis, (float)HT10A.left_y, -(float)HT10A.left_x, -(float)HT10A.right_x);
+    // m3508_control_anglesum(&m3508_fdcan1[0], debug_angle_sum, 8192);
+    // arm_gravity_comp(&arm, 0.60f, 3200.0f);
+    arm_gravity_comp(&arm, 0.0f, 3200.0f);
+//此处输出表示为输出轴电流(力矩)
+    if(m3508_fdcan1[0].Initial_flag == 200 && A1_debug_485_2[1].Pos_init_flag == 200)
+    {
+      m3508_fdcan1[0].Current_Output = (int16_t)(arm.joint_torque_gc[1]/0.3f/10.0f*8192.0f);
+    }
+//此处力矩表示为转子力矩
+    if(m3508_fdcan1[1].Initial_flag == 200 && A1_debug_485_2[1].Pos_init_flag == 200)
+    {
+      A1_Motor_Torque_Control(&A1_debug_485_2[1], arm.joint_torque_gc[0]/9.1f*0.9f);
+      // A1_Motor_Torque_Control(&A1_debug_485_2[1], 0.0f);
+      // A1_Motor_Position_Control(&A1_debug_485_2[1], debug_position, 3.0f, 0.03f);
+    }
+
     osDelay(1);
   }
   /* USER CODE END entry_robotic_arm */

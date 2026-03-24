@@ -30,9 +30,10 @@ extern M3508_Motor_Struct m3508_fdcan2[8];
 extern M3508_Motor_Struct m3508_fdcan3[8];
 
 
-void m3508_control_speed(M3508_Motor_Struct *motor, int32_t target_speed, int32_t max_output);
-void m3508_control_angle(M3508_Motor_Struct *motor, int32_t target_angle, int32_t max_output);
+void m3508_control_speed(M3508_Motor_Struct *motor, int16_t target_speed, int16_t max_output);
+void m3508_control_anglesum(M3508_Motor_Struct *motor, int32_t target_anglesum, int16_t max_output);
 void FDCAN_Send_M3508(FDCAN_HandleTypeDef *hfdcan, M3508_Motor_Struct *Motor);
 void M3508_Return_Process(FDCAN_RxHeaderTypeDef* RxHeader, uint8_t Data[], M3508_Motor_Struct *Motor);
+void M3508_Parameter_Init(M3508_Motor_Struct *Motor, float K_p_speed, float K_d_speed, float K_p_angle, float K_d_angle);
 
 #endif /* M3508_H */

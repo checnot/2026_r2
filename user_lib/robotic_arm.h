@@ -29,12 +29,13 @@ typedef struct
 typedef struct 
 {
     dh_craig_stu dh_parameters[5]; // 机械臂的5个主要关节的D-H参数
-    float joint_pitch[3]; //用于重力补偿：机械臂连杆相对地面的绝对角度
+    float joint_pitch[3]; //用于重力补偿：机械臂连杆相对地面的绝对角度([0]为"肩膀",[1]为"手肘",[2]为"腕部")
+    float joint_torque_gc[3]; //用于重力补偿：机械臂关节力矩([0]为"肩膀",[1]为"手肘",[2]为"腕部")
 } robotic_arm_stu;
 
 extern robotic_arm_stu arm;    //机械臂实例
 
 void arm_joint_state_init(robotic_arm_stu *arm);
 void arm_joint_state_update(robotic_arm_stu *arm);
-
+void arm_gravity_comp(robotic_arm_stu *arm, float torque_preset0, float torque_preset1);
 #endif /* __ROBOTIC_ARM_H */

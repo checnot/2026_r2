@@ -214,7 +214,7 @@ typedef struct
     float K_w;
     A1_Motor_Send_Struct target;
     A1_Motor_Recv_Struct measure;
-    uint8_t Pos_init_flag;
+    int16_t Pos_init_flag;
     float init_Pos;
 } A1_Motor_Struct;//A1电机总结构体
 
@@ -234,7 +234,7 @@ void A1_Motor_DataProcess(uint8_t* pData, MOTOR_recv* recv);
 
 void A1_Motor_Torque_Control(A1_Motor_Struct *A1_motor, float target_torque);
 void A1_Motor_Velocity_Control(A1_Motor_Struct *A1_motor, float target_velocity, float target_kw);
-void A1_Motor_Position_Control(A1_Motor_Struct *A1_motor, float target_position, float target_kp, float target_kw);
+void A1_Motor_Position_Control(A1_Motor_Struct *A1_motor, float target_position, float target_kw, float target_kp);
 void A1_Motor_Parameter_Init(A1_Motor_Struct *A1_motor, uint16_t id, uint16_t mode, float K_p, float K_w);
 
 

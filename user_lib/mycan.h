@@ -21,10 +21,17 @@ typedef struct
 
 extern FDCAN_HandleTypeDef hfdcan1;
 extern FDCAN_FilterTypeDef FDCAN_Default_FilterConfig_1;
-// extern FDCAN_HandleTypeDef hfdcan2;
-// extern FDCAN_FilterTypeDef FDCAN_Default_FilterConfig_2;
-// extern FDCAN_HandleTypeDef hfdcan3;
-// extern FDCAN_FilterTypeDef FDCAN_Default_FilterConfig_3;
+extern FDCAN_HandleTypeDef hfdcan2;
+extern FDCAN_FilterTypeDef FDCAN_Default_FilterConfig_2;
+extern FDCAN_HandleTypeDef hfdcan3;
+extern FDCAN_FilterTypeDef FDCAN_Default_FilterConfig_3;
+
+extern FDCAN_TxFrame_TypeDef FDCAN1_TxFrame_m3508;
+extern FDCAN_RxFrame_TypeDef FDCAN1_RxFrame_m3508;
+extern FDCAN_TxFrame_TypeDef FDCAN2_TxFrame_m3508;
+extern FDCAN_RxFrame_TypeDef FDCAN2_RxFrame_m3508;
+extern FDCAN_TxFrame_TypeDef FDCAN3_TxFrame_m3508;
+extern FDCAN_RxFrame_TypeDef FDCAN3_RxFrame_m3508;
 
 void FDCan_Start(FDCAN_FilterTypeDef *FDCAN_FilterConfig_1);
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs);
