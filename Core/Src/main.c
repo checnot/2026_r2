@@ -37,6 +37,7 @@
 #include "a1_motor.h"
 #include "ht10a.h"
 #include "hi14.h"
+#include "clamp.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -61,6 +62,8 @@ uint8_t timer_a1_flag = 0;//用于使定时器中对A1电机依次发送的标�
 
 uint32_t timer_ms = 0;//定时器计时变量，单位ms
 
+uint8_t timer_flag = 0;//用于使定时器中对A1电机依次发送的标志位，0-3分别对应4个电机
+uint8_t m3508_send_flag = 0;//用于使定时器中对M3508电机依次发送的标志位，0-3分别对应4个电机
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -121,7 +124,10 @@ int main(void)
   MX_UART8_Init();
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
-
+  M3508_Parameter_Init(&m3508_fdcan2[1],6,4,0.5,0.2);
+	M3508_Parameter_Init(&m3508_fdcan2[0],5,2,0.5,0.2);
+  M3508_Parameter_Init(&m3508_fdcan2[2],5,2,0.5,0.2);
+	M3508_Parameter_Init(&m3508_fdcan2[3],5,2,0.5,0.2);
   FDCan_Start(&FDCAN_Default_FilterConfig_1);//FDCAN初始化，配置过滤器并开启CAN
 
 //uart1-a1
@@ -150,6 +156,7 @@ int main(void)
   A1_Motor_Parameter_Init(&A1_debug_485_2[0], 0, 0, 0, 0);
   A1_Motor_Parameter_Init(&A1_debug_485_2[1], 1, 0, 0, 0);
 
+//clamp_position_init(&m3508_fdcan2[1],&m3508_fdcan2[3],&m3508_fdcan2[2]);
   /* USER CODE END 2 */
 
   /* Call init function for freertos objects (in cmsis_os2.c) */
@@ -305,12 +312,16 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 //TIM7定时发送数据控制m3508电机，1ms会发送一次
   if(htim->Instance == TIM7)
   {
-    FDCAN_Send_M3508(&hfdcan1, m3508_fdcan1);
-    FDCAN_Send_M3508(&hfdcan2, m3508_fdcan2);
-    FDCAN_Send_M3508(&hfdcan3, m3508_fdcan3);
-  }
+//    if (m3508_send_flag)
+//    {
+      FDCAN_Send_M3508(&hfdcan1, m3508_fdcan1);
+      FDCAN_Send_M3508(&hfdcan2, m3508_fdcan2);
+      FDCAN_Send_M3508(&hfdcan3, m3508_fdcan3);
+
+//  }
 
 
+}
 	taskEXIT_CRITICAL_FROM_ISR(status_value);// 退出临界段
 
   /* USER CODE END Callback 1 */
