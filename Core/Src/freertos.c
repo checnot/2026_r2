@@ -37,6 +37,7 @@
 #include "arm_math.h"
 #include "robotic_arm.h"
 #include "chassis.h"
+#include "clamp.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -60,6 +61,15 @@ float debug_test_time;//用于测试的万能小变量
 
 int8_t debug_flag;
 int32_t debug_angle_sum;
+int32_t debug_lift;
+int32_t debug_extern;
+int32_t debug_rotate;
+uint8_t clamp_open_flag;
+//底盘升降控制相关变量
+uint8_t lift_mode;
+uint8_t lift_front_flag;
+uint8_t lift_back_flag;
+uint8_t lift_whole_flag;
 float debug_position;
 uint32_t debug_time_start;
 float debug_start_position = 0;
@@ -67,6 +77,7 @@ float debug_start_position = 0;
 /* USER CODE END Variables */
 osThreadId defaultTaskHandle;
 osThreadId robotic_armHandle;
+osThreadId chassisHandle;
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -75,6 +86,7 @@ osThreadId robotic_armHandle;
 
 void StartDefaultTask(void const * argument);
 void entry_robotic_arm(void const * argument);
+void entry_chassis(void const * argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -128,6 +140,10 @@ void MX_FREERTOS_Init(void) {
   /* definition and creation of robotic_arm */
   osThreadDef(robotic_arm, entry_robotic_arm, osPriorityIdle, 0, 256);
   robotic_armHandle = osThreadCreate(osThread(robotic_arm), NULL);
+
+  /* definition and creation of chassis */
+  osThreadDef(chassis, entry_chassis, osPriorityIdle, 0, 128);
+  chassisHandle = osThreadCreate(osThread(chassis), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -222,6 +238,24 @@ void entry_robotic_arm(void const * argument)
     osDelay(1);
   }
   /* USER CODE END entry_robotic_arm */
+}
+
+/* USER CODE BEGIN Header_entry_chassis */
+/**
+* @brief Function implementing the chassis thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_entry_chassis */
+void entry_chassis(void const * argument)
+{
+  /* USER CODE BEGIN entry_chassis */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END entry_chassis */
 }
 
 /* Private application code --------------------------------------------------*/

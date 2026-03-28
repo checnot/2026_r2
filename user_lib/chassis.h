@@ -21,5 +21,9 @@ typedef struct {
 extern chassis_stu chassis; // 全局底盘实例
 
 void omni_chassis_calculate(chassis_stu *chassis, float vx, float vy, float vw);
+void chassis_lift_front_control(uint8_t lift_front);
+void chassis_lift_back_control(uint8_t lift_back);  
+void chassis_lift_control(uint8_t lift_mode, uint8_t lift_front_flag, uint8_t lift_back_flag, uint8_t lift_whole_flag);
 
 #endif /* CHASSIS_H */
+
