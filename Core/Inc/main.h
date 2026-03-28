@@ -37,7 +37,7 @@ extern "C" {
 
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
-
+extern uint32_t timer_ms;//定时器计时变量，单位ms
 /* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/

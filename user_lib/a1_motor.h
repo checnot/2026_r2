@@ -9,6 +9,8 @@
 #include "cmsis_os.h"
 #include "pid.h"
 
+#include "own_lib.h"
+
 #define RX_LEN1 78
 
 #pragma pack(1)
@@ -196,6 +198,9 @@ typedef struct
     float T;
     float W;
     float Pos;//从上电时刻电机编码器随机位置开始计数的位置
+
+    float Start_Position;//不参与发送过程，仅在位置控制时使用，记录初始位置
+    uint8_t Change_Start_Position;//不参与发送过程，仅在位置控制时使用，标记是否需要更新初始位置
 } A1_Motor_Send_Struct;
 
 typedef struct
@@ -235,6 +240,10 @@ void A1_Motor_DataProcess(uint8_t* pData, MOTOR_recv* recv);
 void A1_Motor_Torque_Control(A1_Motor_Struct *A1_motor, float target_torque);
 void A1_Motor_Velocity_Control(A1_Motor_Struct *A1_motor, float target_velocity, float target_kw);
 void A1_Motor_Position_Control(A1_Motor_Struct *A1_motor, float target_position, float target_kw, float target_kp);
+//--------弃用
+// void A1_Motor_Position_Advanced_Control(A1_Motor_Struct *A1_motor, float target_kw, float start_position, float target_position, float start_time, float ETA, float accel_ratio, float decel_ratio);
+
+void A1_Motor_Position_Improved_Control(A1_Motor_Struct *A1_motor, float target_kw, float now_position, float start_position, float target_position, float ETA);
 void A1_Motor_Parameter_Init(A1_Motor_Struct *A1_motor, uint16_t id, uint16_t mode, float K_p, float K_w);
 
 

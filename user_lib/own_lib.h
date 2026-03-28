@@ -17,4 +17,5 @@ int16_t abs_int16(int16_t value);
 int32_t abs_int32(int32_t value);
 float abs_float(float value);
 
+float limit_float(float value, float min, float max);
 #endif /* OWN_LIB_H */

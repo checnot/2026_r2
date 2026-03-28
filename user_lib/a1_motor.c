@@ -2,6 +2,7 @@
 
 #define reduction_ratio 9.0f // A1减速比
 
+extern uint32_t timer_ms;//定时器计时变量，单位ms
 
 A1_Motor_Struct A1_debug_485_1[3];//第一组485对应的a1电机
 A1_Motor_Struct A1_debug_485_2[3];//第二组485对应的a1电机
@@ -228,7 +229,7 @@ void A1_Motor_Velocity_Control(A1_Motor_Struct *A1_motor, float target_velocity,
 }
 
 /**
- * @brief 对A1电机进行单位置控制
+ * @brief 对A1电机进行单位置控制，适用于短行程控制
  * @param target_position 电机目标位置，单位rad，以启动时位置为零点
  * @param target_kp 等效于电机位置环比例系数
  * @param target_kw 等效于电机位置环微分系数
@@ -245,6 +246,97 @@ void A1_Motor_Position_Control(A1_Motor_Struct *A1_motor, float target_position,
 	A1_motor->target.W = 0.0f;
 	A1_motor->target.T = 0.0f;
 	
+}
+
+/**
+ * @brief 对A1电机进行位置控制，与普通位置控制函数相比，使用梯形加减速，使用A1速度环，可更改预期到达时间
+ * @param start_position 电机执行路径时的起始位置，单位rad，以初次进入该函数时位置为零点
+ * @param target_position 电机目标到达位置，单位rad，以启动时位置为零点
+ * @param start_time 开始时间，单位s
+ * @param ETA 到达时间，单位s
+ * @param accel_ratio 加速比例
+ * @param deceleration_ratio 减速比例
+ * 
+ * @warning target_position为：使用时要注意开始时间，开始位置这类变量的使用//以机构上电时刻初始位置为零点的目标位置，非电机系下的目标位置//
+*/
+void A1_Motor_Position_Advanced_Control(A1_Motor_Struct *A1_motor, float target_kw, float start_position, float target_position, float start_time, float ETA, float accel_ratio, float decel_ratio)
+{
+	A1_motor->mode = 10;
+	A1_motor->K_w = target_kw;
+
+	A1_motor->target.T = 0.0f;
+	A1_motor->target.Pos = 0.0f;
+	A1_motor->K_p = 0.0f;
+
+	float w_max = 0.0f;
+	float current_time_ratio = 0.0f;
+	if(abs_float((target_position - start_position)/ETA) > 2.0f*PI)
+	{w_max = 2.0f*PI;}
+	else
+	{w_max = (target_position - start_position) / (ETA*(1.0f - accel_ratio/2.0f - decel_ratio/2.0f));} // 计算最大速度
+
+	current_time_ratio = ((float)timer_ms*0.001f - start_time) / ETA;
+	if(current_time_ratio <= accel_ratio)
+	{
+		//加速区以时间为准
+		A1_motor->target.W = w_max * current_time_ratio / accel_ratio;
+	}
+	else if(current_time_ratio > accel_ratio && current_time_ratio <= (1.0f - decel_ratio))
+	{
+		//匀速区以时间为准
+		A1_motor->target.W = w_max;
+	}
+	else if(current_time_ratio > (1.0f - decel_ratio) && current_time_ratio <= 1.0f)
+	{
+		//减速区使减速的加速度微减小，防止与目标距离过远
+		//暂定以0.98为系数进行微调，以decel_ratio==0.1为例，其末尾速度为0.2w_max
+		A1_motor->target.W = w_max * (1.0f - 0.98f*current_time_ratio) / decel_ratio;
+	}
+	else if(current_time_ratio > 1.0f && abs_float(A1_motor->measure.Pos - A1_motor->target.Pos) > 0.03f)
+	{
+		A1_motor->target.W = 0.1f*w_max;
+	}
+	else
+	{
+		A1_motor->target.W = 0.0f;
+	}
+
+}
+
+/**
+ * @brief 对A1电机进行位置控制，与普通位置控制函数相比，使用ETA计算大概的速度，并凭借A1电机良好的速度环性能进行控制，适用于长行程控制
+ * @param start_position 需通过外部逻辑固定的起始位置，单位rad
+ * @param target_position 电机目标到达位置，单位rad，以启动时位置为零点
+ * @param ETA 预期到达时间，单位s
+ * @warning start_position需通过外部逻辑固定；ETA真的就是预期到达时间，无保证，仅用于计算预期运动速度
+*/
+void A1_Motor_Position_Improved_Control(A1_Motor_Struct *A1_motor, float target_kw, float now_position, float start_position, float target_position, float ETA)
+{
+	A1_motor->mode = 10;
+	A1_motor->K_w = target_kw;
+
+	A1_motor->target.Pos = 0.0f;
+	//防止重力补偿要使用力矩补偿输出
+	// A1_motor->target.T = 0.0f;
+	A1_motor->K_p = 0.0f;
+	
+	float expected_velocity = (target_position - start_position) / ETA;	//计算预期速度
+	limit_float(expected_velocity, -1.0f*PI, 1.0f*PI);	//将预期速度限幅在安全范围
+
+	if(abs_float(target_position - now_position) >= abs_float(target_position - start_position)*0.1f)
+	{
+		//匀速区
+		A1_motor->target.W = expected_velocity;
+	}
+	else if(abs_float(target_position - now_position) < abs_float(target_position - start_position)*0.1f)
+	{
+		//减速区
+		A1_motor->target.W = expected_velocity * (abs_float(target_position - now_position) / (abs_float(target_position - start_position)*0.1f));
+	}
+	else
+	{
+		A1_motor->target.W = 0.0f;
+	}
 }
 
 /**

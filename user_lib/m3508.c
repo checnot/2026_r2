@@ -11,7 +11,7 @@ M3508_Motor_Struct m3508_fdcan3[8];
  * @param target_speed 目标速度
  * @param max_output 最大电流输出
  */
-void m3508_control_speed(M3508_Motor_Struct *motor, int16_t target_speed, int16_t max_output)
+void m3508_speed_control(M3508_Motor_Struct *motor, int16_t target_speed, int16_t max_output)
 {
     PID_Calculate(&(motor->M3508_Speed_PID), (float)motor->Now_Speed, (float)target_speed, (float)max_output);
     motor->Current_Output = (int16_t)motor->M3508_Speed_PID.Output;
@@ -24,10 +24,22 @@ void m3508_control_speed(M3508_Motor_Struct *motor, int16_t target_speed, int16_
  * @param max_output 最大电流输出
  * @warning 在3.23更新中变为上电时刻角度和为0，使用时需注意
  */
-void m3508_control_anglesum(M3508_Motor_Struct *motor, int32_t target_anglesum, int16_t max_output)
+void m3508_anglesum_control(M3508_Motor_Struct *motor, int32_t target_anglesum, int16_t max_output)
 {
     PID_Calculate(&(motor->M3508_Angle_PID), (float)motor->Angle_Sum, (float)target_anglesum, (float)max_output);
     PID_Calculate(&(motor->M3508_Speed_PID), (float)motor->Now_Speed, (float)motor->M3508_Angle_PID.Output, (float)max_output);
+    motor->Current_Output = (int16_t)motor->M3508_Speed_PID.Output;
+}
+
+/**
+ * @brief m3508电机角度环控制ETA版本，在内部进行了单位转换，确保计算出来的预期速度与转子角度对应
+ * @param ETA 预期到达时间，单位为秒；一般情况下，因为负载的原因，ETA会比真实到达时间短
+*/
+void m3508_anglesum_ETA_control(M3508_Motor_Struct *motor, int32_t start_anglesum, int32_t target_anglesum, float ETA)
+{
+    int32_t target_speed = (int32_t)((target_anglesum - start_anglesum) / ETA)/8192*60;
+    PID_Calculate(&(motor->M3508_Angle_PID), (float)motor->Angle_Sum, (float)target_anglesum, 8192.0f);
+    PID_Calculate(&(motor->M3508_Speed_PID), (float)motor->Now_Speed, (float)target_speed, 8192.0f);
     motor->Current_Output = (int16_t)motor->M3508_Speed_PID.Output;
 }
 
@@ -61,7 +73,7 @@ void FDCAN_Send_M3508(FDCAN_HandleTypeDef *hfdcan, M3508_Motor_Struct *Motor)
 }
 
 /**
- * @brief m3508电机FDCAN接收处理函数，在中断回调中调用
+ * @brief m3508电机FDCAN接收处理函数，在中断回调中调用；添加了上电时刻anglesum归零
  * @param RxHeader FDCAN接收报文头指针
  * @param Data 接收数据指针
  * @param Motor 电机结构体指针
@@ -93,7 +105,7 @@ void M3508_Return_Process(FDCAN_RxHeaderTypeDef* RxHeader, uint8_t Data[], M3508
 
     Motor[num-1].Angle_Sum += angle_add_fin;
     Motor[num-1].Angle_Last = Motor[num-1].Now_Angle;
-    
+    //人为确定上电时刻角度和为0，使用时需注意
     if(Motor[num-1].Initial_flag < 200)
     {
         Motor[num-1].Angle_Sum = 0;

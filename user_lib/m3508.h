@@ -20,6 +20,9 @@ typedef struct
 	int32_t Target_Angle;
 	int16_t Target_Speed;
 
+	int32_t Start_Angle_Sum;
+	uint8_t Change_Start_Angle_Sum;
+
 	PID_Struct M3508_Speed_PID;
 	PID_Struct M3508_Angle_PID;
 	int16_t Current_Output;
@@ -30,8 +33,10 @@ extern M3508_Motor_Struct m3508_fdcan2[8];
 extern M3508_Motor_Struct m3508_fdcan3[8];
 
 
-void m3508_control_speed(M3508_Motor_Struct *motor, int16_t target_speed, int16_t max_output);
-void m3508_control_anglesum(M3508_Motor_Struct *motor, int32_t target_anglesum, int16_t max_output);
+void m3508_speed_control(M3508_Motor_Struct *motor, int16_t target_speed, int16_t max_output);
+void m3508_anglesum_control(M3508_Motor_Struct *motor, int32_t target_anglesum, int16_t max_output);
+void m3508_anglesum_ETA_control(M3508_Motor_Struct *motor, int32_t start_anglesum, int32_t target_anglesum, float ETA);
+
 void FDCAN_Send_M3508(FDCAN_HandleTypeDef *hfdcan, M3508_Motor_Struct *Motor);
 void M3508_Return_Process(FDCAN_RxHeaderTypeDef* RxHeader, uint8_t Data[], M3508_Motor_Struct *Motor);
 void M3508_Parameter_Init(M3508_Motor_Struct *Motor, float K_p_speed, float K_d_speed, float K_p_angle, float K_d_angle);

@@ -3,25 +3,30 @@
 robotic_arm_stu arm;    //机械臂实例
 
 /**
- * @brief 机械臂初始化函数，在机械臂任务开始时调用，进行机械臂固定参数的初始化
+ * @brief 机械臂参数初始化函数，在机械臂任务开始时调用，进行机械臂固定参数的初始化
 */
-void arm_joint_state_init(robotic_arm_stu *arm)
+void arm_joint_parameter_init(robotic_arm_stu *arm)
 {
-    arm->dh_parameters[0].alpha = 0.0f;
-    arm->dh_parameters[0].a = 0.0f;
-    arm->dh_parameters[0].d = 0.15f;
+    arm->joint_parameters[0].alpha = 0.0f;
+    arm->joint_parameters[0].a = 0.0f;
+    arm->joint_parameters[0].d = 0.15f;
 
-    arm->dh_parameters[1].alpha = PI/2.0f;
-    arm->dh_parameters[1].a = 0.0f;
-    arm->dh_parameters[1].d = 0.0f;
+    arm->joint_parameters[1].alpha = PI/2.0f;
+    arm->joint_parameters[1].a = 0.0f;
+    arm->joint_parameters[1].d = 0.0f;
 
-    arm->dh_parameters[2].alpha = 0.0f;
-    arm->dh_parameters[2].a = 0.55f;
-    arm->dh_parameters[2].d = 0.0f;
+    arm->joint_parameters[2].alpha = 0.0f;
+    arm->joint_parameters[2].a = 0.55f;
+    arm->joint_parameters[2].d = 0.0f;
 
-    arm->dh_parameters[3].alpha = 0.0f;
-    arm->dh_parameters[3].a = 0.45f;
-    arm->dh_parameters[3].d = 0.0f;
+    arm->joint_parameters[3].alpha = 0.0f;
+    arm->joint_parameters[3].a = 0.45f;
+    arm->joint_parameters[3].d = 0.0f;
+
+    arm->joint_parameters[4].alpha = 0.0f;
+    arm->joint_parameters[4].a = 0.05f;
+    arm->joint_parameters[4].d = 0.0f;
+
 }
 
 /**
@@ -29,16 +34,88 @@ void arm_joint_state_init(robotic_arm_stu *arm)
 */
 void arm_joint_state_update(robotic_arm_stu *arm)
 {
-    arm->dh_parameters[0].theta = A1_debug_485_2[0].measure.Pos;        //云台朝向角
-    arm->dh_parameters[1].theta = -A1_debug_485_2[1].measure.Pos + PI;  //大臂与云台平面的夹角
-    arm->dh_parameters[2].theta = m3508_fdcan1[0].Angle_Sum/100000.0f*PI/2.0f + PI/12.0f;
-    arm->joint_pitch[0] = arm->dh_parameters[1].theta;
-    arm->joint_pitch[1] = -PI + arm->joint_pitch[0] + arm->dh_parameters[2].theta;
+//根据各关节处电机的测量位置更新机械臂的关节角状态
+    arm->joint_parameters[0].theta = A1_debug_485_2[0].measure.Pos;        //云台朝向角
+    arm->joint_parameters[1].theta = -A1_debug_485_2[1].measure.Pos + PI;  //大臂与云台平面的夹角
+    arm->joint_parameters[2].theta = m3508_fdcan1[0].Angle_Sum/100000.0f*PI/2.0f + PI/12.0f;
+    arm->joint_pitch[0] = arm->joint_parameters[1].theta;
+    arm->joint_pitch[1] = -PI + arm->joint_pitch[0] + arm->joint_parameters[2].theta;
+//对二连杆末端位置进行正解算
+    arm->x0_now = 0.55f*arm_cos_f32(arm->joint_pitch[0]) + 0.45f*arm_cos_f32(arm->joint_pitch[1]);
+    arm->y0_now = 0.55f*arm_sin_f32(arm->joint_pitch[0]) + 0.45f*arm_sin_f32(arm->joint_pitch[1]);
 
 //TODO末端机构解算
-    // arm->dh_parameters[3].theta = m3508_fdcan1[1].Angle_Sum;
-    // arm->dh_parameters[3].theta = m3508_fdcan1[2].Angle_Sum;
+    // arm->joint_parameters[3].theta = m3508_fdcan1[1].Angle_Sum;
+    // arm->joint_parameters[3].theta = m3508_fdcan1[2].Angle_Sum;
 }
+
+/**
+ * @brief 机械臂复位函数，在机械臂任务开始时调用，进行机械臂的复位操作
+ * @warning 在使用之前要手动将A1结构体中的Change_Start_Position置1，以便进行初始位置的更新
+*/
+void arm_joint_state_init(robotic_arm_stu *arm)
+{
+    arm_joint_state_update(arm);
+    if(A1_debug_485_2[1].target.Change_Start_Position == 1)
+    {  
+        A1_debug_485_2[1].target.Change_Start_Position = 0;
+        A1_debug_485_2[1].target.Start_Position = A1_debug_485_2[1].measure.Pos;
+    }
+    A1_Motor_Position_Improved_Control(&A1_debug_485_2[1], 3.0f, (PI-A1_debug_485_2[1].measure.Pos), A1_debug_485_2[1].target.Start_Position, PI/2.0f, 3.0f);
+}
+
+/**
+ * @brief 用于检测目标路径点是否可到达，推荐在目标点解算前以及完毕后调用
+*/
+IK_Reach_Status_enum arm_route_reachable_check(robotic_arm_stu *arm)
+{
+    if(arm->x0_target*arm->x0_target + arm->y0_target*arm->y0_target > 0.95f || arm->x0_target*arm->x0_target + arm->y0_target*arm->y0_target < 0.2f) 
+    {
+        return IK_OUT_OF_RANGE;//末端位置超出机械臂工作范围
+    }
+    else if(arm->theta_target[0]<0.0f || arm->theta_target[0]>PI || arm->theta_target[1]<PI/12.0f || arm->theta_target[1]>PI)
+    {
+        return IK_OUT_OF_RANGE;//关节角超出物理限位
+    }
+    else
+    {
+        return IK_REACHABLE;//末端位置在机械臂工作范围内
+    }
+}
+
+/**
+ * @brief 机械臂路径点计算函数，输入目标末端位置，输出目标关节角
+ * @warning 目前仅支持二连杆末端位置的计算
+*/
+void arm_route_point_calculate(robotic_arm_stu *arm)
+{
+    float x = arm->x0_target;
+    float y = arm->y0_target;
+    float l1 = arm->joint_parameters[2].a;
+    float l2 = arm->joint_parameters[3].a;
+
+    float l0 = sqrtf(x*x + y*y);
+    
+    arm->theta_target[0] = atan2f(y, x) + acosf((l1*l1 + l0*l0 - l2*l2)/(2.0f*l1*l0));
+    arm->theta_target[1] = acosf((l1*l1 + l2*l2 - l0*l0)/(2.0f*l1*l2));
+}
+
+/**
+ * @brief 利用arm_route_point_calculate计算的关节夹角来执行各关节电机的位置环控制，输入关节夹角(rad)，经过内置单位转换后输出到电机
+*/
+void arm_route_execute(robotic_arm_stu *arm)
+{
+    A1_Motor_Position_Control(&A1_debug_485_2[1], PI - arm->theta_target[0], 20.0f, 0.02f);
+    m3508_anglesum_control(&m3508_fdcan1[0], (int32_t)(arm->theta_target[1]/(PI/2.0f)*100000.0f), 8192);
+}
+
+
+
+
+
+
+
+
 
 /**
  * @brief 通过预设力矩值计算单一连杆所需的重力补偿力矩
@@ -63,6 +140,8 @@ void arm_gravity_comp(robotic_arm_stu *arm, float torque_preset0, float torque_p
     //手肘处电机输出轴力矩(Nm)
     arm->joint_torque_gc[1] = gravity_comp_calc(arm->joint_pitch[1], torque_preset1)/8192.0f*10.0f*0.3f;
     //肩部处电机输出轴力矩(Nm)，由于肩部需要带动手肘，所以肩部的重力补偿不仅要补偿肩部自身的重力，还要补偿手肘的重力（通过手肘处的电机力矩反推）
-    arm->joint_torque_gc[0] = ((1.006f-0.254f*arm_cos_f32(arm->dh_parameters[2].theta))*(-arm_cos_f32(arm->joint_pitch[0])))*9.1f;
+    arm->joint_torque_gc[0] = ((1.006f-0.254f*arm_cos_f32(arm->joint_parameters[2].theta))*(-arm_cos_f32(arm->joint_pitch[0])))*9.1f;
 
 }
+
+

@@ -58,8 +58,12 @@
 /* USER CODE BEGIN Variables */
 float debug_test_time;//用于测试的万能小变量
 
+int8_t debug_flag;
 int32_t debug_angle_sum;
 float debug_position;
+uint32_t debug_time_start;
+float debug_start_position = 0;
+
 /* USER CODE END Variables */
 osThreadId defaultTaskHandle;
 osThreadId robotic_armHandle;
@@ -144,15 +148,9 @@ void StartDefaultTask(void const * argument)
   /* Infinite loop */
   for(;;)
   {
-    data_send_vofa[0] = arm_cos_f32(debug_test_time * PI);
-    data_send_vofa[1] = arm_cos_f32(debug_test_time*2.0f*PI);
-    data_send_vofa[2] = arm_cos_f32(debug_test_time*4.0f*PI);
-    data_send_vofa[3] = arm_cos_f32(debug_test_time*8.0f*PI);
-    data_send_vofa[4] = arm_cos_f32(debug_test_time*16.0f*PI);
-    data_send_vofa[5] = arm_cos_f32(debug_test_time*32.0f*PI);
-    data_send_vofa[6] = arm_cos_f32(debug_test_time*64.0f*PI);
-    data_send_vofa[7] = arm_cos_f32(debug_test_time*128.0f*PI);
-    vofa_send_to_show_justfloat(&huart10, data_send_vofa);
+    data_send_vofa[0] = A1_debug_485_2[1].measure.Pos;
+    data_send_vofa[1] = A1_debug_485_2[1].measure.W;
+    vofa_send_to_show_justfloat(&huart6, data_send_vofa);
 
     // data_send_anotc[0] = arm_cos_f32(debug_test_time * PI);
     // data_send_anotc[1] = arm_cos_f32(debug_test_time*2.0f*PI);
@@ -190,24 +188,36 @@ void entry_robotic_arm(void const * argument)
   for(;;)
   {
     arm_joint_state_update(&arm);
-
-    // omni_chassis_calculate(&chassis, (float)HT10A.left_y, -(float)HT10A.left_x, -(float)HT10A.right_x);
-    // m3508_control_anglesum(&m3508_fdcan1[0], debug_angle_sum, 8192);
-    // arm_gravity_comp(&arm, 0.60f, 3200.0f);
-    arm_gravity_comp(&arm, 0.0f, 3200.0f);
-//此处输出表示为输出轴电流(力矩)
+    arm_gravity_comp(&arm, 0.60f, 3000.0f);
+// //此处输出表示为输出轴电流(力矩)
     if(m3508_fdcan1[0].Initial_flag == 200 && A1_debug_485_2[1].Pos_init_flag == 200)
     {
       // m3508_fdcan1[0].Current_Output = (int16_t)(arm.joint_torque_gc[1]/0.3f/10.0f*8192.0f);
-      m3508_fdcan1[0].Current_Output = 0;
+      // m3508_fdcan1[0].Current_Output = 0;
+      // A1_debug_485_2[1].target.T = arm.joint_torque_gc[0] / 9.1f;
     }
-//此处力矩表示为转子力矩
-    if(m3508_fdcan1[1].Initial_flag == 200 && A1_debug_485_2[1].Pos_init_flag == 200)
+
+    // if(m3508_fdcan1[0].Initial_flag == 200 && A1_debug_485_2[1].Pos_init_flag == 200)
+    // {
+    //   if(A1_debug_485_2[1].target.Change_Start_Position == 1)
+    //   {
+    //     A1_debug_485_2[1].target.Change_Start_Position = 0;
+    //     A1_debug_485_2[1].target.Start_Position = A1_debug_485_2[1].measure.Pos;
+    //   }
+    //   else
+    //   {
+    //     if(debug_flag == 1)
+    //     {
+    //       A1_Motor_Position_Improved_Control(&A1_debug_485_2[1], 15.0f, A1_debug_485_2[1].measure.Pos, A1_debug_485_2[1].target.Start_Position, PI/2.0f, 1.0f);
+    //     }
+    //   }
+    if(debug_flag == 1)
     {
-      // A1_Motor_Position_Control(&A1_debug_485_2[1], debug_position, 3.0f, 0.03f);
-      // A1_Motor_Torque_Control(&A1_debug_485_2[1], arm.joint_torque_gc[0]/9.1f*0.9f);
-      A1_Motor_Torque_Control(&A1_debug_485_2[1], 0.0f);
+      // A1_Motor_Position_Control(&A1_debug_485_2[1], PI/2.0f, 20.0f, 0.02f);
+      m3508_anglesum_control(&m3508_fdcan1[0], (int32_t)(debug_position/(PI/2.0f)*100000.0f), 8192);
+
     }
+
 
     osDelay(1);
   }

@@ -57,7 +57,9 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-uint8_t timer_flag = 0;//用于使定时器中对A1电机依次发送的标志位，0-3分别对应4个电机
+uint8_t timer_a1_flag = 0;//用于使定时器中对A1电机依次发送的标志位，0-3分别对应4个电机
+
+uint32_t timer_ms = 0;//定时器计时变量，单位ms
 
 /* USER CODE END PV */
 
@@ -117,6 +119,7 @@ int main(void)
   MX_FDCAN3_Init();
   MX_USART10_UART_Init();
   MX_UART8_Init();
+  MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
 
   FDCan_Start(&FDCAN_Default_FilterConfig_1);//FDCAN初始化，配置过滤器并开启CAN
@@ -134,7 +137,9 @@ int main(void)
   HAL_UARTEx_ReceiveToIdle_DMA(&huart8, ht10a_buffer, sizeof(ht10a_buffer));
   __HAL_DMA_DISABLE_IT(&hdma_uart8_rx, DMA_IT_HT);
 
-
+//start tim2
+  TIM2->CNT = 0;
+  HAL_TIM_Base_Start_IT(&htim2);
 //start tim6
 	TIM6->CNT = 0;
 	HAL_TIM_Base_Start_IT(&htim6);
@@ -278,18 +283,24 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     HAL_IncTick();
   }
   /* USER CODE BEGIN Callback 1 */
+//TIM2定时累加时间，每1ms累加一次，单位为ms
+  if(htim->Instance == TIM2)
+  {
+    timer_ms++;
+  }
+
 //TIM6定时发送数据控制A1电机，0.5ms会发送一次，每次发送一个电机的数据，依次循环4个电机
 	if(htim->Instance == TIM6)
 	{
-		 switch(timer_flag)
+		 switch(timer_a1_flag)
 		 {
 		 	case 0:{A1_Motor_Send_Data(&A1_debug_485_1[0], &huart1); break;}
 		 	case 1:{A1_Motor_Send_Data(&A1_debug_485_1[1], &huart1); break;}
 		  case 2:{A1_Motor_Send_Data(&A1_debug_485_2[0], &huart9); break;}
 		 	case 3:{A1_Motor_Send_Data(&A1_debug_485_2[1], &huart9); break;}
 		 }
-		 timer_flag++;
-		 if (timer_flag > 3)	timer_flag = 0;
+		 timer_a1_flag++;
+		 if (timer_a1_flag > 3)	timer_a1_flag = 0;
 	}
 //TIM7定时发送数据控制m3508电机，1ms会发送一次
   if(htim->Instance == TIM7)

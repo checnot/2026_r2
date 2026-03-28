@@ -39,3 +39,16 @@ float abs_float(float value)
 {
     return (value < 0.0f) ? -value : value;
 }
+
+/**
+ * @brief 简单限幅函数(float类型)
+*/
+float limit_float(float value, float min, float max)
+{
+    if (value < min)
+        return min;
+    else if (value > max)
+        return max;
+    else
+        return value;
+}
