@@ -39,6 +39,6 @@ void m3508_anglesum_ETA_control(M3508_Motor_Struct *motor, int32_t start_anglesu
 
 void FDCAN_Send_M3508(FDCAN_HandleTypeDef *hfdcan, M3508_Motor_Struct *Motor);
 void M3508_Return_Process(FDCAN_RxHeaderTypeDef* RxHeader, uint8_t Data[], M3508_Motor_Struct *Motor);
-void M3508_Parameter_Init(M3508_Motor_Struct *Motor, float K_p_speed, float K_d_speed, float K_p_angle, float K_d_angle);
+void m3508_parameter_init(M3508_Motor_Struct *Motor, float K_p_speed, float K_d_speed, float K_p_angle, float K_d_angle);
 
 #endif /* M3508_H */

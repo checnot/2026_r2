@@ -51,4 +51,10 @@ extern robotic_arm_stu arm;    //机械臂实例
 void arm_joint_parameter_init(robotic_arm_stu *arm);
 void arm_joint_state_update(robotic_arm_stu *arm);
 void arm_gravity_comp(robotic_arm_stu *arm, float torque_preset0, float torque_preset1);
+void arm_joint_state_init(robotic_arm_stu *arm);
+IK_Reach_Status_enum arm_route_reachable_check(robotic_arm_stu *arm);
+void arm_route_point_calculate(robotic_arm_stu *arm);
+void arm_route_execute(robotic_arm_stu *arm);
+void arm_actuator_stable_control(robotic_arm_stu *arm, float target_pitch, float theta4);
+
 #endif /* __ROBOTIC_ARM_H */

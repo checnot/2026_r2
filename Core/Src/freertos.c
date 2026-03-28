@@ -64,6 +64,8 @@ int32_t debug_angle_sum;
 float debug_position;
 uint32_t debug_time_start;
 float debug_start_position = 0;
+float debug_theta3;
+float debug_theta4;
 
 int32_t debug_lift;
 int32_t debug_extern;
@@ -164,8 +166,9 @@ void StartDefaultTask(void const * argument)
   /* Infinite loop */
   for(;;)
   {
-    data_send_vofa[0] = A1_debug_485_2[1].measure.Pos;
-    data_send_vofa[1] = A1_debug_485_2[1].measure.W;
+    data_send_vofa[0] = m3508_fdcan1[1].Angle_Sum;
+    data_send_vofa[1] = m3508_fdcan1[2].Angle_Sum;
+		data_send_vofa[7] = debug_test_time;
     vofa_send_to_show_justfloat(&huart6, data_send_vofa);
 
     // data_send_anotc[0] = arm_cos_f32(debug_test_time * PI);
@@ -195,44 +198,48 @@ void entry_robotic_arm(void const * argument)
 {
   /* USER CODE BEGIN entry_robotic_arm */
 
-  // M3508_Parameter_Init(&m3508_fdcan3[0], 2.0f, 1.0f, 0.0f, 0.0f);
-  // M3508_Parameter_Init(&m3508_fdcan3[1], 2.0f, 1.0f, 0.0f, 0.0f);
-  // M3508_Parameter_Init(&m3508_fdcan3[2], 2.0f, 1.0f, 0.0f, 0.0f);
-  // M3508_Parameter_Init(&m3508_fdcan3[3], 2.0f, 1.0f, 0.0f, 0.0f);
+  arm_joint_parameter_init(&arm);
+
+  m3508_parameter_init(&m3508_fdcan1[0], 2.0f, 10.0f, 0.5f, 2.0f);
+  m3508_parameter_init(&m3508_fdcan1[1], 2.0f, 10.0f, 0.5f, 2.0f);
+  m3508_parameter_init(&m3508_fdcan1[2], 2.0f, 10.0f, 0.5f, 2.0f);
 
   /* Infinite loop */
   for(;;)
   {
     arm_joint_state_update(&arm);
-    arm_gravity_comp(&arm, 0.60f, 3000.0f);
-// //此处输出表示为输出轴电流(力矩)
-    if(m3508_fdcan1[0].Initial_flag == 200 && A1_debug_485_2[1].Pos_init_flag == 200)
-    {
-      // m3508_fdcan1[0].Current_Output = (int16_t)(arm.joint_torque_gc[1]/0.3f/10.0f*8192.0f);
-      // m3508_fdcan1[0].Current_Output = 0;
-      // A1_debug_485_2[1].target.T = arm.joint_torque_gc[0] / 9.1f;
-    }
+    arm_route_point_calculate(&arm);
 
+		if(debug_flag == 1)
+    {
+      arm_actuator_stable_control(&arm, PI/2.0f, 0.0f);
+    }
+    // arm_gravity_comp(&arm, 0.60f, 3000.0f);
+// //此处输出表示为输出轴电流(力矩)
     // if(m3508_fdcan1[0].Initial_flag == 200 && A1_debug_485_2[1].Pos_init_flag == 200)
     // {
-    //   if(A1_debug_485_2[1].target.Change_Start_Position == 1)
+    //   // m3508_fdcan1[0].Current_Output = (int16_t)(arm.joint_torque_gc[1]/0.3f/10.0f*8192.0f);
+    //   // m3508_fdcan1[0].Current_Output = 0;
+    //   // A1_debug_485_2[1].target.T = arm.joint_torque_gc[0] / 9.1f;
+    // }
+    // if(m3508_fdcan1[0].Initial_flag == 200 && A1_debug_485_2[1].Pos_init_flag == 200)
+    // {
+    //   if(debug_flag == 0)
     //   {
-    //     A1_debug_485_2[1].target.Change_Start_Position = 0;
-    //     A1_debug_485_2[1].target.Start_Position = A1_debug_485_2[1].measure.Pos;
+    //     arm_joint_state_init(&arm);
     //   }
-    //   else
+    //   if(debug_flag == 1)
     //   {
-    //     if(debug_flag == 1)
+    //     if(arm_route_reachable_check(&arm) == IK_REACHABLE)
     //     {
-    //       A1_Motor_Position_Improved_Control(&A1_debug_485_2[1], 15.0f, A1_debug_485_2[1].measure.Pos, A1_debug_485_2[1].target.Start_Position, PI/2.0f, 1.0f);
+    //       arm_route_execute(&arm);
+    //     }      
+    //     else 
+    //     {
+    //       //TODO目标点不可达时的处理，目前先简单地不执行路径控制
     //     }
     //   }
-    if(debug_flag == 1)
-    {
-      // A1_Motor_Position_Control(&A1_debug_485_2[1], PI/2.0f, 20.0f, 0.02f);
-      m3508_anglesum_control(&m3508_fdcan1[0], (int32_t)(debug_position/(PI/2.0f)*100000.0f), 8192);
-
-    }
+    // }
 
 
     osDelay(1);

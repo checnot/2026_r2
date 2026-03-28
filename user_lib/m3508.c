@@ -116,7 +116,7 @@ void M3508_Return_Process(FDCAN_RxHeaderTypeDef* RxHeader, uint8_t Data[], M3508
 /**
  * @brief m3508电机参数初始化函数，可以初始化电机的速度环，位置环的kp,kd参数
 */
-void M3508_Parameter_Init(M3508_Motor_Struct *Motor, float K_p_speed, float K_d_speed, float K_p_angle, float K_d_angle)
+void m3508_parameter_init(M3508_Motor_Struct *Motor, float K_p_speed, float K_d_speed, float K_p_angle, float K_d_angle)
 {
     Motor->M3508_Speed_PID.Kp = K_p_speed;
     Motor->M3508_Speed_PID.Kd = K_d_speed;

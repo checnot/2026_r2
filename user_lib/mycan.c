@@ -57,7 +57,7 @@ FDCAN_FilterTypeDef FDCAN_Default_FilterConfig_2;
 FDCAN_FilterTypeDef FDCAN_Default_FilterConfig_3;
 
 /**
- * @brief 所有FDCAN的初始化，包括过滤器的配置以及开启CAN
+ * @brief 所有FDCAN的初始化，包括过滤器的配置以及开启所有的CAN
 */
 void FDCan_Start(FDCAN_FilterTypeDef *FDCAN_FilterConfig_1)
 {
