@@ -210,9 +210,19 @@ void entry_robotic_arm(void const * argument)
     arm_joint_state_update(&arm);
     arm_route_point_calculate(&arm);
 
+//发现气泵和遥控器开关的通信有问题，暂时注释掉气泵控制代码
+		// if(HT10A.switch_b == 1)
+    // {
+    //   HAL_GPIO_WritePin(ARM_AIR_PUMP_GPIO_Port, ARM_AIR_PUMP_Pin, GPIO_PIN_SET);
+    // }
+    // else
+    // {
+    //   HAL_GPIO_WritePin(ARM_AIR_PUMP_GPIO_Port, ARM_AIR_PUMP_Pin, GPIO_PIN_RESET);
+    // }
+		
 		if(debug_flag == 1)
     {
-      arm_actuator_stable_control(&arm, PI/2.0f, 0.0f);
+      arm_actuator_stable_control(&arm, 0.0f, 0.0f);
     }
     // arm_gravity_comp(&arm, 0.60f, 3000.0f);
 // //此处输出表示为输出轴电流(力矩)
@@ -222,25 +232,33 @@ void entry_robotic_arm(void const * argument)
     //   // m3508_fdcan1[0].Current_Output = 0;
     //   // A1_debug_485_2[1].target.T = arm.joint_torque_gc[0] / 9.1f;
     // }
-    // if(m3508_fdcan1[0].Initial_flag == 200 && A1_debug_485_2[1].Pos_init_flag == 200)
-    // {
-    //   if(debug_flag == 0)
-    //   {
-    //     arm_joint_state_init(&arm);
-    //   }
-    //   if(debug_flag == 1)
-    //   {
-    //     if(arm_route_reachable_check(&arm) == IK_REACHABLE)
-    //     {
-    //       arm_route_execute(&arm);
-    //     }      
-    //     else 
-    //     {
-    //       //TODO目标点不可达时的处理，目前先简单地不执行路径控制
-    //     }
-    //   }
-    // }
-
+    if(m3508_fdcan1[0].Initial_flag == 200 && A1_debug_485_2[1].Pos_init_flag == 200)
+    {
+      if(debug_flag == 0)
+      {
+        arm_joint_state_init(&arm);
+      }
+      if(debug_flag == 1)
+      {
+        if(arm_route_reachable_check(&arm) == IK_REACHABLE)
+        {
+          arm_route_execute(&arm);
+        }      
+        else 
+        {
+          //TODO目标点不可达时的处理，目前先简单地不执行路径控制
+        }
+      }
+    }
+    if(HT10A.right_x !=0 || HT10A.right_y != 0)
+    {
+      arm.x0_target += 0.0001f * arm_cos_f32(atan2f((float)HT10A.right_y, (float)HT10A.right_x));
+      arm.y0_target += 0.0001f * arm_sin_f32(atan2f((float)HT10A.right_y, (float)HT10A.right_x));
+    }
+    else
+    {
+      
+    }
 
     osDelay(1);
   }

@@ -75,11 +75,15 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 */
 void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
 {
+	uint32_t status_value;
+	status_value = taskENTER_CRITICAL_FROM_ISR(); // 临界段代码保护
+
+    __HAL_UART_CLEAR_FLAG(huart, UART_CLEAR_OREF | UART_CLEAR_NEF | UART_CLEAR_FEF | UART_CLEAR_PEF);
     if(huart->Instance == USART1) 
     {
         memset(a1_usart1_raw_recv.RX_pData, 0, sizeof(a1_usart1_raw_recv.RX_pData));
-		HAL_UARTEx_ReceiveToIdle_DMA(&huart1, a1_usart1_raw_recv.RX_pData, RX_LEN1);
-		__HAL_DMA_DISABLE_IT(&hdma_usart1_rx, DMA_IT_HT);
+        HAL_UARTEx_ReceiveToIdle_DMA(&huart1, a1_usart1_raw_recv.RX_pData, RX_LEN1);
+        __HAL_DMA_DISABLE_IT(&hdma_usart1_rx, DMA_IT_HT);
     }
     if(huart->Instance == UART9)
     {
@@ -87,5 +91,13 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
         HAL_UARTEx_ReceiveToIdle_DMA(&huart9, a1_usart9_raw_recv.RX_pData, RX_LEN1);
         __HAL_DMA_DISABLE_IT(&hdma_uart9_rx, DMA_IT_HT);
     }
+    if(huart->Instance == UART8)
+    {
+        memset(ht10a_buffer, 0, sizeof(ht10a_buffer));
+        HAL_UARTEx_ReceiveToIdle_DMA(&huart8, ht10a_buffer, sizeof(ht10a_buffer));
+        __HAL_DMA_DISABLE_IT(&hdma_uart8_rx,DMA_IT_HT);
+    }
+
+    taskEXIT_CRITICAL_FROM_ISR(status_value); // 退出临界段
 }
 
