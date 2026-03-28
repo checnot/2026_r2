@@ -90,11 +90,11 @@ void clamp_open_control(uint8_t open_flag)
 {
     if (open_flag)
     {
-        HAL_GPIO_WritePin(GPIOE, GPIO_PIN_4, GPIO_PIN_SET); // 打开夹爪
+        HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_SET); // 打开夹爪
     }
     else
     {
-        HAL_GPIO_WritePin(GPIOE, GPIO_PIN_4, GPIO_PIN_RESET); // 关闭夹爪
+        HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_RESET); // 关闭夹爪
     }
    
 }

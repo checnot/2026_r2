@@ -34,11 +34,11 @@ void chassis_lift_front_control(uint8_t lift_front)
 {
     if (lift_front)
     {
-        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_SET); // 打开前端气泵
+        HAL_GPIO_WritePin(GPIOD, GPIO_PIN_3, GPIO_PIN_SET); // 打开前端气泵
     }
     else
     {
-        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_RESET); // 关闭前端气泵
+        HAL_GPIO_WritePin(GPIOD, GPIO_PIN_3, GPIO_PIN_RESET); // 关闭前端气泵
     }
    
 }

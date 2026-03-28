@@ -72,7 +72,7 @@ uint8_t lift_whole_flag;
 /* USER CODE END Variables */
 osThreadId defaultTaskHandle;
 osThreadId robotic_armHandle;
-osThreadId myTask03Handle;
+osThreadId chassisHandle;
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -81,7 +81,7 @@ osThreadId myTask03Handle;
 
 void StartDefaultTask(void const * argument);
 void entry_robotic_arm(void const * argument);
-void StartTask03(void const * argument);
+void entry_chassis(void const * argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -136,9 +136,9 @@ void MX_FREERTOS_Init(void) {
   osThreadDef(robotic_arm, entry_robotic_arm, osPriorityIdle, 0, 256);
   robotic_armHandle = osThreadCreate(osThread(robotic_arm), NULL);
 
-  /* definition and creation of myTask03 */
-  osThreadDef(myTask03, StartTask03, osPriorityIdle, 0, 128);
-  myTask03Handle = osThreadCreate(osThread(myTask03), NULL);
+  /* definition and creation of chassis */
+  osThreadDef(chassis, entry_chassis, osPriorityIdle, 0, 128);
+  chassisHandle = osThreadCreate(osThread(chassis), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -229,28 +229,22 @@ void entry_robotic_arm(void const * argument)
   /* USER CODE END entry_robotic_arm */
 }
 
-/* USER CODE BEGIN Header_StartTask03 */
+/* USER CODE BEGIN Header_entry_chassis */
 /**
-* @brief Function implementing the myTask03 thread.
+* @brief Function implementing the chassis thread.
 * @param argument: Not used
 * @retval None
 */
-/* USER CODE END Header_StartTask03 */
-void StartTask03(void const *argument)
+/* USER CODE END Header_entry_chassis */
+void entry_chassis(void const * argument)
 {
-  /* USER CODE BEGIN StartTask03 */
+  /* USER CODE BEGIN entry_chassis */
   /* Infinite loop */
-  for (;;)
+  for(;;)
   {
-    chassis_lift_front_control(lift_front_flag);
-    chassis_lift_back_control(lift_back_flag);
-    clamp_open_control(clamp_open_flag);
-    clamp_lift_control(debug_lift, &m3508_fdcan2[1]);
-    clamp_extend_control(debug_extern, &m3508_fdcan2[2]);
-    clamp_rotate_control(debug_rotate, &m3508_fdcan2[3]);
     osDelay(1);
   }
-  /* USER CODE END StartTask03 */
+  /* USER CODE END entry_chassis */
 }
 
 /* Private application code --------------------------------------------------*/
