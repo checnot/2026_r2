@@ -37,7 +37,6 @@
 #include "a1_motor.h"
 #include "ht10a.h"
 #include "hi14.h"
-#include "clamp.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/

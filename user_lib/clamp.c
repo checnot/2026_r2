@@ -21,7 +21,7 @@ void clamp_position_init(M3508_Motor_Struct *lift_motor, M3508_Motor_Struct *rot
     uint8_t init_flag = 1;
     while (init_flag)
     {
-        m3508_control_speed(lift_motor, 5000, 10000); // 以较大速度向上移动
+        m3508__speed(lift_motor, 5000, 10000); // 以较大速度向上移动
         HAL_Delay(15);
         if (lift_motor->Now_Speed < 100)
         {

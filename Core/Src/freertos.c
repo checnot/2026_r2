@@ -37,7 +37,6 @@
 #include "arm_math.h"
 #include "robotic_arm.h"
 #include "chassis.h"
-#include "clamp.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
