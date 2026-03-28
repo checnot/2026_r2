@@ -62,8 +62,6 @@ void Error_Handler(void);
 #define RE_2_1_GPIO_Port GPIOD
 #define RE_2_2_Pin GPIO_PIN_8
 #define RE_2_2_GPIO_Port GPIOC
-#define RELAY_AIRPUMP_Pin GPIO_PIN_8
-#define RELAY_AIRPUMP_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 

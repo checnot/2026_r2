@@ -704,6 +704,11 @@
               <FileType>1</FileType>
               <FilePath>..\user_lib\chassis.c</FilePath>
             </File>
+            <File>
+              <FileName>clamp.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\user_lib\clamp.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
