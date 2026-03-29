@@ -34,11 +34,11 @@ void chassis_lift_front_control(uint8_t lift_front)
 {
     if (lift_front)
     {
-        HAL_GPIO_WritePin(GPIOD, GPIO_PIN_3, GPIO_PIN_SET); // 打开前端气泵
+        HAL_GPIO_WritePin(GPIOE, GPIO_PIN_5, GPIO_PIN_SET); // 打开前端气泵
     }
     else
     {
-        HAL_GPIO_WritePin(GPIOD, GPIO_PIN_3, GPIO_PIN_RESET); // 关闭前端气泵
+        HAL_GPIO_WritePin(GPIOE, GPIO_PIN_5, GPIO_PIN_RESET); // 关闭前端气泵
     }
    
 }
@@ -50,11 +50,11 @@ void chassis_lift_back_control(uint8_t lift_back)
 {
     if (lift_back)
     {
-        HAL_GPIO_WritePin(GPIOD, GPIO_PIN_1, GPIO_PIN_SET); // 打开后端气泵
+        HAL_GPIO_WritePin(GPIOD, GPIO_PIN_4, GPIO_PIN_SET); // 打开后端气泵
     }
     else
     {
-        HAL_GPIO_WritePin(GPIOD, GPIO_PIN_1, GPIO_PIN_RESET); // 关闭后端气泵
+        HAL_GPIO_WritePin(GPIOD, GPIO_PIN_4, GPIO_PIN_RESET); // 关闭后端气泵
     }
 }   
 /**

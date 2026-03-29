@@ -278,6 +278,83 @@ void entry_chassis(void const * argument)
   /* Infinite loop */
   for(;;)
   {
+//     if(HT10A.switch_d == 1)//遥控器控制夹爪
+//     {
+//       //switch_b控制夹爪开合，
+//       if(HT10A.switch_b == -1)
+//       {
+//         clamp_open_flag = 1;
+//       }
+//       else if(HT10A.switch_b == 1)
+//       {
+//         clamp_open_flag = 0;
+//       }
+//       clamp_open_control(clamp_open_flag);
+//       //switch_a控制夹爪伸缩，-1为伸出，1为收回
+//       if (HT10A.switch_a == -1)
+//       {
+//         clamp_extend_control(CLAMP_EXTEND_MAX_POSITION, &m3508_fdcan2[2]);
+//       }
+//       else if (HT10A.switch_a)
+//       {
+//         clamp_extend_control(0,&m3508_fdcan2[2]);
+//       }
+//       //switch_c控制夹爪旋转，-1为顺时针旋转，1为逆时针旋转
+//       if (HT10A.switch_c == -1)
+//       {
+//         clamp_rotate_control(CLAMP_ROTATE_MAX_POSITION, &m3508_fdcan2[3]);
+//       }
+//       else if (HT10A.switch_c == 1)
+//       {
+//         clamp_rotate_control(0, &m3508_fdcan2[3]);
+//       }
+// 			m3508_speed_control(&m3508_fdcan2[1],HT10A.left_y,10000);
+// //      if (HT10A.left_y < 0)
+// //      {
+// //        m3508_anglesum_control(&m3508_fdcan2[1], CLAMP_LIFT_SPECIAL_POSITION1, 10000); // 抓取矛头位置
+// //      }
+// //      else if (HT10A.left_y > 0)
+// //      {
+// //       m3508_anglesum_control(&m3508_fdcan2[1], CLAMP_LIFT_SPECIAL_POSITION2, 10000); // 抓取矛头后抬起位置 
+// //      }
+// //      if (HT10A.right_y < 0)
+// //      {
+// //        m3508_anglesum_control(&m3508_fdcan2[1], CLAMP_LIFT_MAX_POSITION, 10000); // 下降到底位置
+// //      }
+// //      else if (HT10A.right_y > 0)
+// //      {
+// //        m3508_anglesum_control(&m3508_fdcan2[1], 0, 10000); // 升到初始位置
+// //      }
+    // }
+		 //遥控器控制底盘模式
+      if(HT10A.switch_d == 0)
+      {
+        chassis.vx = HT10A.left_y;
+        chassis.vy = -HT10A.left_x;
+        chassis.vw = -HT10A.right_x;
+        if(HT10A.switch_b == 1)
+        {
+          chassis.lift_front = 0;
+        }
+        else
+        {
+          chassis.lift_front = 1;
+        }
+        if(HT10A.switch_c == 1)
+        {
+          chassis.lift_back = 0;
+        }
+        else
+        {
+          chassis.lift_back = 1;
+        }
+       
+        chassis_lift_front_control(chassis.lift_front);
+        chassis_lift_back_control(chassis.lift_back);
+        omni_chassis_calculate(&chassis, chassis.vx, chassis.vy, chassis.vw);
+      }
+      
+     
     osDelay(1);
   }
   /* USER CODE END entry_chassis */

@@ -58,8 +58,6 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define ARM_AIR_PUMP_Pin GPIO_PIN_6
-#define ARM_AIR_PUMP_GPIO_Port GPIOE
 #define RE_2_1_Pin GPIO_PIN_8
 #define RE_2_1_GPIO_Port GPIOD
 #define RE_2_2_Pin GPIO_PIN_8

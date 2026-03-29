@@ -23,7 +23,7 @@ void clamp_position_init(M3508_Motor_Struct *lift_motor, M3508_Motor_Struct *rot
     {
         m3508_speed_control(lift_motor, 5000, 10000); // 以较大速度向上移动
         HAL_Delay(15);
-        if (lift_motor->Now_Speed < 100)
+        if (lift_motor->Now_Speed < 2000)
         {
             init_flag = 0;
         }
@@ -90,11 +90,11 @@ void clamp_open_control(uint8_t open_flag)
 {
     if (open_flag)
     {
-        HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_SET); // 打开夹爪
+        HAL_GPIO_WritePin(GPIOE, GPIO_PIN_4, GPIO_PIN_SET); // 打开夹爪
     }
     else
     {
-        HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_RESET); // 关闭夹爪
+        HAL_GPIO_WritePin(GPIOE, GPIO_PIN_4, GPIO_PIN_RESET); // 关闭夹爪
     }
    
 }
