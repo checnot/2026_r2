@@ -5,6 +5,43 @@ uint8_t ht10a_buffer[30];				//遥控器原始数据
 
 REMOTE_STU HT10A;
 
+/*=================================客制化判断逻辑===============================================*/
+
+#include "clamp.h"
+#include "chassis.h"
+
+/**
+ * @brief 用户自定义判断函数，根据遥控器输入的状态进行相应的操作，一般直接插入ht10a_process中调用，切换项目时可注销
+*/
+void customized_judgment(void)
+{
+  //底盘控制部分
+  if(HT10A.switch_d == 0)
+  {
+    //前半车身升降部分
+    if(HT10A.switch_b == 1 && HT10A.last_status.switch_b_last == -1)      {chassis_r2.lift_front = 1;}    
+    else if(HT10A.switch_b == -1 && HT10A.last_status.switch_b_last == 1) {chassis_r2.lift_front = 0;}
+    //后半车身升降部分
+    if(HT10A.switch_c == 1 && HT10A.last_status.switch_c_last == -1)      {chassis_r2.lift_back = 1;}    
+    else if(HT10A.switch_c == -1 && HT10A.last_status.switch_c_last == 1) {chassis_r2.lift_back = 0;}
+  }
+  //夹爪控制部分
+  if(HT10A.switch_d == -1)
+  {
+    //夹爪抓取/松开
+    if(HT10A.switch_b == 1 && HT10A.last_status.switch_b_last == -1)      {clamp.catch_flag = 1;}    
+    else if(HT10A.switch_b == -1 && HT10A.last_status.switch_b_last == 1) {clamp.catch_flag = 0;}
+    //夹爪旋转
+    if(HT10A.knob_a >=1000 && HT10A.last_status.knob_a_last < 1000)           {clamp.rotate_flag = 1;}
+    else if (HT10A.knob_a <= -1000 && HT10A.last_status.knob_a_last > -1000)  {clamp.rotate_flag = 0;}
+    //夹爪伸缩
+    if(HT10A.switch_c == 1 && HT10A.last_status.switch_c_last == -1)      {clamp.retractable_flag = 1;}    
+    else if(HT10A.switch_c == -1 && HT10A.last_status.switch_c_last == 1) {clamp.retractable_flag = 0;}
+  }
+
+}
+
+/*================================客制化判断逻辑================================================*/
 /**
  * 接受HT10A的数据并进行处理
  * @param buffer用于接收原始数据
@@ -76,16 +113,10 @@ void HT10A_process(uint8_t buffer[30])
   HT10A.knob_a = (_channels[8] - 992) * 10;
   HT10A.knob_b = (_channels[9] - 992) * 10;
 
+
 /*=========================以下为特定判断逻辑，移植时可注释==================================*/
 
-  // if(HT10A.switch_a == 1 && HT10A.last_status.switch_a_last == 0)
-  // {
-  //     jump_flag_debug = 1;
-  // }
-  // else
-  // {
-  //     jump_flag_debug = 0;
-  // }
+  customized_judgment();
 
 }
 

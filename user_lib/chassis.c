@@ -1,6 +1,6 @@
 #include "chassis.h"
 
-chassis_stu chassis;//r2底盘结构体
+chassis_stu chassis_r2;//r2底盘结构体
 
 /**
  * @brief 全向底盘运动学计算函数，根据输入的vx、vy、vw计算底盘各电机的目标速度
@@ -27,38 +27,38 @@ void omni_chassis_calculate(chassis_stu *chassis, float vx, float vy, float vw)
 }
 
 /**
- * @brief 底盘前端升降控制函数，根据输入的升降状态控制底盘前端气泵的开合
+ * @brief 底盘前端升降控制函数，根据输入的升降状态控制底盘前端气缸的开合
  * @param lift_front 前端升降状态，0代表收回，1代表推出
  */
 void chassis_lift_front_control(uint8_t lift_front)
 {
     if (lift_front)
     {
-        HAL_GPIO_WritePin(GPIOE, GPIO_PIN_5, GPIO_PIN_SET); // 打开前端气泵
+        HAL_GPIO_WritePin(GPIOE, GPIO_PIN_5, GPIO_PIN_SET); // 打开前端气缸
     }
     else
     {
-        HAL_GPIO_WritePin(GPIOE, GPIO_PIN_5, GPIO_PIN_RESET); // 关闭前端气泵
+        HAL_GPIO_WritePin(GPIOE, GPIO_PIN_5, GPIO_PIN_RESET); // 关闭前端气缸
     }
    
 }
 /**
- * @brief 底盘后端升降控制函数，根据输入的升降状态控制底盘后端气泵的开合
+ * @brief 底盘后端升降控制函数，根据输入的升降状态控制底盘后端气缸的开合
  * @param lift_back 后端升降状态，0代表收回，1代表推出
  */
 void chassis_lift_back_control(uint8_t lift_back)
 {
     if (lift_back)
     {
-        HAL_GPIO_WritePin(GPIOD, GPIO_PIN_4, GPIO_PIN_SET); // 打开后端气泵
+        HAL_GPIO_WritePin(GPIOD, GPIO_PIN_4, GPIO_PIN_SET); // 打开后端气缸
     }
     else
     {
-        HAL_GPIO_WritePin(GPIOD, GPIO_PIN_4, GPIO_PIN_RESET); // 关闭后端气泵
+        HAL_GPIO_WritePin(GPIOD, GPIO_PIN_4, GPIO_PIN_RESET); // 关闭后端气缸
     }
 }   
 /**
- * @brief 底盘升降控制函数，根据输入的升降状态控制底盘前后端气泵的开合
+ * @brief 底盘升降控制函数，根据输入的升降状态控制底盘前后端气缸的开合
  * @param lift_mode 同时升降与前后分开升降两种模式,0代表同时升降，1代表前后分开升降
  * @param lift_front_flag 前端升降状态，0代表收回，1代表推出
  * @param lift_back_flag 后端升降状态，0代表收回，1代表推出

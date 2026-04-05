@@ -67,19 +67,21 @@ float debug_start_position = 0;
 float debug_theta3;
 float debug_theta4;
 
-int32_t debug_lift;
-int32_t debug_extern;
-int32_t debug_rotate;
-uint8_t clamp_open_flag;
-//底盘升降控制相关变量
-uint8_t lift_mode;
-uint8_t lift_front_flag;
-uint8_t lift_back_flag;
-uint8_t lift_whole_flag;
+// int32_t debug_lift;
+// int32_t debug_extern;
+// int32_t debug_rotate;
+// uint8_t clamp_open_flag;
+// //底盘升降控制相关变量
+// uint8_t lift_mode;
+// uint8_t lift_front_flag;
+// uint8_t lift_back_flag;
+// uint8_t lift_whole_flag;
+
 /* USER CODE END Variables */
 osThreadId defaultTaskHandle;
-osThreadId robotic_armHandle;
-osThreadId chassisHandle;
+osThreadId roboticarm_taskHandle;
+osThreadId chassis_taskHandle;
+osThreadId clamp_taskHandle;
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -89,6 +91,7 @@ osThreadId chassisHandle;
 void StartDefaultTask(void const * argument);
 void entry_robotic_arm(void const * argument);
 void entry_chassis(void const * argument);
+void entry_clamp(void const * argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -136,16 +139,20 @@ void MX_FREERTOS_Init(void) {
 
   /* Create the thread(s) */
   /* definition and creation of defaultTask */
-  osThreadDef(defaultTask, StartDefaultTask, osPriorityNormal, 0, 128);
+  osThreadDef(defaultTask, StartDefaultTask, osPriorityIdle, 0, 128);
   defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
 
-  /* definition and creation of robotic_arm */
-  osThreadDef(robotic_arm, entry_robotic_arm, osPriorityIdle, 0, 256);
-  robotic_armHandle = osThreadCreate(osThread(robotic_arm), NULL);
+  /* definition and creation of roboticarm_task */
+  osThreadDef(roboticarm_task, entry_robotic_arm, osPriorityNormal, 0, 256);
+  roboticarm_taskHandle = osThreadCreate(osThread(roboticarm_task), NULL);
 
-  /* definition and creation of chassis */
-  osThreadDef(chassis, entry_chassis, osPriorityIdle, 0, 128);
-  chassisHandle = osThreadCreate(osThread(chassis), NULL);
+  /* definition and creation of chassis_task */
+  osThreadDef(chassis_task, entry_chassis, osPriorityNormal, 0, 128);
+  chassis_taskHandle = osThreadCreate(osThread(chassis_task), NULL);
+
+  /* definition and creation of clamp_task */
+  osThreadDef(clamp_task, entry_clamp, osPriorityBelowNormal, 0, 128);
+  clamp_taskHandle = osThreadCreate(osThread(clamp_task), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -191,7 +198,7 @@ void StartDefaultTask(void const * argument)
 /**
 * @brief Function implementing the robotic_arm thread.
 * @param argument: Not used
-* @retval None
+* @retval None 
 */
 /* USER CODE END Header_entry_robotic_arm */
 void entry_robotic_arm(void const * argument)
@@ -200,9 +207,15 @@ void entry_robotic_arm(void const * argument)
 
   arm_joint_parameter_init(&arm);
 
-  m3508_parameter_init(&m3508_fdcan1[0], 2.0f, 10.0f, 0.5f, 2.0f);
-  m3508_parameter_init(&m3508_fdcan1[1], 2.0f, 10.0f, 0.5f, 2.0f);
-  m3508_parameter_init(&m3508_fdcan1[2], 2.0f, 10.0f, 0.5f, 2.0f);
+
+  
+  m3508_parameter_init(&m3508_fdcan1[0], 2.0f, 15.0f, 2.0f, 4.0f);
+  m3508_parameter_init(&m3508_fdcan1[1], 3.0f, 10.0f, 1.6f, 2.0f);
+  m3508_parameter_init(&m3508_fdcan1[2], 3.0f, 10.0f, 1.6f, 2.0f);
+
+  //预设控制位置
+  arm.x0_target = 0.15f;
+  arm.y0_target = 0.15f;
 
   /* Infinite loop */
   for(;;)
@@ -210,56 +223,23 @@ void entry_robotic_arm(void const * argument)
     arm_joint_state_update(&arm);
     arm_route_point_calculate(&arm);
 
-//发现气泵和遥控器开关的通信有问题，暂时注释掉气泵控制代码
-		// if(HT10A.switch_b == 1)
-    // {
-    //   HAL_GPIO_WritePin(ARM_AIR_PUMP_GPIO_Port, ARM_AIR_PUMP_Pin, GPIO_PIN_SET);
-    // }
-    // else
-    // {
-    //   HAL_GPIO_WritePin(ARM_AIR_PUMP_GPIO_Port, ARM_AIR_PUMP_Pin, GPIO_PIN_RESET);
-    // }
-		
-		if(debug_flag == 1)
-    {
-      arm_actuator_stable_control(&arm, 0.0f, 0.0f);
-    }
-    // arm_gravity_comp(&arm, 0.60f, 3000.0f);
-// //此处输出表示为输出轴电流(力矩)
-    // if(m3508_fdcan1[0].Initial_flag == 200 && A1_debug_485_2[1].Pos_init_flag == 200)
-    // {
-    //   // m3508_fdcan1[0].Current_Output = (int16_t)(arm.joint_torque_gc[1]/0.3f/10.0f*8192.0f);
-    //   // m3508_fdcan1[0].Current_Output = 0;
-    //   // A1_debug_485_2[1].target.T = arm.joint_torque_gc[0] / 9.1f;
-    // }
+    //等待初始化完成
     if(m3508_fdcan1[0].Initial_flag == 200 && A1_debug_485_2[1].Pos_init_flag == 200)
-    {
-      if(debug_flag == 0)
+    {    
+    //保持执行器水平
+      arm_actuator_stable_control(&arm, arm.effector_pitch_target, arm.theta_target[4]);
+    //启动机械臂
+      if(HT10A.switch_d == 1)
+      {    
+        //遥控器控制
+        arm_remote_control();
+      }      
+    //在不操纵机械臂的情况下默认举起到竖直位置
+      else if(HT10A.switch_d == 0 || HT10A.switch_d == -1)
       {
         arm_joint_state_init(&arm);
       }
-      if(debug_flag == 1)
-      {
-        if(arm_route_reachable_check(&arm) == IK_REACHABLE)
-        {
-          arm_route_execute(&arm);
-        }      
-        else 
-        {
-          //TODO目标点不可达时的处理，目前先简单地不执行路径控制
-        }
-      }
     }
-    if(HT10A.right_x !=0 || HT10A.right_y != 0)
-    {
-      arm.x0_target += 0.0001f * arm_cos_f32(atan2f((float)HT10A.right_y, (float)HT10A.right_x));
-      arm.y0_target += 0.0001f * arm_sin_f32(atan2f((float)HT10A.right_y, (float)HT10A.right_x));
-    }
-    else
-    {
-      
-    }
-
     osDelay(1);
   }
   /* USER CODE END entry_robotic_arm */
@@ -267,7 +247,7 @@ void entry_robotic_arm(void const * argument)
 
 /* USER CODE BEGIN Header_entry_chassis */
 /**
-* @brief Function implementing the chassis thread.
+* @brief Function implementing the chassis_r2 thread.
 * @param argument: Not used
 * @retval None
 */
@@ -275,89 +255,113 @@ void entry_robotic_arm(void const * argument)
 void entry_chassis(void const * argument)
 {
   /* USER CODE BEGIN entry_chassis */
+  m3508_parameter_init(&m3508_fdcan3[0], 2.5f, 1.0f, 0.0f, 0.0f);
+  m3508_parameter_init(&m3508_fdcan3[1], 2.5f, 1.0f, 0.0f, 0.0f);
+  m3508_parameter_init(&m3508_fdcan3[2], 2.5f, 1.0f, 0.0f, 0.0f);
+  m3508_parameter_init(&m3508_fdcan3[3], 2.5f, 1.0f, 0.0f, 0.0f);
+
+  chassis_r2.lift_front = 0;
+  chassis_r2.lift_back = 0;
+  chassis_lift_front_control(chassis_r2.lift_front);
+  chassis_lift_back_control(chassis_r2.lift_back);
+
   /* Infinite loop */
   for(;;)
   {
-//     if(HT10A.switch_d == 1)//遥控器控制夹爪
-//     {
-//       //switch_b控制夹爪开合，
-//       if(HT10A.switch_b == -1)
-//       {
-//         clamp_open_flag = 1;
-//       }
-//       else if(HT10A.switch_b == 1)
-//       {
-//         clamp_open_flag = 0;
-//       }
-//       clamp_open_control(clamp_open_flag);
-//       //switch_a控制夹爪伸缩，-1为伸出，1为收回
-//       if (HT10A.switch_a == -1)
-//       {
-//         clamp_extend_control(CLAMP_EXTEND_MAX_POSITION, &m3508_fdcan2[2]);
-//       }
-//       else if (HT10A.switch_a)
-//       {
-//         clamp_extend_control(0,&m3508_fdcan2[2]);
-//       }
-//       //switch_c控制夹爪旋转，-1为顺时针旋转，1为逆时针旋转
-//       if (HT10A.switch_c == -1)
-//       {
-//         clamp_rotate_control(CLAMP_ROTATE_MAX_POSITION, &m3508_fdcan2[3]);
-//       }
-//       else if (HT10A.switch_c == 1)
-//       {
-//         clamp_rotate_control(0, &m3508_fdcan2[3]);
-//       }
-// 			m3508_speed_control(&m3508_fdcan2[1],HT10A.left_y,10000);
-// //      if (HT10A.left_y < 0)
-// //      {
-// //        m3508_anglesum_control(&m3508_fdcan2[1], CLAMP_LIFT_SPECIAL_POSITION1, 10000); // 抓取矛头位置
-// //      }
-// //      else if (HT10A.left_y > 0)
-// //      {
-// //       m3508_anglesum_control(&m3508_fdcan2[1], CLAMP_LIFT_SPECIAL_POSITION2, 10000); // 抓取矛头后抬起位置 
-// //      }
-// //      if (HT10A.right_y < 0)
-// //      {
-// //        m3508_anglesum_control(&m3508_fdcan2[1], CLAMP_LIFT_MAX_POSITION, 10000); // 下降到底位置
-// //      }
-// //      else if (HT10A.right_y > 0)
-// //      {
-// //        m3508_anglesum_control(&m3508_fdcan2[1], 0, 10000); // 升到初始位置
-// //      }
-    // }
-		 //遥控器控制底盘模式
+    if(m3508_fdcan3[0].Initial_flag == 200 && m3508_fdcan3[1].Initial_flag == 200 
+      && m3508_fdcan3[2].Initial_flag == 200 && m3508_fdcan3[3].Initial_flag == 200)
+    {
+      //switch_d为0时控制底盘
       if(HT10A.switch_d == 0)
       {
-        chassis.vx = HT10A.left_y;
-        chassis.vy = -HT10A.left_x;
-        chassis.vw = -HT10A.right_x;
-        if(HT10A.switch_b == 1)
-        {
-          chassis.lift_front = 0;
-        }
-        else
-        {
-          chassis.lift_front = 1;
-        }
-        if(HT10A.switch_c == 1)
-        {
-          chassis.lift_back = 0;
-        }
-        else
-        {
-          chassis.lift_back = 1;
-        }
-       
-        chassis_lift_front_control(chassis.lift_front);
-        chassis_lift_back_control(chassis.lift_back);
-        omni_chassis_calculate(&chassis, chassis.vx, chassis.vy, chassis.vw);
+        chassis_r2.vx = HT10A.left_y;
+        chassis_r2.vy = -HT10A.left_x;
+        chassis_r2.vw = -HT10A.right_x;
+        //遥控器按钮控制升降!!!!!!!!!!已将切换逻辑转移至ht10a.c中，避免了升降状态与底盘控制状态的耦合
+        // if(HT10A.switch_b == 1)       {chassis_r2.lift_front = 1;}
+        // else if(HT10A.switch_b == -1) {chassis_r2.lift_front = 0;}
+        // if(HT10A.switch_c == 1)       {chassis_r2.lift_back = 1;}
+        // else if(HT10A.switch_c == -1) {chassis_r2.lift_back = 0;}
+        chassis_lift_front_control(chassis_r2.lift_front);
+        chassis_lift_back_control(chassis_r2.lift_back);
+        omni_chassis_calculate(&chassis_r2, chassis_r2.vx, chassis_r2.vy, chassis_r2.vw);
       }
-      
-     
+      //当不主动控制底盘时，默认停止底盘，但升降状态保留
+      else if(HT10A.switch_d == 1 || HT10A.switch_d == -1)
+      {
+        chassis_r2.vx = 0;
+        chassis_r2.vy = 0;
+        chassis_r2.vw = 0;
+        chassis_lift_front_control(chassis_r2.lift_front);
+        chassis_lift_back_control(chassis_r2.lift_back);
+        omni_chassis_calculate(&chassis_r2, chassis_r2.vx, chassis_r2.vy, chassis_r2.vw);
+      }
+    }
     osDelay(1);
   }
   /* USER CODE END entry_chassis */
+}
+
+/* USER CODE BEGIN Header_entry_clamp */
+/**
+* @brief Function implementing the clamp_task thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_entry_clamp */
+void entry_clamp(void const * argument)
+{
+  /* USER CODE BEGIN entry_clamp */
+
+  //夹爪电机初始化
+	m3508_parameter_init(&m3508_fdcan2[0],5,2,0.5,0.2);
+  m3508_parameter_init(&m3508_fdcan2[1],5,2,0.5,0.2);
+  m3508_parameter_init(&m3508_fdcan2[2],5,2,0.5,0.2);
+	m3508_parameter_init(&m3508_fdcan2[3],5,2,0.5,0.2);
+  //标志位初始化
+  clamp.catch_flag = 0;
+  clamp.rotate_flag = 0;
+  clamp.retractable_flag = 0;
+  clamp.lift_flag = 0;
+
+  /* Infinite loop */
+  for(;;)
+  {
+    if(  m3508_fdcan2[1].Initial_flag == 200 
+      && m3508_fdcan2[2].Initial_flag == 200 && m3508_fdcan2[3].Initial_flag == 200)
+    {
+      if(HT10A.switch_d == -1)
+      {
+        //!!!!!!!!!!!!!!!该部分切换逻辑转移至ht10a.c中
+
+        //气缸驱动夹爪部分
+        // if      (HT10A.switch_b == 1) {clamp.catch_flag = 1;}
+        // else if (HT10A.switch_b == -1) {clamp.catch_flag = 0;}
+        clamp_open_control(clamp.catch_flag);
+        //夹爪旋转部分
+        // if      (HT10A.knob_a >=1000) {clamp.rotate_flag = 1;}
+        // else if (HT10A.knob_a <= -1000) {clamp.rotate_flag = 0;}
+        clamp_rotate_control(clamp.rotate_flag * CLAMP_ROTATE_MAX_POSITION, &m3508_fdcan2[3]);
+        //夹爪伸缩部分
+        // if      (HT10A.switch_c == 1) {clamp.retractable_flag = 1;}
+        // else if (HT10A.switch_c == -1) {clamp.retractable_flag = 0;}
+        clamp_extend_control(clamp.retractable_flag * CLAMP_EXTEND_MAX_POSITION, &m3508_fdcan2[2]);
+        //夹爪升降部分
+        if(abs_int16(HT10A.left_y) > 100){m3508_speed_control(&m3508_fdcan2[1], HT10A.left_y, 8192);}
+        else                             {m3508_speed_control(&m3508_fdcan2[1], 0, 8192);}
+      }
+      else if(HT10A.switch_d == 1 || HT10A.switch_d == 0)
+      {
+        clamp_open_control(clamp.catch_flag);
+        clamp_rotate_control(clamp.rotate_flag * CLAMP_ROTATE_MAX_POSITION, &m3508_fdcan2[3]);
+        clamp_extend_control(clamp.retractable_flag * CLAMP_EXTEND_MAX_POSITION, &m3508_fdcan2[2]);
+        m3508_speed_control(&m3508_fdcan2[1], 0, 8192);
+      }
+    }
+
+    osDelay(1);
+  }
+  /* USER CODE END entry_clamp */
 }
 
 /* Private application code --------------------------------------------------*/

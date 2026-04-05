@@ -124,16 +124,7 @@ int main(void)
   MX_UART8_Init();
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
-  // //夹爪电机初始化
-  // m3508_parameter_init(&m3508_fdcan2[1],6,4,0.5,0.2);
-	// m3508_parameter_init(&m3508_fdcan2[0],5,2,0.5,0.2);
-  // m3508_parameter_init(&m3508_fdcan2[2],5,2,0.5,0.2);
-	// m3508_parameter_init(&m3508_fdcan2[3],5,2,0.5,0.2);
-	//底盘电机初始化
-  m3508_parameter_init(&m3508_fdcan3[0], 2, 1, 0, 0);
-  m3508_parameter_init(&m3508_fdcan3[1], 2, 1, 0, 0);
-  m3508_parameter_init(&m3508_fdcan3[2], 2, 1, 0, 0);
-  m3508_parameter_init(&m3508_fdcan3[3], 2, 1, 0, 0);
+
   FDCan_Start(&FDCAN_Default_FilterConfig_1);//FDCAN初始化，配置过滤器并开启CAN
 
 //uart1-a1
