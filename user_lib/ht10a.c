@@ -3,18 +3,19 @@
 int16_t _channels[16];
 uint8_t ht10a_buffer[30];				//遥控器原始数据
 
-REMOTE_STU HT10A;
+REMOTE_STU HT10A;//在ht10a.c中定义的原始遥控器状态结构体
+REMOTE_STU HT10A_last = {0}; //在freertos.c中定义的遥控器last状态
 
 /*=================================客制化判断逻辑===============================================*/
-
 #include "clamp.h"
 #include "chassis.h"
-
+#include "robotic_arm.h"
 /**
  * @brief 用户自定义判断函数，根据遥控器输入的状态进行相应的操作，一般直接插入ht10a_process中调用，切换项目时可注销
 */
 void customized_judgment(void)
 {
+/* -------- 旧版代码（基于中断，易在应用层多次触发） --------
   //底盘控制部分
   if(HT10A.switch_d == 0)
   {
@@ -38,10 +39,57 @@ void customized_judgment(void)
     if(HT10A.switch_c == 1 && HT10A.last_status.switch_c_last == -1)      {clamp.retractable_flag = 1;}    
     else if(HT10A.switch_c == -1 && HT10A.last_status.switch_c_last == 1) {clamp.retractable_flag = 0;}
   }
+  //机械臂控制部分
+  if(HT10A.switch_d == 1)
+  {
+    //吸盘突进(无收回)
+    if(HT10A.last_status.switch_a_last == 0 && HT10A.switch_a == 1)
+    {
+      arm.x0_target += 0.1f;
+    }
+  }
+----------------------------------------------------------- */
+
+  // ====== 以下为适配应用层 Task 轮询方案(1ms) 的新代码架构 ======
+  // 注意：如果想彻底解耦，建议把下面这部分代码剪切到 freertos.c 的 cmd_task 中运行
+  // 并且配合末尾的 HT10A_last = HT10A; 进行状态同步。不要在 ht10a_process() 中调用它。
+  
+  //底盘控制部分
+  if(HT10A.switch_d == 0)
+  {
+    //前半车身升降部分
+    if(HT10A_last.switch_b == -1 && HT10A.switch_b == 1)      {chassis_r2.lift_front = 1;}    
+    else if(HT10A_last.switch_b == 1 && HT10A.switch_b == -1) {chassis_r2.lift_front = 0;}
+    //后半车身升降部分
+    if(HT10A_last.switch_c == -1 && HT10A.switch_c == 1)      {chassis_r2.lift_back = 1;}    
+    else if(HT10A_last.switch_c == 1 && HT10A.switch_c == -1) {chassis_r2.lift_back = 0;}
+  }
+  //夹爪控制部分
+  if(HT10A.switch_d == -1)
+  {
+    //夹爪抓取/松开
+    if(HT10A_last.switch_b == -1 && HT10A.switch_b == 1)      {clamp.catch_flag = 1;}    
+    else if(HT10A_last.switch_b == 1 && HT10A.switch_b == -1) {clamp.catch_flag = 0;}
+    //夹爪旋转
+    if(HT10A_last.knob_a < 1000 && HT10A.knob_a >= 1000)      {clamp.rotate_flag = 1;}
+    else if(HT10A_last.knob_a > -1000 && HT10A.knob_a <= -1000) {clamp.rotate_flag = 0;}
+    //夹爪伸缩
+    if(HT10A_last.switch_c == -1 && HT10A.switch_c == 1)      {clamp.retractable_flag = 1;}    
+    else if(HT10A_last.switch_c == 1 && HT10A.switch_c == -1) {clamp.retractable_flag = 0;}
+  }
+  //机械臂控制部分
+  if(HT10A.switch_d == 1)
+  {
+    //吸盘突进(无收回)
+    // if(HT10A_last.switch_a == 0 && HT10A.switch_a == 1)
+    // {
+    //   arm.x0_target += 0.1f;
+    // }
+  }
 
 }
-
 /*================================客制化判断逻辑================================================*/
+
 /**
  * 接受HT10A的数据并进行处理
  * @param buffer用于接收原始数据
@@ -116,7 +164,7 @@ void HT10A_process(uint8_t buffer[30])
 
 /*=========================以下为特定判断逻辑，移植时可注释==================================*/
 
-  customized_judgment();
+  // customized_judgment();
 
 }
 

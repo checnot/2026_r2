@@ -59,29 +59,14 @@
 /* USER CODE BEGIN Variables */
 float debug_test_time;//用于测试的万能小变量
 
-int8_t debug_flag;
-int32_t debug_angle_sum;
-float debug_position;
-uint32_t debug_time_start;
-float debug_start_position = 0;
-float debug_theta3;
-float debug_theta4;
-
-// int32_t debug_lift;
-// int32_t debug_extern;
-// int32_t debug_rotate;
-// uint8_t clamp_open_flag;
-// //底盘升降控制相关变量
-// uint8_t lift_mode;
-// uint8_t lift_front_flag;
-// uint8_t lift_back_flag;
-// uint8_t lift_whole_flag;
+int32_t debug_flag;
 
 /* USER CODE END Variables */
 osThreadId defaultTaskHandle;
 osThreadId roboticarm_taskHandle;
 osThreadId chassis_taskHandle;
 osThreadId clamp_taskHandle;
+osThreadId cmd_taskHandle;
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -92,6 +77,7 @@ void StartDefaultTask(void const * argument);
 void entry_robotic_arm(void const * argument);
 void entry_chassis(void const * argument);
 void entry_clamp(void const * argument);
+void entry_cmd_task(void const * argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -143,16 +129,20 @@ void MX_FREERTOS_Init(void) {
   defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
 
   /* definition and creation of roboticarm_task */
-  osThreadDef(roboticarm_task, entry_robotic_arm, osPriorityNormal, 0, 256);
+  osThreadDef(roboticarm_task, entry_robotic_arm, osPriorityBelowNormal, 0, 256);
   roboticarm_taskHandle = osThreadCreate(osThread(roboticarm_task), NULL);
 
   /* definition and creation of chassis_task */
-  osThreadDef(chassis_task, entry_chassis, osPriorityNormal, 0, 128);
+  osThreadDef(chassis_task, entry_chassis, osPriorityBelowNormal, 0, 128);
   chassis_taskHandle = osThreadCreate(osThread(chassis_task), NULL);
 
   /* definition and creation of clamp_task */
   osThreadDef(clamp_task, entry_clamp, osPriorityBelowNormal, 0, 128);
   clamp_taskHandle = osThreadCreate(osThread(clamp_task), NULL);
+
+  /* definition and creation of cmd_task */
+  osThreadDef(cmd_task, entry_cmd_task, osPriorityNormal, 0, 128);
+  cmd_taskHandle = osThreadCreate(osThread(cmd_task), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -362,6 +352,31 @@ void entry_clamp(void const * argument)
     osDelay(1);
   }
   /* USER CODE END entry_clamp */
+}
+
+/* USER CODE BEGIN Header_entry_cmd_task */
+/**
+* @brief Function implementing the cmd_task thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_entry_cmd_task */
+void entry_cmd_task(void const * argument)
+{
+  /* USER CODE BEGIN entry_cmd_task */
+  /* Infinite loop */
+  for(;;)
+  {
+    // 1. 先比较：本地上一次记录的旧状态(HT10A_last) 和 最新的全局状态(HT10A)
+    customized_judgment(); //根据比较结果进行各种判断和操作，具体逻辑由用户在 ht10a.c 的 customized_judgment() 中编写
+
+    // 2. 后更新：判断完之后，再把最新的全局状态拷贝到本地，留作下一次循环(1ms后)对比使用
+    HT10A_last = HT10A;
+
+
+    osDelay(1);
+  }
+  /* USER CODE END entry_cmd_task */
 }
 
 /* Private application code --------------------------------------------------*/
