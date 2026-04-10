@@ -139,10 +139,10 @@ int main(void)
   memset(ht10a_buffer, 0, sizeof(ht10a_buffer));
   HAL_UARTEx_ReceiveToIdle_DMA(&huart8, ht10a_buffer, sizeof(ht10a_buffer));
   __HAL_DMA_DISABLE_IT(&hdma_uart8_rx, DMA_IT_HT);
-
+//uart10-hi14
   memset(dma_rx_buf, 0, sizeof(dma_rx_buf));
-  HAL_UARTEx_ReceiveToIdle_DMA(&huart6, dma_rx_buf, sizeof(dma_rx_buf));
-  __HAL_DMA_DISABLE_IT(&hdma_usart6_rx, DMA_IT_HT);
+  HAL_UARTEx_ReceiveToIdle_DMA(&huart10, dma_rx_buf, sizeof(dma_rx_buf));
+  __HAL_DMA_DISABLE_IT(&hdma_usart10_rx, DMA_IT_HT);
 
 //start tim2
   TIM2->CNT = 0;

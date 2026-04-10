@@ -65,8 +65,8 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
         HAL_UARTEx_ReceiveToIdle_DMA(&huart8, ht10a_buffer, sizeof(ht10a_buffer));
         __HAL_DMA_DISABLE_IT(&hdma_uart8_rx,DMA_IT_HT);
     }
-//uart6供hi14回传数据
-    if(huart->Instance == USART6)
+//uart10供hi14回传数据
+    if(huart->Instance == USART10)
     {
 		memset(uart_rx_buf, 0, sizeof(uart_rx_buf));
 		
@@ -79,8 +79,8 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 		uart_rx_index = 0;
 
 		memset(dma_rx_buf, 0, sizeof(dma_rx_buf));
-		HAL_UARTEx_ReceiveToIdle_DMA(&huart6, dma_rx_buf, sizeof(dma_rx_buf));
-		__HAL_DMA_DISABLE_IT(&hdma_usart6_rx, DMA_IT_HT);
+		HAL_UARTEx_ReceiveToIdle_DMA(&huart10, dma_rx_buf, sizeof(dma_rx_buf));
+		__HAL_DMA_DISABLE_IT(&hdma_usart10_rx, DMA_IT_HT);
     }
 
 
@@ -114,11 +114,11 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
         HAL_UARTEx_ReceiveToIdle_DMA(&huart8, ht10a_buffer, sizeof(ht10a_buffer));
         __HAL_DMA_DISABLE_IT(&hdma_uart8_rx,DMA_IT_HT);
     }
-    if(huart->Instance == USART6)
+    if(huart->Instance == USART10)
     {
         memset(dma_rx_buf, 0, sizeof(dma_rx_buf));
-        HAL_UARTEx_ReceiveToIdle_DMA(&huart6, dma_rx_buf, sizeof(dma_rx_buf));
-        __HAL_DMA_DISABLE_IT(&hdma_usart6_rx, DMA_IT_HT);
+        HAL_UARTEx_ReceiveToIdle_DMA(&huart10, dma_rx_buf, sizeof(dma_rx_buf));
+        __HAL_DMA_DISABLE_IT(&hdma_usart10_rx, DMA_IT_HT);
     }
 
     taskEXIT_CRITICAL_FROM_ISR(status_value); // 退出临界段
