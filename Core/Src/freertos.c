@@ -38,6 +38,9 @@
 #include "robotic_arm.h"
 #include "chassis.h"
 #include "clamp.h"
+#include "ht10a.h"
+#include "hi14.h"
+#include "trajectory.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -60,6 +63,7 @@
 float debug_test_time;//用于测试的万能小变量
 
 int32_t debug_flag;
+float debug_position;
 
 /* USER CODE END Variables */
 osThreadId defaultTaskHandle;
@@ -160,23 +164,44 @@ void MX_FREERTOS_Init(void) {
 void StartDefaultTask(void const * argument)
 {
   /* USER CODE BEGIN StartDefaultTask */
+
+  //测试用轨迹函数
+  A1_debug_485_1[1].id = 1;
+  A1_debug_485_1[1].mode = 10;
+  debug_position = PI/2.0f;
+
+  Traj_Adaptive_Init(&debug_traj, 0.0, debug_position, 4.0f*PI, 8.0f*PI, PI/6.0f);
+
+//=======================================================================
+//多段路径
+  // 2. 开机时，定一个 2度的柔性融合半径
+  Traj_Path_Queue_Init(&debug_traj_queue, PI/90.0f); // 2度的融合半径
+  // 3. 上位机发来一段乱七八糟的心情画图路径：
+  Traj_Path_Queue_AddPoint(&debug_traj_queue, PI/2.0f); // 抛入目标A
+  Traj_Path_Queue_AddPoint(&debug_traj_queue, -PI/2.0f); // 抛入目标B
+  Traj_Path_Queue_AddPoint(&debug_traj_queue, PI/2.0f); // 抛入目标C
+  Traj_Path_Queue_AddPoint(&debug_traj_queue, -PI/2.0f); // 抛入目标D
+//多段路径
+//=======================================================================
+
   /* Infinite loop */
   for(;;)
   {
-    data_send_vofa[0] = m3508_fdcan1[1].Angle_Sum;
-    data_send_vofa[1] = m3508_fdcan1[2].Angle_Sum;
-		data_send_vofa[7] = debug_test_time;
+    data_send_vofa[0] = A1_debug_485_1[1].measure.Pos;
+    data_send_vofa[1] = debug_traj.out_pos;
+    data_send_vofa[2] = debug_traj_queue.points[debug_traj_queue.tail];
+
     vofa_send_to_show_justfloat(&huart6, data_send_vofa);
 
-    // data_send_anotc[0] = arm_cos_f32(debug_test_time * PI);
-    // data_send_anotc[1] = arm_cos_f32(debug_test_time*2.0f*PI);
-    // data_send_anotc[2] = arm_cos_f32(debug_test_time*4.0f*PI);
-    // data_send_anotc[3] = arm_cos_f32(debug_test_time*8.0f*PI);
-    // data_send_anotc[4] = arm_cos_f32(debug_test_time*16.0f*PI);
-    // data_send_anotc[5] = arm_cos_f32(debug_test_time*32.0f*PI);
-    // data_send_anotc[6] = arm_cos_f32(debug_test_time*64.0f*PI);
-    // data_send_anotc[7] = arm_cos_f32(debug_test_time*128.0f*PI);
-    // Usart_Send_To_Show32(&huart6, data_send_anotc);
+    if(debug_flag == 1)
+    {
+      // ===== 【就仅仅在这里增加这一句预读拦截！】 =====
+      Traj_Path_Queue_Update(&debug_traj_queue, &debug_traj, A1_debug_485_1[1].measure.Pos);
+      // ============================================
+      Traj_Adaptive_Update(&debug_traj, A1_debug_485_1[1].measure.Pos, 0.001f);
+      A1_Motor_Position_Control(&A1_debug_485_1[1], debug_traj.out_pos, 2.0f, 0.025f);
+    }
+
 
     debug_test_time += 0.001f;
     osDelay(1);

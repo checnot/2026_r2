@@ -684,6 +684,11 @@
               <FileType>1</FileType>
               <FilePath>..\user_lib\filter.c</FilePath>
             </File>
+            <File>
+              <FileName>trajectory.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\user_lib\trajectory.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

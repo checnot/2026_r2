@@ -220,6 +220,7 @@ void arm_route_multipoint(robotic_arm_stu *arm, robotic_arm_path_point_stu *path
     }
 }
 
+
 /**
  * @brief 机械臂末端执行器稳定控制函数，输入末端执行器的目标pitch与自转角来控制末端执行器的姿态稳定，输入单位为rad
  * @param target_pitch 末端执行器的目标pitch角，平行地面为0，抬起为正
@@ -239,6 +240,7 @@ void arm_actuator_stable_control(robotic_arm_stu *arm, float target_pitch, float
     m3508_anglesum_control(&m3508_fdcan1[1], (-target_delta_m / 2.0f) + (-1.0f * theta4 / PI * 180.0f * rate), 10000);
     m3508_anglesum_control(&m3508_fdcan1[2], (target_delta_m / 2.0f) + (-1.0f * theta4 / PI * 180.0f * rate), 10000);
 }
+
 
 /**
  * @brief 使用ht10a遥控器进行机械臂控制的函数，内含判断逻辑，仅用于精简代码
