@@ -173,14 +173,23 @@ void StartDefaultTask(void const * argument)
 //=======================================================================
   //多段轨迹-初始化
   // 1. 单段轨迹参数初始化
-  Traj_Adaptive_Init(&debug_traj, 0.0, 0, 4.0f*PI, 8.0f*PI, PI/6.0f);
+  Traj_Adaptive_Init(&debug_traj_a1, 0.0, 0, 4.0f*PI, 8.0f*PI, PI/6.0f);
   // 2. 多段轨迹初始化
-  Traj_Path_Queue_Init(&debug_traj_queue, PI/90.0f); // 2度的融合半径
+  Traj_Path_Queue_Init(&debug_traj_queue_a1, PI/90.0f); // 2度的融合半径
   // 3. 上位机发来一段乱七八糟的心情画图路径：
-  Traj_Path_Queue_AddPoint(&debug_traj_queue, PI/2.0f); // 抛入目标A
-  Traj_Path_Queue_AddPoint(&debug_traj_queue, -PI/2.0f); // 抛入目标B
-  Traj_Path_Queue_AddPoint(&debug_traj_queue, PI/2.0f); // 抛入目标C
-  Traj_Path_Queue_AddPoint(&debug_traj_queue, -PI/2.0f); // 抛入目标D
+  Traj_Path_Queue_AddPoint(&debug_traj_queue_a1, PI/2.0f); // 抛入目标A
+  Traj_Path_Queue_AddPoint(&debug_traj_queue_a1, -PI/2.0f); // 抛入目标B
+  Traj_Path_Queue_AddPoint(&debug_traj_queue_a1, PI/2.0f); // 抛入目标C
+  Traj_Path_Queue_AddPoint(&debug_traj_queue_a1, -PI/2.0f); // 抛入目标D
+  //-------------------------------------------------------------
+  Traj_Adaptive_Init(&debug_traj_m3508, 0.0, 0, 8192.0f*16.0f, 8192.0f*16.0f, 8192.0f);
+  Traj_Path_Queue_Init(&debug_traj_queue_m3508, 512.0f); // 512单位的融合半径
+  Traj_Path_Queue_AddPoint(&debug_traj_queue_m3508, 40000.0f); // 抛入目标A
+  Traj_Path_Queue_AddPoint(&debug_traj_queue_m3508, -40000.0f); // 抛入目标B
+  Traj_Path_Queue_AddPoint(&debug_traj_queue_m3508, 40000.0f); // 抛入目标C
+  Traj_Path_Queue_AddPoint(&debug_traj_queue_m3508, -40000.0f); // 抛入目标D
+
+  m3508_parameter_init(&m3508_fdcan1[3], 2.4f, 2.0f, 1.6f, 0.5f);
   //多段轨迹-初始化
 //=======================================================================
 
@@ -192,22 +201,27 @@ void StartDefaultTask(void const * argument)
   //多段轨迹-规划与执行
     if(debug_flag == 1)
     {
-      //多段轨迹规划部分
-      Traj_Path_Queue_Update(&debug_traj_queue, &debug_traj, A1_debug_485_1[1].measure.Pos);
-      // ============================================
-      Traj_Adaptive_Update(&debug_traj, A1_debug_485_1[1].measure.Pos, 0.001f);
-      A1_Motor_Position_Control(&A1_debug_485_1[1], debug_traj.out_pos, 2.0f, 0.025f);
+      // //多段轨迹规划部分
+      // Traj_Path_Queue_Update(&debug_traj_queue_a1, &debug_traj_a1, A1_debug_485_1[1].measure.Pos);
+      // // ============================================
+      // Traj_Adaptive_Update(&debug_traj_a1, A1_debug_485_1[1].measure.Pos, 0.001f);
+      // A1_Motor_Position_Control(&A1_debug_485_1[1], debug_traj_a1.out_pos, 2.0f, 0.025f);
+      //------------------------------------------------------------
+      Traj_Path_Queue_Update(&debug_traj_queue_m3508, &debug_traj_m3508, m3508_fdcan1[3].Angle_Sum);
+      Traj_Adaptive_Update(&debug_traj_m3508, m3508_fdcan1[3].Angle_Sum, 0.001f);
+      m3508_anglesum_control(&m3508_fdcan1[3], (int32_t)debug_traj_m3508.out_pos, 8192);
+
     }
   //多段轨迹-规划与执行
 //=======================================================================
 
 //=======================================================================
   //vofa显示调试信息
-    data_send_vofa[0] = A1_debug_485_1[1].measure.Pos;
-    data_send_vofa[1] = debug_traj.out_pos;
-    if(debug_traj_queue.tail > 0) {
+    data_send_vofa[0] = m3508_fdcan1[3].Angle_Sum;
+    data_send_vofa[1] = debug_traj_m3508.out_pos;
+    if(debug_traj_queue_m3508.tail > 0) {
         // 由于Traj_Path_Queue_Update的特性，需要-1才能显示当前正在前往的目标
-        data_send_vofa[2] = debug_traj_queue.points[debug_traj_queue.tail - 1];
+        data_send_vofa[2] = debug_traj_queue_m3508.points[debug_traj_queue_m3508.tail - 1];
     } else {
         data_send_vofa[2] = 0.0f;// 默认输出0
     }

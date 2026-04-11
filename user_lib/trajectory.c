@@ -2,8 +2,11 @@
 
 int32_t debug_count; //测试用计数器
 
-Traj_Single_struct debug_traj;    //测试用单段轨迹结构体
-Traj_Queue_struct debug_traj_queue; //测试用轨迹队列结构体
+Traj_Single_struct debug_traj_a1;    //测试用单段轨迹结构体
+Traj_Queue_struct debug_traj_queue_a1; //测试用轨迹队列结构体
+
+Traj_Single_struct debug_traj_m3508;
+Traj_Queue_struct debug_traj_queue_m3508;
 
 /**
  * @brief 轨迹控制中的符号函数，返回输入值的符号
@@ -16,13 +19,15 @@ static inline float traj_sign(float val) {
     return 0.0f;
 }
 
+/* ============================== 单段路径执行实现 ===================================== */
+
 /**
  * @brief 初始化关节自适应负载轨迹
  * @param traj:        轨迹控制实例
- * @param start_pos:   机械臂当前物理位置 (不要传入虚拟位置)
- * @param target_pos:  机械臂的终点目标位置
- * @param v_max:       最大允许规划速度
- * @param a_max:       最大允许规划加速度
+ * @param start_pos:   当前物理位置
+ * @param target_pos:  终点目标位置
+ * @param v_max:       最大允许规划速度（单位与pos单位一致）
+ * @param a_max:       最大允许规划加速度（单位与pos单位一致）
  * @param max_error:   允许的最大跟随误差阈值 (当实际位置与规划位置差值超过此值，系统开始补救)
  */
 void Traj_Adaptive_Init(Traj_Single_struct *traj, float start_pos, float target_pos, 
@@ -146,9 +151,10 @@ void Traj_Adaptive_Update(Traj_Single_struct *traj, float actual_pos, float dt)
     // === 5. 位置积分 ===
     traj->out_pos += traj->out_vel * dt;
 }
+/* ============================== 单段路径执行实现 ===================================== */
 
 
-/* ===================== 新增：多段队列管理器实现 ===================== */
+/* =============================== 多段队列管理器实现 =============================== */
 
 /**
  * @brief 初始化多段路径的途径点队列
@@ -167,6 +173,7 @@ void Traj_Path_Queue_Init(Traj_Queue_struct *queue, float blend_radius) {
 /**
  * @brief 动态向队列打入新的路径点 (上位机可随时随地调用此函数塞任务)；
  *        往路径队尾追加一个新的途经点 (返回1成功，0失败满载)
+ * @param target_pos: 目标位置（单位与单段轨迹一致）
  */
 uint8_t Traj_Path_Queue_AddPoint(Traj_Queue_struct *queue, float target_pos) {
     if (queue->count >= TRAJ_MAX_WAYPOINTS) return 0; // 队列满了
@@ -206,7 +213,7 @@ void Traj_Path_Queue_Update(Traj_Queue_struct *queue, Traj_Single_struct *traj, 
         
         // 循环出队：目的是剔除恰好和当前位置重合的“废点/重复点”
         while (queue->count > 0) {
-            //由于先赋值，再执行，所以在 debug_traj_queue.points[debug_traj_queue.tail] 中实际上显示的是下一个路径点
+            //由于先赋值，再执行，所以在 debug_traj_queue_a1.points[debug_traj_queue_a1.tail] 中实际上显示的是下一个路径点
             next_target = queue->points[queue->tail];
 
             queue->tail = (queue->tail + 1) % TRAJ_MAX_WAYPOINTS;
@@ -229,3 +236,4 @@ void Traj_Path_Queue_Update(Traj_Queue_struct *queue, Traj_Single_struct *traj, 
         return; 
     }
 }
+/* =============================== 多段队列管理器实现 =============================== */
