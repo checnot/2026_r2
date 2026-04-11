@@ -1,5 +1,7 @@
 #include "trajectory.h"
 
+int32_t debug_count; //测试用计数器
+
 Traj_Single_struct debug_traj;    //测试用单段轨迹结构体
 Traj_Queue_struct debug_traj_queue; //测试用轨迹队列结构体
 
@@ -185,30 +187,45 @@ void Traj_Path_Queue_Update(Traj_Queue_struct *queue, Traj_Single_struct *traj, 
     // !!!如果清单空了，就啥也不做（路径规划器不对电机进行实际控制），同时单段发生器会自动让电机在终点平稳停下
     if (queue->count == 0) return;
     
-    // ==== 核心融合逻辑 ====
-    // 如果已经触发完美停车(is_finished)，或者“即将到达”并且开启了融合半径预读(blend)
-    // 修复：同时要求虚拟影子 out_pos 也跑到了终点附近（不再只看电机物理位置），
-    // 否则当电机卡住导致实际位置落后于影子时，只要一进圆圈，影子就会瞬间被弹跃，
-    // 把下一个目标点赋值给当前由于保护处于满载滞后的系统。
-
     // 算出实际位置距离它目前目标还有多远
     float dist_to_actual = fabsf(traj->target_pos - actual_pos);    
     // 我们必须保证：1. 实际跑到了；2. 虚拟目标影子也跑到了，二者才能切点。
     float dist_to_out = fabsf(traj->target_pos - traj->out_pos);
 
-    if (traj->is_finished || (dist_to_actual <= queue->blend_radius && dist_to_out <= queue->blend_radius)) {
+    // 切换条件1：彻底停稳（用于 blend_radius == 0 时的精准到达切换）
+    uint8_t condition_arrived = traj->is_finished;
+    
+    // 切换条件2：进入了融合圆角以内（且启用融合模式）
+    uint8_t condition_blend = (queue->blend_radius > 0.001f) && 
+                              (dist_to_actual <= queue->blend_radius) && 
+                              (dist_to_out <= queue->blend_radius);
+
+    if (condition_arrived || condition_blend) {
         
-        // 取出下一个路点！
-        float next_target = queue->points[queue->tail];
-        queue->tail = (queue->tail + 1) % TRAJ_MAX_WAYPOINTS;
-        queue->count--;
+        float next_target = traj->target_pos; // 兜底
         
-        // 暴力篡改目标点，并重置到达标记，原有的速度和方向保持不变！！
+        // 循环出队：目的是剔除恰好和当前位置重合的“废点/重复点”
+        while (queue->count > 0) {
+            //由于先赋值，再执行，所以在 debug_traj_queue.points[debug_traj_queue.tail] 中实际上显示的是下一个路径点
+            next_target = queue->points[queue->tail];
+
+            queue->tail = (queue->tail + 1) % TRAJ_MAX_WAYPOINTS;
+            queue->count--;
+            debug_count++; // 测试用：记录已经切换了几个点了
+            
+            // 检查这个新目标，如果距离我们真实的物理位置只有不到 0.02 (约1度)
+            // 说明这基本是个原地重复点 (比如用户把第一段的终点，又作为目标重新推入了一次队列)
+            // 如果不剔除，下一毫秒 queue update 时判断距离依然为 0，从而引发两次甚至多次连跳 (Double Pop)
+            if (fabsf(next_target - actual_pos) > traj->max_tracking_error/30.0f) {
+                break; // 是一个有意义的远方新点，跳出剔除循环
+            }
+        }
+        
+        // 把有效的新点装弹，重置到达标记，原有的速度和方向保持不变！！
         traj->target_pos = next_target;
         traj->is_finished = 0;
         
-        // 由于目标位置发生改变，我们必须马上通知单段轨迹控制器：“现在误差已经变了，不是原来跑到终点附近极小的误差了！”
-        // 否则下一个毫秒单段发生器中的 dir (err 的符号) 会沿用老点周围的异常符号，导致方向反向保护误触发。
+        // 修改目标位置后必须立即 return 打断当前周期
         return; 
     }
 }

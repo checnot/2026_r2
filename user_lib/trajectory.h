@@ -41,6 +41,7 @@ typedef struct {
 
 extern Traj_Single_struct debug_traj;
 extern Traj_Queue_struct debug_traj_queue;
+extern int32_t debug_count;
 
 void Traj_Adaptive_Init(Traj_Single_struct *traj, float start_pos, float target_pos, float v_max, float a_max, float max_error);
 

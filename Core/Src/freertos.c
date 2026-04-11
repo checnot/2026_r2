@@ -168,41 +168,54 @@ void StartDefaultTask(void const * argument)
   //测试用轨迹函数
   A1_debug_485_1[1].id = 1;
   A1_debug_485_1[1].mode = 10;
-  debug_position = PI/2.0f;
 
-  Traj_Adaptive_Init(&debug_traj, 0.0, debug_position, 4.0f*PI, 8.0f*PI, PI/6.0f);
 
 //=======================================================================
-//多段路径
-  // 2. 开机时，定一个 2度的柔性融合半径
+  //多段轨迹-初始化
+  // 1. 单段轨迹参数初始化
+  Traj_Adaptive_Init(&debug_traj, 0.0, 0, 4.0f*PI, 8.0f*PI, PI/6.0f);
+  // 2. 多段轨迹初始化
   Traj_Path_Queue_Init(&debug_traj_queue, PI/90.0f); // 2度的融合半径
   // 3. 上位机发来一段乱七八糟的心情画图路径：
   Traj_Path_Queue_AddPoint(&debug_traj_queue, PI/2.0f); // 抛入目标A
   Traj_Path_Queue_AddPoint(&debug_traj_queue, -PI/2.0f); // 抛入目标B
   Traj_Path_Queue_AddPoint(&debug_traj_queue, PI/2.0f); // 抛入目标C
   Traj_Path_Queue_AddPoint(&debug_traj_queue, -PI/2.0f); // 抛入目标D
-//多段路径
+  //多段轨迹-初始化
 //=======================================================================
 
   /* Infinite loop */
   for(;;)
   {
-    data_send_vofa[0] = A1_debug_485_1[1].measure.Pos;
-    data_send_vofa[1] = debug_traj.out_pos;
-    data_send_vofa[2] = debug_traj_queue.points[debug_traj_queue.tail];
 
-    vofa_send_to_show_justfloat(&huart6, data_send_vofa);
-
+//=======================================================================
+  //多段轨迹-规划与执行
     if(debug_flag == 1)
     {
-      // ===== 【就仅仅在这里增加这一句预读拦截！】 =====
+      //多段轨迹规划部分
       Traj_Path_Queue_Update(&debug_traj_queue, &debug_traj, A1_debug_485_1[1].measure.Pos);
       // ============================================
       Traj_Adaptive_Update(&debug_traj, A1_debug_485_1[1].measure.Pos, 0.001f);
       A1_Motor_Position_Control(&A1_debug_485_1[1], debug_traj.out_pos, 2.0f, 0.025f);
     }
+  //多段轨迹-规划与执行
+//=======================================================================
 
-
+//=======================================================================
+  //vofa显示调试信息
+    data_send_vofa[0] = A1_debug_485_1[1].measure.Pos;
+    data_send_vofa[1] = debug_traj.out_pos;
+    if(debug_traj_queue.tail > 0) {
+        // 由于Traj_Path_Queue_Update的特性，需要-1才能显示当前正在前往的目标
+        data_send_vofa[2] = debug_traj_queue.points[debug_traj_queue.tail - 1];
+    } else {
+        data_send_vofa[2] = 0.0f;// 默认输出0
+    }
+		data_send_vofa[3] = (float)debug_count;
+		
+    vofa_send_to_show_justfloat(&huart6, data_send_vofa);
+  //vofa显示调试信息
+//=======================================================================
     debug_test_time += 0.001f;
     osDelay(1);
   }
