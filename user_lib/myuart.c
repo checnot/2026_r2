@@ -5,8 +5,8 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 {
 	uint32_t status_value;
 	status_value = taskENTER_CRITICAL_FROM_ISR(); // 临界段代码保护
-	
-//usart1供a1电机回传数据
+	 
+//usart1供 a1 电机回传数据
 	if(huart->Instance == USART1) 
 	{
 		HAL_UART_DMAStop(huart);
@@ -20,10 +20,10 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
                 if(A1_debug_485_1[id].Pos_init_flag < 200)
                 {
                     A1_debug_485_1[id].Pos_init_flag +=1 ;
-                    A1_debug_485_1[id].init_Pos = a1_motor_recv_1[id].motor_recv_data.Mdata.Pos * 2 * PI / 16384.0f / 9.0f;
+                    A1_debug_485_1[id].init_Pos = a1_motor_recv_1[id].motor_recv_data.Mdata.Pos * 2 * PI / 16384.0f / reduction_ratio;
                 }
-                A1_debug_485_1[id].measure.Pos = a1_motor_recv_1[id].motor_recv_data.Mdata.Pos * 2 * PI / 16384.0f / 9.0f - A1_debug_485_1[id].init_Pos;
-                A1_debug_485_1[id].measure.W = a1_motor_recv_1[id].motor_recv_data.Mdata.W / 128.0f / 9.0f;
+                A1_debug_485_1[id].measure.Pos = a1_motor_recv_1[id].motor_recv_data.Mdata.Pos * 2 * PI / 16384.0f / reduction_ratio - A1_debug_485_1[id].init_Pos;
+                A1_debug_485_1[id].measure.W = a1_motor_recv_1[id].motor_recv_data.Mdata.W / 128.0f / reduction_ratio;
                 A1_debug_485_1[id].measure.T = a1_motor_recv_1[id].motor_recv_data.Mdata.T / 256.0f;
             }
 		}
@@ -32,7 +32,7 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 		HAL_UARTEx_ReceiveToIdle_DMA(&huart1, a1_usart1_raw_recv.RX_pData, RX_LEN1);
 		__HAL_DMA_DISABLE_IT(&hdma_usart1_rx, DMA_IT_HT);
 	}
-//usart9供a1电机回传数据
+//usart9供 a1 电机回传数据
     if(huart->Instance == UART9)
     {
         HAL_UART_DMAStop(huart);
@@ -58,15 +58,15 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 		HAL_UARTEx_ReceiveToIdle_DMA(&huart9, a1_usart9_raw_recv.RX_pData, RX_LEN1);
 		__HAL_DMA_DISABLE_IT(&hdma_uart9_rx, DMA_IT_HT);
     }
-//usart8供ht10a回传数据
+//usart8供 ht10a 回传数据
     if(huart->Instance == UART8)
     {
 		HT10A_process(ht10a_buffer);
         HAL_UARTEx_ReceiveToIdle_DMA(&huart8, ht10a_buffer, sizeof(ht10a_buffer));
         __HAL_DMA_DISABLE_IT(&hdma_uart8_rx,DMA_IT_HT);
     }
-//uart10供hi14回传数据
-    if(huart->Instance == USART10)
+//uart6供 hi14 回传数据
+    if(huart->Instance == USART6)
     {
 		memset(uart_rx_buf, 0, sizeof(uart_rx_buf));
 		
@@ -79,9 +79,19 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 		uart_rx_index = 0;
 
 		memset(dma_rx_buf, 0, sizeof(dma_rx_buf));
-		HAL_UARTEx_ReceiveToIdle_DMA(&huart10, dma_rx_buf, sizeof(dma_rx_buf));
-		__HAL_DMA_DISABLE_IT(&hdma_usart10_rx, DMA_IT_HT);
+		HAL_UARTEx_ReceiveToIdle_DMA(&huart6, dma_rx_buf, sizeof(dma_rx_buf));
+		__HAL_DMA_DISABLE_IT(&hdma_usart6_rx, DMA_IT_HT);
     }
+
+
+//================================ 临时 usart6供遥控器ht10a =========================
+    // if(huart->Instance == USART6)
+    // {
+	// 	HT10A_process(ht10a_buffer);
+    //     HAL_UARTEx_ReceiveToIdle_DMA(&huart6, ht10a_buffer, sizeof(ht10a_buffer));
+    //     __HAL_DMA_DISABLE_IT(&hdma_usart6_rx,DMA_IT_HT);
+    // }
+//================================ 临时 usart6供遥控器ht10a =========================
 
 
 	taskEXIT_CRITICAL_FROM_ISR(status_value); // 退出临界段
@@ -114,11 +124,11 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
         HAL_UARTEx_ReceiveToIdle_DMA(&huart8, ht10a_buffer, sizeof(ht10a_buffer));
         __HAL_DMA_DISABLE_IT(&hdma_uart8_rx,DMA_IT_HT);
     }
-    if(huart->Instance == USART10)
+    if(huart->Instance == USART6)
     {
         memset(dma_rx_buf, 0, sizeof(dma_rx_buf));
-        HAL_UARTEx_ReceiveToIdle_DMA(&huart10, dma_rx_buf, sizeof(dma_rx_buf));
-        __HAL_DMA_DISABLE_IT(&hdma_usart10_rx, DMA_IT_HT);
+        HAL_UARTEx_ReceiveToIdle_DMA(&huart6, dma_rx_buf, sizeof(dma_rx_buf));
+        __HAL_DMA_DISABLE_IT(&hdma_usart6_rx, DMA_IT_HT);
     }
 
     taskEXIT_CRITICAL_FROM_ISR(status_value); // 退出临界段

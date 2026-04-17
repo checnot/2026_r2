@@ -11,6 +11,12 @@
 #include "pid.h"
 #include "a1_motor.h"
 #include "m3508.h"
+#include "trajectory.h"
+
+// 人为设定的“机械臂末端合成上限”
+#define GLOBAL_V_MAX 0.5f  // 合成最大速度(m/s)
+#define GLOBAL_A_MAX 2.0f  // 合成最大加速度(m/s^2)
+
 
 /**
  * @brief 机械臂dh参数结构体（Craig 改进 D-H 法参数描述）
@@ -22,6 +28,21 @@ typedef struct
     float theta;    /* 关节角 (Joint Angle):    绕 z_(i)，从x_(i-1) 到 x_(i)  旋转的角度 */
     float d;        /* 连杆偏置 (Link Offset):  沿 z_(i)，从x_(i-1) 到 x_(i) 的距离 */
 } dh_craig_stu;
+
+/**
+ * @brief 机械臂路径点结构体类型，包含三轴的单轨迹和轨迹队列
+*/
+typedef struct
+{
+    Traj_Single_struct traj_x; //末端执行器x方向单轨迹
+    Traj_Single_struct traj_y; //末端执行器y方向单轨迹
+    Traj_Single_struct traj_w; //云台旋转角单轨迹
+
+    Traj_Queue_struct traj_queue_x; //末端执行器x方向路径队列
+    Traj_Queue_struct traj_queue_y; //末端执行器y方向路径队列
+    Traj_Queue_struct traj_queue_w; //云台旋转角路径队列
+
+} robotic_arm_traj_stu;
 
 /**
  * @brief 机械臂结构体类型
@@ -37,15 +58,7 @@ typedef struct
     float theta_target[5];      //目标关节角，[0]为“云台”，[1]为”肩部“，[2]为“手肘”，[3]为”腕部“，[4]为“手腕自转”
 } robotic_arm_stu;
 
-typedef struct 
-{
-    float x_target[4];         //目标末端x坐标
-    float y_target[4];         //目标末端y坐标
-    float theta0_target[4];    //云台目标角度
 
-    uint8_t position_flag;  //表示当前需要运行到哪个预设位置
-    uint8_t act_flag;        //当前是否处于执行过程中
-} robotic_arm_path_point_stu;
 
 
 /**
@@ -60,15 +73,22 @@ typedef enum {
 } IK_Reach_Status_enum;
 
 extern robotic_arm_stu arm;    //机械臂实例
+extern robotic_arm_traj_stu arm_traj; //机械臂轨迹实例
 
 void arm_joint_parameter_init(robotic_arm_stu *arm);
 void arm_joint_state_update(robotic_arm_stu *arm);
-void arm_gravity_comp(robotic_arm_stu *arm, float torque_preset0, float torque_preset1);
 void arm_joint_state_init(robotic_arm_stu *arm);
 IK_Reach_Status_enum arm_route_reachable_check(robotic_arm_stu *arm);
 void arm_route_point_calculate(robotic_arm_stu *arm);
 void arm_route_execute(robotic_arm_stu *arm, float a1_kw, float a1_kp);
 void arm_actuator_stable_control(robotic_arm_stu *arm, float target_pitch, float theta4);
 void arm_remote_control(void);
+
+void arm_trajectory_init(robotic_arm_traj_stu *arm_traj, robotic_arm_stu *arm);
+void arm_queue_add_safe(robotic_arm_traj_stu *arm_traj, float target_x, float target_y, float target_w);
+void arm_linear_interpolation_update(robotic_arm_stu *arm, robotic_arm_traj_stu *arm_traj, float blend_radius);
+void arm_load_test_waypoints(void);
+
+void arm_gravity_comp(robotic_arm_stu *arm, float torque_preset0, float torque_preset1);
 
 #endif /* __ROBOTIC_ARM_H */

@@ -1,6 +1,5 @@
 #include "a1_motor.h"
 
-#define reduction_ratio 9.0f // A1减速比
 
 extern uint32_t timer_ms;//定时器计时变量，单位ms
 
