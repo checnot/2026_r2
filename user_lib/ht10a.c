@@ -6,54 +6,47 @@ uint8_t ht10a_buffer[30];				//遥控器原始数据
 REMOTE_STU HT10A;//在ht10a.c中定义的原始遥控器状态结构体
 REMOTE_STU HT10A_last = {0}; //在freertos.c中定义的遥控器last状态
 
-/*=================================客制化判断逻辑===============================================*/
+/*================================= 客制化判断逻辑 ===============================================*/
 #include "clamp.h"
 #include "chassis.h"
 #include "robotic_arm.h"
+#include "trajectory.h"
 /**
  * @brief 用户自定义判断函数，根据遥控器输入的状态进行相应的操作，一般直接插入ht10a_process中调用，切换项目时可注销
 */
 void customized_judgment(void)
 {
-/* -------- 旧版代码（基于中断，易在应用层多次触发） --------
-  //底盘控制部分
-  if(HT10A.switch_d == 0)
-  {
-    //前半车身升降部分
-    if(HT10A.switch_b == 1 && HT10A.last_status.switch_b_last == -1)      {chassis_r2.lift_front = 1;}    
-    else if(HT10A.switch_b == -1 && HT10A.last_status.switch_b_last == 1) {chassis_r2.lift_front = 0;}
-    //后半车身升降部分
-    if(HT10A.switch_c == 1 && HT10A.last_status.switch_c_last == -1)      {chassis_r2.lift_back = 1;}    
-    else if(HT10A.switch_c == -1 && HT10A.last_status.switch_c_last == 1) {chassis_r2.lift_back = 0;}
-  }
-  //夹爪控制部分
-  if(HT10A.switch_d == -1)
-  {
-    //夹爪抓取/松开
-    if(HT10A.switch_b == 1 && HT10A.last_status.switch_b_last == -1)      {clamp.catch_flag = 1;}    
-    else if(HT10A.switch_b == -1 && HT10A.last_status.switch_b_last == 1) {clamp.catch_flag = 0;}
-    //夹爪旋转
-    if(HT10A.knob_a >=1000 && HT10A.last_status.knob_a_last < 1000)           {clamp.rotate_flag = 1;}
-    else if (HT10A.knob_a <= -1000 && HT10A.last_status.knob_a_last > -1000)  {clamp.rotate_flag = 0;}
-    //夹爪伸缩
-    if(HT10A.switch_c == 1 && HT10A.last_status.switch_c_last == -1)      {clamp.retractable_flag = 1;}    
-    else if(HT10A.switch_c == -1 && HT10A.last_status.switch_c_last == 1) {clamp.retractable_flag = 0;}
-  }
-  //机械臂控制部分
-  if(HT10A.switch_d == 1)
-  {
-    //吸盘突进(无收回)
-    if(HT10A.last_status.switch_a_last == 0 && HT10A.switch_a == 1)
-    {
-      arm.x0_target += 0.1f;
-    }
-  }
------------------------------------------------------------ */
 
   // ====== 以下为适配应用层 Task 轮询方案(1ms) 的新代码架构 ======
   // 注意：如果想彻底解耦，建议把下面这部分代码剪切到 freertos.c 的 cmd_task 中运行
   // 并且配合末尾的 HT10A_last = HT10A; 进行状态同步。不要在 ht10a_process() 中调用它。
   
+//============= 测试用，合并branch时删除 =============
+
+//  if((HT10A.switch_a == 1 && HT10A_last.switch_a == 0) || (HT10A.switch_a == -1 && HT10A_last.switch_a == 0))
+// {
+//   float base_pos;
+//   // 确定新路点的位置基准：
+//   if(debug_traj_queue_a1.count > 0) {
+//     // 队列里还有未执行的点，基于队列最后一个点延伸
+//     int last_idx = (debug_traj_queue_a1.head - 1 + TRAJ_MAX_WAYPOINTS) % TRAJ_MAX_WAYPOINTS;
+//     base_pos = debug_traj_queue_a1.points[last_idx];
+//   } else {
+//     // 队列已空，基于当前发生器正在追赶的 target_pos 延伸
+//     base_pos = debug_traj_a1.target_pos;
+//   } 
+  
+//   // 根据拨动方向注入不同目标：以每次增加 PI/2.0f (即90度) 为例
+//   if(HT10A.switch_a == 1) {
+//       Traj_Path_Queue_AddPoint(&debug_traj_queue_a1, base_pos + PI/2.0f); // 向上推入队基准点 + PI/2
+//   } else if(HT10A.switch_a == -1) {
+//       Traj_Path_Queue_AddPoint(&debug_traj_queue_a1, base_pos - PI/2.0f); // 向下拉入队基准点 - PI/2
+//   }
+// }
+
+//============= 测试用，合并branch时删除 =============
+
+
   //底盘控制部分
   if(HT10A.switch_d == 0)
   {
@@ -88,7 +81,7 @@ void customized_judgment(void)
   }
 
 }
-/*================================客制化判断逻辑================================================*/
+/*================================ 客制化判断逻辑 ================================================*/
 
 /**
  * 接受HT10A的数据并进行处理
@@ -161,22 +154,4 @@ void HT10A_process(uint8_t buffer[30])
   HT10A.knob_a = (_channels[8] - 992) * 10;
   HT10A.knob_b = (_channels[9] - 992) * 10;
 
-
-/*=========================以下为特定判断逻辑，移植时可注释==================================*/
-
-  // customized_judgment();
-
 }
-
-// /**
-//  * @brief ht10a任务函数，在freertos中对应的task里调用
-// */
-// void HT10A_task(void)
-// {
-// //	memset(buffer, 0, sizeof(buffer));
-//   HAL_UARTEx_ReceiveToIdle_DMA(&huart10, buffer, 30);
-//   __HAL_DMA_DISABLE_IT(&hdma_uart7_rx,DMA_IT_HT);
-// 	HT10A_process(buffer);
-	
-// }
-

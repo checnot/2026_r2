@@ -124,8 +124,9 @@ int main(void)
   MX_UART8_Init();
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
-
-  FDCan_Start(&FDCAN_Default_FilterConfig_1);//FDCAN初始化，配置过滤器并开启CAN
+  
+//FDCAN初始化，配置过滤器并开启CAN
+  FDCan_Start(&FDCAN_Default_FilterConfig_1);
 
 //uart1-a1
   memset(a1_usart1_raw_recv.RX_pData, 0, sizeof(a1_usart1_raw_recv.RX_pData));
@@ -139,10 +140,14 @@ int main(void)
   memset(ht10a_buffer, 0, sizeof(ht10a_buffer));
   HAL_UARTEx_ReceiveToIdle_DMA(&huart8, ht10a_buffer, sizeof(ht10a_buffer));
   __HAL_DMA_DISABLE_IT(&hdma_uart8_rx, DMA_IT_HT);
-//uart10-hi14
+//uart6-ht10a-仅调试用，实际不适用
+  // memset(ht10a_buffer, 0, sizeof(ht10a_buffer));
+  // HAL_UARTEx_ReceiveToIdle_DMA(&huart6, ht10a_buffer, sizeof(ht10a_buffer));
+  // __HAL_DMA_DISABLE_IT(&hdma_usart6_rx, DMA_IT_HT);
+//uart6-hi14
   memset(dma_rx_buf, 0, sizeof(dma_rx_buf));
-  HAL_UARTEx_ReceiveToIdle_DMA(&huart10, dma_rx_buf, sizeof(dma_rx_buf));
-  __HAL_DMA_DISABLE_IT(&hdma_usart10_rx, DMA_IT_HT);
+  HAL_UARTEx_ReceiveToIdle_DMA(&huart6, dma_rx_buf, sizeof(dma_rx_buf));
+  __HAL_DMA_DISABLE_IT(&hdma_usart6_rx, DMA_IT_HT);
 
 //start tim2
   TIM2->CNT = 0;

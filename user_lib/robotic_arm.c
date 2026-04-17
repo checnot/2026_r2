@@ -1,8 +1,7 @@
 #include "robotic_arm.h"
 
 robotic_arm_stu arm;    //机械臂实例
-
-robotic_arm_path_point_stu arm_path_debug; //测试用机械臂路径点数组
+robotic_arm_traj_stu arm_traj; //机械臂轨迹实例
 
 /**
  * @brief 机械臂参数初始化函数，在机械臂任务开始时调用，进行机械臂固定参数的初始化
@@ -30,13 +29,13 @@ void arm_joint_parameter_init(robotic_arm_stu *arm)
     arm->joint_parameters[4].d = 0.0f;
 
 }
- 
+
 /**
  * @brief 机械臂关节状态更新函数，在机械臂任务中调用，更新机械臂的关节状态
 */
 void arm_joint_state_update(robotic_arm_stu *arm)
 {  
-    float rate = 2666.0f;
+    float rate = 2666.0f; //实验测得3508电机的转子和机械臂角度的转化比
 
 //云台朝向角    
     arm->joint_parameters[0].theta = A1_debug_485_2[0].measure.Pos;        
@@ -84,7 +83,7 @@ IK_Reach_Status_enum arm_route_reachable_check(robotic_arm_stu *arm)
     {
         return IK_LENGTH_OUT_OF_RANGE;//末端位置超出机械臂工作范围
     }
-    else if(arm->theta_target[1]<0.0f || arm->theta_target[1]>PI || arm->theta_target[2]<PI/12.0f || arm->theta_target[2]>PI)
+    else if(arm->theta_target[1]<0.0f || arm->theta_target[1]>PI || arm->theta_target[2]<PI/36.0f || arm->theta_target[2]>PI)
     {
         return IK_ANGLE_OUT_OF_RANGE;//关节角超出物理限位
     }
@@ -95,7 +94,7 @@ IK_Reach_Status_enum arm_route_reachable_check(robotic_arm_stu *arm)
 }
 
 /**
- * @brief 机械臂路径点计算函数，输入目标末端位置，输出目标关节角
+ * @brief 机械臂点逆解算函数，输入目标末端位置，输出目标关节角
  * @warning 目前仅支持二连杆末端位置的计算
 */
 void arm_route_point_calculate(robotic_arm_stu *arm)
@@ -123,6 +122,7 @@ void arm_route_point_calculate(robotic_arm_stu *arm)
     }
 }
 
+
 /**
  * @brief 将关节夹角控制至指定位置，利用arm_route_point_calculate计算的关节夹角来执行各关节电机的位置环控制，输入关节夹角(rad)，经过内置单位转换后输出到电机
  * @warning A1位置环参数需要根据测试进行调整
@@ -134,91 +134,6 @@ void arm_route_execute(robotic_arm_stu *arm, float a1_kw, float a1_kp)
     m3508_anglesum_control(&m3508_fdcan1[0], (int32_t)((arm->theta_target[2]-PI/12.0f)/(PI/2.0f)*100000.0f), 12000);//小臂
 }
 
-/**
- * @brief 机械臂路径点修复，当输入超出结构物理限制的路径点时，进行修复以达到可行的路径点；在内部将超出限额的函数重新赋值，采用的方法是直接将
- * @warning 暂时未使用，待后续测试
-*/
-void arm_route_repair(robotic_arm_stu *arm)
-{
-// 1. 长度修复
-    if(sqrtf(arm->x0_target*arm->x0_target + arm->y0_target*arm->y0_target) > 0.95f) 
-    {
-        float angle = atan2f(arm->y0_target, arm->x0_target);
-        arm->x0_target = 0.95f * arm_cos_f32(angle);
-        arm->y0_target = 0.95f * arm_sin_f32(angle);
-    }
-    else if(sqrtf(arm->x0_target*arm->x0_target + arm->y0_target*arm->y0_target) < 0.15f)
-    {
-        float angle = atan2f(arm->y0_target, arm->x0_target);
-        arm->x0_target = 0.15f * arm_cos_f32(angle);
-        arm->y0_target = 0.15f * arm_sin_f32(angle);
-    }
-
-    arm_route_point_calculate(arm); // 位置修复后重新计算关节角，以便进行后续的角度修复
-
-    uint8_t angle_repaired = 0; // 标记角度是否被修复过
-// 2. 关节角度软限位约束 (大臂)
-    if(arm->theta_target[1] < 0.0f)
-    {
-        arm->theta_target[1] = 0.0f;
-        angle_repaired = 1;
-    }
-    else if(arm->theta_target[1] > PI*11.0f/12.0f)
-    {
-        arm->theta_target[1] = PI*11.0f/12.0f;
-        angle_repaired = 1;
-    }
-    
-// 3. 关节角度软限位约束 (小臂，基于你 arm_route_reachable_check 里面的约束条件)
-    if(arm->theta_target[2] < PI/12.0f)
-    {
-        arm->theta_target[2] = PI/12.0f;
-        angle_repaired = 1;
-    }
-    else if(arm->theta_target[2] > PI)
-    {
-        arm->theta_target[2] = PI;
-        angle_repaired = 1;
-    }
-
-// 正运动学坐标回算：如果角度被强行切断改变了，就把 target_x/y 更新到切断后的实际位置
-// 算法依据: arm_joint_state_update() 内部的坐标变换公式
-    if(angle_repaired)
-    {
-        float target_pitch_0 = arm->theta_target[1];
-        float target_pitch_1 = -PI + target_pitch_0 + arm->theta_target[2];
-        
-        arm->x0_target = 0.55f * arm_cos_f32(target_pitch_0) + 0.45f * arm_cos_f32(target_pitch_1);
-        arm->y0_target = 0.55f * arm_sin_f32(target_pitch_0) + 0.45f * arm_sin_f32(target_pitch_1);
-    }
-    
-    arm_route_point_calculate(arm); // 角度修复后重新计算关节角
-
-}
-
-/**
- * @brief 机械臂预设路径函数，输入预设路径点，检测当前位置，在内部输出关节角度
- * @todo 单/多段路径兼容
-*/
-void arm_route_multipoint(robotic_arm_stu *arm, robotic_arm_path_point_stu *path)
-{
-    arm_joint_state_update(arm);
-    if(path->act_flag == 0)
-    {
-        arm->x0_target = path->x_target[path->position_flag];
-        arm->y0_target = path->y_target[path->position_flag];
-        arm->theta_target[0] = path->theta0_target[path->position_flag];
-    }
-    else if(path->act_flag == 1)
-    {
-        arm_route_point_calculate(arm);
-        if (arm_route_reachable_check(arm) == IK_REACHABLE)
-        {
-            arm_route_execute(arm, 12.0f, 0.037f);
-        }
-        
-    }
-}
 
 /**
  * @brief 机械臂末端执行器稳定控制函数，输入末端执行器的目标pitch与自转角来控制末端执行器的姿态稳定，输入单位为rad
@@ -239,6 +154,173 @@ void arm_actuator_stable_control(robotic_arm_stu *arm, float target_pitch, float
     m3508_anglesum_control(&m3508_fdcan1[1], (-target_delta_m / 2.0f) + (-1.0f * theta4 / PI * 180.0f * rate), 10000);
     m3508_anglesum_control(&m3508_fdcan1[2], (target_delta_m / 2.0f) + (-1.0f * theta4 / PI * 180.0f * rate), 10000);
 }
+
+
+/**
+ * @brief 机械臂轨迹初始化函数，主要用于初始化各类参数
+*/
+void arm_trajectory_init(robotic_arm_traj_stu *arm_traj, robotic_arm_stu *arm)
+{
+    // 假设当前机械臂停在 arm->x0_now, arm->y0_now, arm->theta_target[0]
+    // 参数:(实例, 起点位置, 目标位置, 两轴最高速度 0.5m/s, 加速度 2.0m/s^2, 弹簧死区 0.05m)
+
+    // 机械臂平面x方向
+    Traj_Adaptive_Init(&arm_traj->traj_x, arm->x0_now, arm->x0_now, 0.5f, 2.0f, 0.05f);
+    Traj_Path_Queue_Init(&arm_traj->traj_queue_x, 0.02f); // 2cm 的路径融合半径
+    // 机械臂平面y方向
+    Traj_Adaptive_Init(&arm_traj->traj_y, arm->y0_now, arm->y0_now, 0.5f, 2.0f, 0.05f);
+    Traj_Path_Queue_Init(&arm_traj->traj_queue_y, 0.02f); 
+    // 机械臂云台旋转角
+    Traj_Adaptive_Init(&arm_traj->traj_w, A1_debug_485_2[0].measure.Pos, A1_debug_485_2[0].measure.Pos, PI/2.0f, PI, PI/36.0f);
+    Traj_Path_Queue_Init(&arm_traj->traj_queue_w, PI/72.0f); 
+}
+
+
+/**
+ * @brief 直线插补多段路径调度器
+ * @note 必须放在 Traj_Adaptive_Update(x) 和 Traj_Adaptive_Update(y) 之前调用
+ */
+void arm_linear_interpolation_update(robotic_arm_stu *arm, robotic_arm_traj_stu *arm_traj, float blend_radius) 
+{
+    // 如果任意一个轴的队列为空，说明点位不齐，不进行出队（保证X/Y/W同步出队）
+    if(arm_traj->traj_queue_x.count == 0 || arm_traj->traj_queue_y.count == 0 || arm_traj->traj_queue_w.count == 0) return;
+
+    // === 1. 判敛条件（三轴必须同时准备好） ===
+    float dist_act_x = fabsf(arm_traj->traj_x.target_pos - arm->x0_now);
+    float dist_out_x = fabsf(arm_traj->traj_x.target_pos - arm_traj->traj_x.out_pos);
+    uint8_t ready_x = arm_traj->traj_x.is_finished || 
+                     (blend_radius > 0.001f && dist_act_x <= blend_radius && dist_out_x <= blend_radius);
+
+    float dist_act_y = fabsf(arm_traj->traj_y.target_pos - arm->y0_now);
+    float dist_out_y = fabsf(arm_traj->traj_y.target_pos - arm_traj->traj_y.out_pos);
+    uint8_t ready_y = arm_traj->traj_y.is_finished || 
+                     (blend_radius > 0.001f && dist_act_y <= blend_radius && dist_out_y <= blend_radius);
+
+    // 云台W轴的判敛（角度的融合偏差可以适当放宽，或者按照弧度值判定）
+    float dist_act_w = fabsf(arm_traj->traj_w.target_pos - arm->joint_parameters[0].theta);
+    float dist_out_w = fabsf(arm_traj->traj_w.target_pos - arm_traj->traj_w.out_pos);
+    uint8_t ready_w = arm_traj->traj_w.is_finished || 
+                     (blend_radius > 0.001f && dist_act_w <= (blend_radius * 2.0f) && dist_out_w <= (blend_radius * 2.0f));
+
+    // === 2. 联合抛点与参数动态重分配 ===
+    if (ready_x && ready_y && ready_w) 
+    {
+        float next_x = arm_traj->traj_queue_x.points[arm_traj->traj_queue_x.tail];
+        float next_y = arm_traj->traj_queue_y.points[arm_traj->traj_queue_y.tail];
+        float next_w = arm_traj->traj_queue_w.points[arm_traj->traj_queue_w.tail]; // 取出W轴目标
+        
+        // 同步弹出点位
+        arm_traj->traj_queue_x.tail = (arm_traj->traj_queue_x.tail + 1) % TRAJ_MAX_WAYPOINTS;
+        arm_traj->traj_queue_x.count--;
+        arm_traj->traj_queue_y.tail = (arm_traj->traj_queue_y.tail + 1) % TRAJ_MAX_WAYPOINTS;
+        arm_traj->traj_queue_y.count--;
+        arm_traj->traj_queue_w.tail = (arm_traj->traj_queue_w.tail + 1) % TRAJ_MAX_WAYPOINTS;
+        arm_traj->traj_queue_w.count--;
+        
+        // 计算各轴偏差
+        float delta_x = fabsf(next_x - arm->x0_now);
+        float delta_y = fabsf(next_y - arm->y0_now);
+        float delta_w = fabsf(next_w - arm->joint_parameters[0].theta);
+        
+        // 综合距离：为了让角度也参与时间同步，将角度转化为等效弦长（假设云台旋转的力臂约 0.3m）
+        float distance_xy = sqrtf(delta_x*delta_x + delta_y*delta_y);
+        float distance_total = distance_xy + (delta_w * 0.3f); 
+        
+        if (distance_total > 0.002f) 
+        {
+            // 计算各轴投影比例
+            float px = delta_x / distance_total;
+            float py = delta_y / distance_total;
+            float pw = (delta_w * 0.3f) / distance_total; 
+            
+            // 下发X轴
+            arm_traj->traj_x.v_max = GLOBAL_V_MAX * px;
+            arm_traj->traj_x.a_max = GLOBAL_A_MAX * px;
+            if(arm_traj->traj_x.v_max < 0.001f) arm_traj->traj_x.v_max = 0.001f;
+            if(arm_traj->traj_x.a_max < 0.001f) arm_traj->traj_x.a_max = 0.001f;
+            arm_traj->traj_x.target_pos = next_x;
+            arm_traj->traj_x.is_finished = 0;
+
+            // 下发Y轴
+            arm_traj->traj_y.v_max = GLOBAL_V_MAX * py;
+            arm_traj->traj_y.a_max = GLOBAL_A_MAX * py;
+            if(arm_traj->traj_y.v_max < 0.001f) arm_traj->traj_y.v_max = 0.001f;
+            if(arm_traj->traj_y.a_max < 0.001f) arm_traj->traj_y.a_max = 0.001f;
+            arm_traj->traj_y.target_pos = next_y;
+            arm_traj->traj_y.is_finished = 0;
+
+            // 下发W轴 (角速度/角加速度根据力臂反算)
+            arm_traj->traj_w.v_max = (GLOBAL_V_MAX / 0.3f) * pw;
+            arm_traj->traj_w.a_max = (GLOBAL_A_MAX / 0.3f) * pw;
+            if(arm_traj->traj_w.v_max < 0.002f) arm_traj->traj_w.v_max = 0.002f;
+            if(arm_traj->traj_w.a_max < 0.002f) arm_traj->traj_w.a_max = 0.002f;
+            arm_traj->traj_w.target_pos = next_w;
+            arm_traj->traj_w.is_finished = 0;
+        }
+        
+        return; 
+    }
+}
+
+/**
+ * @brief 安全加载路径点函数，带有自动边界吸附（Clamping）功能
+ * @param target_x 期望的 X 坐标
+ * @param target_y 期望的 Y 坐标
+ * @param target_w 期望的云台旋转角 W
+ */
+void arm_queue_add_safe(robotic_arm_traj_stu *arm_traj, float target_x, float target_y, float target_w)
+{
+    float max_radius = 0.95f; // 最大物理伸展半径
+    float min_radius = 0.15f; // 最小物理收缩半径 (防机械臂打脸)
+    
+    // 计算圆心（云台原点0,0）到该点的直线距离（半径L）
+    float L = sqrtf(target_x * target_x + target_y * target_y);
+    // 当发生超限时，将坐标等比例缩放至最大/最小圆周上
+    if (L > max_radius && L > 0.001f)
+    {
+        target_x = target_x * (max_radius / L);
+        target_y = target_y * (max_radius / L);
+    }
+    else if (L < min_radius && L > 0.001f)
+    {
+        target_x = target_x * (min_radius / L);
+        target_y = target_y * (min_radius / L);
+    }
+    
+    if(target_y < -0.3f) target_y = -0.3f; // 额外的边界限制，防止机械臂过度向下伸展
+    else if(target_y > 0.95f) target_y = 0.95f; // 上限边界限制
+
+    // 将合法化后的安全坐标压入各自队列
+    Traj_Path_Queue_AddPoint(&arm_traj->traj_queue_w, target_w);
+    Traj_Path_Queue_AddPoint(&arm_traj->traj_queue_x, target_x);
+    Traj_Path_Queue_AddPoint(&arm_traj->traj_queue_y, target_y);
+}
+
+/**
+ * @brief 预设机械臂轨迹测试函数，向轨迹队列中添加一系列点位，形成一个预设的轨迹，供测试使用
+*/
+void arm_load_test_waypoints(void)
+{
+    // 如果队列里还有东西，先不清空，直接追加（或者你也可以写个清空队列的逻辑）
+    
+    // === 点位1：预备点 (正前方，中等高度，收缩状态) ===
+    arm_queue_add_safe(&arm_traj, 0.3f, 0.3f, 0.0f);
+
+    // === 点位2：抓取点 (向左转10度，向前伸，贴近地面) ===
+    arm_queue_add_safe(&arm_traj, 0.6f, 0.3f, 0.0f);
+
+    // === 点位3：抬升点 (保持位置，仅抬高高度，防止撞击桌面) ===
+    arm_queue_add_safe(&arm_traj, 0.6f, 0.6f, 0.0f);
+
+    // === 点位4：放置点 (向右转10度，缩回上方准备放置) ===
+    arm_queue_add_safe(&arm_traj, 0.3f, 0.6f, 0.0f);
+
+    // === 点位5：复位点 (回到点位1) ===
+    arm_queue_add_safe(&arm_traj, 0.3f, 0.3f, 0.0f);
+}
+
+
+//================================ 遥控器手动控制 ======================================================
 
 /**
  * @brief 使用ht10a遥控器进行机械臂控制的函数，内含判断逻辑，仅用于精简代码
@@ -300,6 +382,8 @@ void arm_remote_control(void)
         }
     }
 }
+
+//================================ 遥控器手动控制 ======================================================
 
 //-------------------------------------------以下为暂时弃用的重力补偿函数--------------------------------------------
 

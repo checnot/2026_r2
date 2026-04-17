@@ -12,6 +12,9 @@
 #include "own_lib.h"
 
 #define RX_LEN1 78
+#define reduction_ratio 9.0f // A1减速比
+
+
 
 #pragma pack(1)
 
