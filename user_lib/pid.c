@@ -38,3 +38,11 @@ void PID_Set(PID_Struct *PID, float Kp, float Ki, float Kd)
 	PID->Ki = Ki;
 	PID->Kd = Kd;
 }
+
+
+void PID_Clear (PID_Struct *PID)
+{
+	PID->I_out = 0;
+	PID->LastError = 0;
+	PID->Output = 0;
+}

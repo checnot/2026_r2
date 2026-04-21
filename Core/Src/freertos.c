@@ -41,6 +41,8 @@
 #include "ht10a.h"
 #include "hi14.h"
 #include "trajectory.h"
+#include "route.h"
+#include "radar.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -193,10 +195,17 @@ void StartDefaultTask(void const * argument)
   //多段轨迹-初始化
 //=======================================================================
 
+//=======================================================================
+  //直线路径-初始化
+  Route_Init();
+  Chassis_Multi_Route_Start();
+  //直线路径-初始化
+//=======================================================================
+
   /* Infinite loop */
   for(;;)
   {
-
+  Chassis_Multi_Route_Segments();
 //=======================================================================
   //多段轨迹-规划与执行
     // if(debug_flag == 1)
@@ -229,12 +238,17 @@ void StartDefaultTask(void const * argument)
     // }
 		// data_send_vofa[3] = (float)debug_count;
 
-    data_send_vofa[0] = arm.x0_now;
-    data_send_vofa[1] = arm_traj.traj_x.out_pos;
-    data_send_vofa[2] = arm_traj.traj_queue_x.points[arm_traj.traj_queue_x.tail > 0 ? arm_traj.traj_queue_x.tail - 1 : 0];
-    data_send_vofa[3] = arm.y0_now;
-    data_send_vofa[4] = arm_traj.traj_y.out_pos;
-    data_send_vofa[5] = arm_traj.traj_queue_y.points[arm_traj.traj_queue_y.tail > 0 ? arm_traj.traj_queue_y.tail - 1 : 0];
+//    data_send_vofa[0] = arm.x0_now;
+//    data_send_vofa[1] = arm_traj.traj_x.out_pos;
+//    data_send_vofa[2] = arm_traj.traj_queue_x.points[arm_traj.traj_queue_x.tail > 0 ? arm_traj.traj_queue_x.tail - 1 : 0];
+//    data_send_vofa[3] = arm.y0_now;
+//    data_send_vofa[4] = arm_traj.traj_y.out_pos;
+//    data_send_vofa[5] = arm_traj.traj_queue_y.points[arm_traj.traj_queue_y.tail > 0 ? arm_traj.traj_queue_y.tail - 1 : 0];
+
+		data_send_vofa[0] = Radar_Pos.radar_x;
+		data_send_vofa[1] = Radar_Pos.radar_y;
+		data_send_vofa[2] = Radar_Pos.radar_yaw;
+		
 
     vofa_send_to_show_justfloat(&huart10, data_send_vofa);
 

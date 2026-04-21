@@ -38,6 +38,7 @@
 #include "ht10a.h"
 #include "hi14.h"
 #include "clamp.h"
+#include "radar.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -64,6 +65,8 @@ uint32_t timer_ms = 0;//定时器计时变量，单位ms
 
 uint8_t timer_flag = 0;//用于使定时器中对A1电机依次发送的标志位，0-3分别对应4个电机
 uint8_t m3508_send_flag = 0;//用于使定时器中对M3508电机依次发送的标志位，0-3分别对应4个电机
+
+uint8_t radar_buffer[30];				//雷达原始数据
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -123,6 +126,7 @@ int main(void)
   MX_USART10_UART_Init();
   MX_UART8_Init();
   MX_TIM2_Init();
+  MX_UART5_Init();
   /* USER CODE BEGIN 2 */
   
 //FDCAN初始化，配置过滤器并开启CAN
@@ -148,6 +152,10 @@ int main(void)
   memset(dma_rx_buf, 0, sizeof(dma_rx_buf));
   HAL_UARTEx_ReceiveToIdle_DMA(&huart6, dma_rx_buf, sizeof(dma_rx_buf));
   __HAL_DMA_DISABLE_IT(&hdma_usart6_rx, DMA_IT_HT);
+//uart5-radar
+  memset(Rec_Data, 0, sizeof(Rec_Data));
+  HAL_UARTEx_ReceiveToIdle_DMA(&huart5, Rec_Data, sizeof(Rec_Data));
+  __HAL_DMA_DISABLE_IT(&hdma_uart5_rx, DMA_IT_HT);
 
 //start tim2
   TIM2->CNT = 0;

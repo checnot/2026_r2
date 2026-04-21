@@ -1,5 +1,5 @@
 #include "myuart.h"
-
+#include "radar.h"
 
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 {
@@ -92,7 +92,16 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
     //     __HAL_DMA_DISABLE_IT(&hdma_usart6_rx,DMA_IT_HT);
     // }
 //================================ 临时 usart6供遥控器ht10a =========================
-
+//usart5供livox雷达回传数据
+		if (huart->Instance == UART5)
+    {
+        Rec_Data[Size] = '\0'; // 转换成 C 字符串
+        Data_process_String((char*)Rec_Data);
+        
+        // 重新开启接收
+        HAL_UARTEx_ReceiveToIdle_DMA(&huart5, Rec_Data, sizeof(Rec_Data));
+        __HAL_DMA_DISABLE_IT(&hdma_uart5_rx,DMA_IT_HT);
+    }
 
 	taskEXIT_CRITICAL_FROM_ISR(status_value); // 退出临界段
 }
@@ -129,6 +138,16 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
         memset(dma_rx_buf, 0, sizeof(dma_rx_buf));
         HAL_UARTEx_ReceiveToIdle_DMA(&huart6, dma_rx_buf, sizeof(dma_rx_buf));
         __HAL_DMA_DISABLE_IT(&hdma_usart6_rx, DMA_IT_HT);
+    }
+		//usart5供livox雷达回传数据
+		if (huart->Instance == UART5)
+    {
+//        Rec_Data[Size] = '\0'; // 转换成 C 字符串
+//        Data_process_String((char*)Rec_Data);
+        
+        // 重新开启接收
+        HAL_UARTEx_ReceiveToIdle_DMA(&huart5, Rec_Data, sizeof(Rec_Data));
+        __HAL_DMA_DISABLE_IT(&hdma_uart5_rx,DMA_IT_HT);
     }
 
     taskEXIT_CRITICAL_FROM_ISR(status_value); // 退出临界段
