@@ -205,7 +205,29 @@ void StartDefaultTask(void const * argument)
   /* Infinite loop */
   for(;;)
   {
-  Chassis_Multi_Route_Segments();
+		data_send_vofa[0] = Radar_Pos.radar_x;
+		data_send_vofa[1] = Radar_Pos.radar_y;
+		data_send_vofa[2] = Radar_Pos.radar_yaw;
+		
+//    调电机pid用代码。
+//    m3508_speed_control(&m3508_fdcan3[0], chassis_r2.wheel_speed[0], 8192);
+//    m3508_speed_control(&m3508_fdcan3[1], chassis_r2.wheel_speed[1], 8192);
+//    m3508_speed_control(&m3508_fdcan3[2], chassis_r2.wheel_speed[2], 8192);
+//    m3508_speed_control(&m3508_fdcan3[3], chassis_r2.wheel_speed[3], 8192);
+//		
+//		data_send_vofa[0] = m3508_fdcan3[0].Now_Speed;
+//		data_send_vofa[1] = m3508_fdcan3[1].Now_Speed;
+//		data_send_vofa[2] = m3508_fdcan3[2].Now_Speed;
+//		data_send_vofa[3] = m3508_fdcan3[3].Now_Speed;
+		
+
+    vofa_send_to_show_justfloat(&huart10, data_send_vofa);
+
+  //vofa显示调试信息
+//=======================================================================
+    debug_test_time += 0.001f;		
+		
+		Chassis_Multi_Route_Segments();
 //=======================================================================
   //多段轨迹-规划与执行
     // if(debug_flag == 1)
@@ -245,16 +267,7 @@ void StartDefaultTask(void const * argument)
 //    data_send_vofa[4] = arm_traj.traj_y.out_pos;
 //    data_send_vofa[5] = arm_traj.traj_queue_y.points[arm_traj.traj_queue_y.tail > 0 ? arm_traj.traj_queue_y.tail - 1 : 0];
 
-		data_send_vofa[0] = Radar_Pos.radar_x;
-		data_send_vofa[1] = Radar_Pos.radar_y;
-		data_send_vofa[2] = Radar_Pos.radar_yaw;
-		
 
-    vofa_send_to_show_justfloat(&huart10, data_send_vofa);
-
-  //vofa显示调试信息
-//=======================================================================
-    debug_test_time += 0.001f;
     osDelay(1);
   }
   /* USER CODE END StartDefaultTask */
@@ -367,10 +380,10 @@ void entry_chassis(void const * argument)
 {
   /* USER CODE BEGIN entry_chassis */
 // 3508参数初始化
-  m3508_parameter_init(&m3508_fdcan3[0], 2.5f, 1.0f, 0.0f, 0.0f);
-  m3508_parameter_init(&m3508_fdcan3[1], 2.5f, 1.0f, 0.0f, 0.0f);
-  m3508_parameter_init(&m3508_fdcan3[2], 2.5f, 1.0f, 0.0f, 0.0f);
-  m3508_parameter_init(&m3508_fdcan3[3], 2.5f, 1.0f, 0.0f, 0.0f);
+  m3508_parameter_init(&m3508_fdcan3[0], 10.5f, 1.0f, 0.0f, 0.0f);
+  m3508_parameter_init(&m3508_fdcan3[1], 10.5f, 1.0f, 0.0f, 0.0f);
+  m3508_parameter_init(&m3508_fdcan3[2], 10.5f, 1.0f, 0.0f, 0.0f);
+  m3508_parameter_init(&m3508_fdcan3[3], 10.5f, 1.0f, 0.0f, 0.0f);
 // 底盘升降初始化为收回状态
   chassis_r2.lift_front = 0;
   chassis_r2.lift_back = 0;
@@ -401,12 +414,12 @@ void entry_chassis(void const * argument)
       //当不主动控制底盘时，默认停止底盘，但升降状态保留
       else if(HT10A.switch_d == 1 || HT10A.switch_d == -1)
       {
-        chassis_r2.vx = 0;
-        chassis_r2.vy = 0;
-        chassis_r2.vw = 0;
+//        chassis_r2.vx = 0;
+//        chassis_r2.vy = 0;
+//        chassis_r2.vw = 0;
         chassis_lift_front_control(chassis_r2.lift_front);
         chassis_lift_back_control(chassis_r2.lift_back);
-        omni_chassis_calculate(&chassis_r2, chassis_r2.vx, chassis_r2.vy, chassis_r2.vw);
+//        omni_chassis_calculate(&chassis_r2, chassis_r2.vx, chassis_r2.vy, chassis_r2.vw);
       }
     }
     osDelay(1);

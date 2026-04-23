@@ -483,9 +483,9 @@ PID_Struct Stop_Area_Slide_PID_Calculate(PID_Struct *PID, float Target, float Me
     polynomial_factor = Clamp_Float(polynomial_factor, 0.0f, 1.0f);
 
     // 使用多项式插值计算PID参数
-    PID->Kp = polynomial_factor * Kp_Parameter + 10; // 基础值10保证至少有值
+    PID->Kp = polynomial_factor * Kp_Parameter ; // 基础值10保证至少有值
     PID->Ki = 0;                                     // 积分项保持为0
-    PID->Kd = 0;                                     // 微分项也使用多项式插值
+    PID->Kd = 4 * PID->Kp ;                                     // 微分项也使用多项式插值
     return *PID;
 }
 /*********************************************************************************
@@ -673,8 +673,8 @@ static float Advanced_Angle_Control(Route_STU *Status, float start_angle, float 
     // 停止区：使用PID精确控制
     if (Status->Parameter.Abs_Angle_Error <= dynamic_stop_area)
     {
-        PID_Calculate(&Line_AnglePID, Status->Parameter.Current_Angle_Error, 0, 800.0f);
-        target_w_speed = Clamp_Float(Line_AnglePID.Output, -800.0f, 800.0f);
+        PID_Calculate(&Line_AnglePID, Status->Parameter.Current_Angle_Error, 0, 100.0f);
+        target_w_speed = Clamp_Float(Line_AnglePID.Output, -100.0f, 100.0f);
     }
     // 减速区：根据剩余角度减速
     else if (Status->Parameter.Abs_Angle_Error <= dynamic_slow_area)
@@ -706,8 +706,8 @@ static float Advanced_Angle_Control(Route_STU *Status, float start_angle, float 
     {
         Status->Flag.W_Error = ENABLE;
         // 使用PID拉回
-        PID_Calculate(&Line_AnglePID, Status->Parameter.Current_Angle_Error, 0, 400.0f);
-        target_w_speed = Clamp_Float(Line_AnglePID.Output, -400.0f, 400.0f);
+        PID_Calculate(&Line_AnglePID, Status->Parameter.Current_Angle_Error, 0, 100.0f);
+        target_w_speed = Clamp_Float(Line_AnglePID.Output, -100.0f, 100.0f);
     }
     else
     {
@@ -822,7 +822,7 @@ void Line(Route_STU *Status)
                                                          Status->Coordinate_System.Line_Now_Position.X,
                                                          (Status->Coordinate_System.Line_Target_Position.X - Status->Parameter.Line_Route_Stop_Area),
                                                          Status->Parameter.Kp, Status->Parameter.Kd);
-            PID_Calculate(&Line_StopPID, Status->Coordinate_System.Line_Now_Position.X, Status->Coordinate_System.Line_Target_Position.X, 100.0f);
+            PID_Calculate(&Line_StopPID, Status->Coordinate_System.Line_Now_Position.X, Status->Coordinate_System.Line_Target_Position.X, 1000.0f);
             Status->Coordinate_System.Line_Target_V.Vx = Line_StopPID.Output;
         }
 
@@ -830,14 +830,14 @@ void Line(Route_STU *Status)
                                                 法向速度控制（保持直线）
         ---------------------------------------------------------------------------------------------------------------*/
         // 法向保持直线 - 修正路径偏移
-        if (ABS(Status->Coordinate_System.Line_Now_Position.X - Status->Coordinate_System.Line_Target_Position.X) > 5) // 快到直线结尾时不调节法向速度，避免出现轮子抖动
+        if (ABS(Status->Coordinate_System.Line_Now_Position.X - Status->Coordinate_System.Line_Target_Position.X) > 100.0f) // 快到直线结尾时不调节法向速度，避免出现轮子抖动
         {
-            if (ABS(Status->Coordinate_System.Line_Now_Position.Y - Status->Coordinate_System.Line_Target_Position.Y) > 3)
+            if (ABS(Status->Coordinate_System.Line_Now_Position.Y - Status->Coordinate_System.Line_Target_Position.Y) > 10.0f)
             {
-                PID_Calculate(&Line_AdjustPID, Status->Coordinate_System.Line_Now_Position.Y, 0, 100.0f);
+                PID_Calculate(&Line_AdjustPID, Status->Coordinate_System.Line_Now_Position.Y, 0, 1000.0f);
 
                 // 前馈调节，差太多的话给一个大力拽回来
-                if (ABS(Status->Coordinate_System.Line_Now_Position.Y - Status->Coordinate_System.Line_Target_Position.Y) > 1.5f)
+                if (ABS(Status->Coordinate_System.Line_Now_Position.Y - Status->Coordinate_System.Line_Target_Position.Y) > 30.0f)
                 {
                     if (Line_AdjustPID.Output > 0)
                         Line_AdjustPID.Output += 3;
@@ -867,8 +867,8 @@ void Line(Route_STU *Status)
         ===============================================================================================================*/
         // 判断路径是否走完
         // 同时判断位置误差、角度误差和电机转速，确保真正停稳
-        if (Status->Coordinate_System.Line_Target_Position.X - Status->Coordinate_System.Line_Now_Position.X < 0.01f &&
-            Status->Parameter.Abs_Angle_Error < 0.5f)
+        if (Status->Coordinate_System.Line_Target_Position.X - Status->Coordinate_System.Line_Now_Position.X < 50.0f &&
+            Status->Parameter.Abs_Angle_Error < 3.0f)
         {
             Status->Flag.Work_Start = DISABLE;
             Status->Coordinate_System.Line_Target_V.Vx = 0;
@@ -1005,7 +1005,7 @@ void Circle(Route_STU *Status)
                                                          Status->Coordinate_System.Line_Now_Position.X,
                                                          (Status->Coordinate_System.Line_Target_Position.X - Status->Parameter.Line_Route_Stop_Area),
                                                          Status->Parameter.Kp, Status->Parameter.Kd);
-            PID_Calculate(&Cir_StopPID, Arc_Remain, 0, 100.0f);
+            PID_Calculate(&Cir_StopPID, Arc_Remain, 0, 2.0f);
             Status->Coordinate_System.Polar_Target_V.Vx = -Cir_StopPID.Output;
         }
         // 顺时针旋转则切向速度取反(还没测试不知道需不需要)
@@ -1024,10 +1024,10 @@ void Circle(Route_STU *Status)
             Status->Coordinate_System.Target_Position.W = Status->Coordinate_System.Start_Position.W;
         }
         // PID保持车身角度
-        PID_Calculate(&Cir_AnglePID, Radar_Pos.radar_yaw, Status->Coordinate_System.Target_Position.W, 100.0f);
+        PID_Calculate(&Cir_AnglePID, Radar_Pos.radar_yaw, Status->Coordinate_System.Target_Position.W, 3000.0f);
         //////Robot_Coordinate_System_V.Vw = Cir_AnglePID.Output;
         // 法向用PID保持在圆上
-        PID_Calculate(&Cir_AdjustPID, Status->Coordinate_System.Polar_NowPos.Rho, Status->Parameter.R, 100.0f);
+        PID_Calculate(&Cir_AdjustPID, Status->Coordinate_System.Polar_NowPos.Rho, Status->Parameter.R, 3000.0f);
         Status->Coordinate_System.Polar_Target_V.Vy = -Cir_AdjustPID.Output;
         // 当极坐标速度坐标系法向方向偏差过大时可以尝试去减小切向方向速度(待测试)
         // 计算极坐标速度坐标系与世界坐标系夹角，原先是以y轴为基准，现在以x轴为基准
@@ -1118,7 +1118,7 @@ void Chassis_Circle_Route(float Target_X, float Target_Y, float Angle, int Start
 void Route_Init(void)
 {
     PID_Set(&Line_AdjustPID, 8, 0, 10);
-    PID_Set(&Line_StopPID, 20, 0, 15);
+    PID_Set(&Line_StopPID, 10, 0, 13);
     PID_Set(&Line_AnglePID, 80, 0, 30);
     PID_Set(&Cir_AdjustPID, 0.5f, 0.0f, 0.0f);
     PID_Set(&Cir_StopPID, 0.5f, 0.0f, 0.0f);
@@ -1223,8 +1223,8 @@ void Variable_Element_Route(Coordinate_Position_Struct *Target_Point)
 =====================================================================================================================*/
 
 // 多段路径全局标志位
-static uint8_t g_multi_route_segment = 0;     // 当前路径段数 (0-2)
-static uint8_t g_multi_route_is_running = 0;  // 路径是否正在执行 (1-执行中, 0-空闲)
+uint8_t g_multi_route_segment = 0;     // 当前路径段数 (0-2)
+uint8_t g_multi_route_is_running = 0;  // 路径是否正在执行 (1-执行中, 0-空闲)
 
 // 定义3段路径的参数结构
 typedef struct
@@ -1248,44 +1248,44 @@ typedef struct
 const Multi_Route_Params g_route_segments[3] = {
     // 第一段路径：从起点到中间点
     {
-        .target_x = 2.0f,    // 目标X坐标 (mm)
-        .target_y = 1.5f,    // 目标Y坐标
-        .target_w = 0.0f,       // 目标角度
-        .start_speed = 0.0f,    // 起始速度
-        .max_speed = 1000.0f,   // 最大速度
-        .end_speed = 100.0f,    // 结束速度
-        .start_w = 0.0f,        // 起始角速度
-        .max_w = 1.0f,          // 最大角速度
-        .up_rate = 0.2f,        // 加速区比例
-        .down_rate = 0.2f,      // 减速区比例
+        .target_x = 2000.0f,    // 目标X坐标 (mm)
+        .target_y = 2500.0f,    // 目标Y坐标
+        .target_w = 30.0f,       // 目标角度
+        .start_speed = 600.0f,    // 起始速度
+        .max_speed = 1200.0f,   // 最大速度
+        .end_speed = 0.0f,    // 结束速度
+        .start_w = 150.0f,        // 起始角速度
+        .max_w = 500.0f,          // 最大角速度
+        .up_rate = 0.3f,        // 加速区比例
+        .down_rate = 0.3f,      // 减速区比例
         .stop_area = 100.0f,    // 停止区大小
-        .kp = 10.0f,            // Kp参数
-        .kd = 5.0f              // Kd参数
+        .kp = 5.0f,            // Kp参数
+        .kd = 15.0f              // Kd参数
     },
     // 第二段路径：从中间点到第二个目标
     {
-        .target_x = 3.0f,    // 目标X坐标
-        .target_y = 3.0f,    // 目标Y坐标
+        .target_x = 2000.0f,    // 目标X坐标
+        .target_y = 500.0f,    // 目标Y坐标
         .target_w = 90.0f,      // 目标角度（旋转90度）
-        .start_speed = 0.0f,
-        .max_speed = 1200.0f,
-        .end_speed = 150.0f,
-        .start_w = 0.0f,
-        .max_w = 1.2f,
+        .start_speed = 500.0f,
+        .max_speed = 2000.0f,
+        .end_speed = 500.0f,
+        .start_w = 800.0f,
+        .max_w = 1200.0f,
         .up_rate = 0.25f,
         .down_rate = 0.25f,
-        .stop_area = 120.0f,
+        .stop_area = 30.0f,
         .kp = 12.0f,
         .kd = 6.0f
     },
     // 第三段路径：从第二个目标返回起点
     {
-        .target_x = 1.0f,       // 返回起点X坐标
-        .target_y = 1.0f,       // 返回起点Y坐标
+        .target_x = 2500.0f,       // 返回起点X坐标
+        .target_y = 3000.0f,       // 返回起点Y坐标
         .target_w = 0.0f,       // 返回起始角度
-        .start_speed = 0.0f,
-        .max_speed = 1500.0f,
-        .end_speed = 0.0f,
+        .start_speed = 400.0f,
+        .max_speed = 2000.0f,
+        .end_speed = 500.0f,
         .start_w = 0.0f,
         .max_w = 1.0f,
         .up_rate = 0.2f,
@@ -1308,7 +1308,7 @@ const Multi_Route_Params g_route_segments[3] = {
 void Chassis_Multi_Route_Segments(void)
 {
     // 检查当前段数是否有效
-    if (g_multi_route_segment >= 3)
+    if (g_multi_route_segment >= 1)
     {
         g_multi_route_segment = 0;      // 重置为第0段
         g_multi_route_is_running = 0;   // 停止运行标志
