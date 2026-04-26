@@ -37,7 +37,15 @@ typedef struct
 	LAST_REMOTE_STATU_STU last_status;
 }REMOTE_STU;
 
+//================================ 客制化判断逻辑 ===============================================*/
+extern float x0_target_remote;
+extern float y0_target_remote;
+extern float theta0_target_remote;
+extern float effector_pitch_target_remote;
+extern float effector_rotate_target_remote;
 
+extern uint8_t air_pump_flag_remote; //遥控器控制的吸泵开关标志
+//================================ 客制化判断逻辑 ===============================================*/
 
 extern int16_t _channels[16];
 extern uint8_t ht10a_buffer[30];				//遥控器原始数据

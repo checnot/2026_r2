@@ -42,6 +42,13 @@ typedef struct
     Traj_Queue_struct traj_queue_y; //末端执行器y方向路径队列
     Traj_Queue_struct traj_queue_w; //云台旋转角路径队列
 
+    // ---- 延时控制属性 ----
+    uint16_t delay_queue[TRAJ_MAX_WAYPOINTS];  // 与位置队列下标同步，存储每个点到达后的延时时间(ms)
+    uint16_t target_delay_ms;                  // 当前正在执行的目标点所要求的延时
+    uint16_t wait_counter;                     // 当前目标点到达后，正在倒计时的计数器
+
+    // ---- 气泵控制属性 ----
+    uint8_t pump_queue[TRAJ_MAX_WAYPOINTS];     // 气泵控制标志，用于控制每个路径点的气泵状态
 } robotic_arm_traj_stu;
 
 /**
@@ -85,9 +92,14 @@ void arm_actuator_stable_control(robotic_arm_stu *arm, float target_pitch, float
 void arm_remote_control(void);
 
 void arm_trajectory_init(robotic_arm_traj_stu *arm_traj, robotic_arm_stu *arm);
-void arm_queue_add_safe(robotic_arm_traj_stu *arm_traj, float target_x, float target_y, float target_w);
+void arm_queue_add_point(robotic_arm_traj_stu *arm_traj, float target_x, float target_y, float target_w, uint16_t delay_ms, uint8_t air_pump_flag);
+void arm_queue_add_point_cartesian(robotic_arm_traj_stu *arm_traj, float target_x, float target_y, float target_z, uint16_t delay_ms, uint8_t air_pump_flag);
 void arm_linear_interpolation_update(robotic_arm_stu *arm, robotic_arm_traj_stu *arm_traj, float blend_radius);
-void arm_load_test_waypoints(void);
+
+void arm_load_test_waypoints_clockwise(void);
+void arm_load_test_waypoints_counterclockwise(void);
+void arm_load_test_waypoints_rotate(void);
+void arm_load_test_waypoints_custom(void);
 
 void arm_gravity_comp(robotic_arm_stu *arm, float torque_preset0, float torque_preset1);
 

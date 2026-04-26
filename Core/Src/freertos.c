@@ -259,14 +259,27 @@ void entry_robotic_arm(void const * argument)
 // 机械臂dh参数初始化
   arm_joint_parameter_init(&arm);
 // 3508参数初始化
-  m3508_parameter_init(&m3508_fdcan1[0], 2.0f, 15.0f, 2.0f, 4.0f);
-  m3508_parameter_init(&m3508_fdcan1[1], 3.0f, 10.0f, 1.6f, 2.0f);
-  m3508_parameter_init(&m3508_fdcan1[2], 3.0f, 10.0f, 1.6f, 2.0f);
+  m3508_parameter_init(&m3508_fdcan1[0], 2.2f, 15.0f, 2.2f, 6.0f);
+  m3508_parameter_init(&m3508_fdcan1[1], 1.8f, 3.5f, 1.5f, 1.0f);
+  m3508_parameter_init(&m3508_fdcan1[2], 1.8f, 3.5f, 1.5f, 1.0f);
+
+//末端执行器部分
+  arm.effector_pitch_target = -PI/2.0f;
+  arm.theta_target[4] = 0.0f;
+
+// =================================== 4.26更新，增加遥控控制 ========================================
+  effector_pitch_target_remote = -PI/2.0f;
+  effector_rotate_target_remote = 0.0f;
+  arm.effector_pitch_target = effector_pitch_target_remote;
+  arm.theta_target[4] = effector_rotate_target_remote;
+// =================================== 4.26更新，增加遥控控制 ========================================
+
+
 // // 机械臂路径参数初始化
 //   arm_trajectory_init(&arm_traj, &arm);
 // 给机械臂一个初始的待机位置
-  arm_queue_add_safe(&arm_traj, 0.15f, 0.15f, 0.0f);
-
+  // arm_queue_add_point(&arm_traj, 0.15f, 0.15f, 0.0f, 0);
+  // arm_load_test_waypoints_rotate();
   // //预设控制位置
   // arm.x0_target = 0.15f;
   // arm.y0_target = 0.15f;
@@ -279,63 +292,82 @@ void entry_robotic_arm(void const * argument)
 
     //等待初始化完成
     if(m3508_fdcan1[0].Initial_flag == 200 && A1_debug_485_2[1].Pos_init_flag == 200)
-    {    
+    {
     //保持执行器水平
       if(m3508_fdcan1[1].Initial_flag == 200 && m3508_fdcan1[2].Initial_flag == 200)
       {arm_actuator_stable_control(&arm, arm.effector_pitch_target, arm.theta_target[4]);}
 
+
     //启动机械臂
       if(HT10A.switch_d == 1)
       {
-        if(debug_flag == 0)
+        // 同步遥控器旋钮控制的末端执行器目标
+        arm.effector_pitch_target = effector_pitch_target_remote;
+        arm.theta_target[4] = effector_rotate_target_remote;
+
+        //测试用，仅在keil调试时使用
+        if(debug_flag == 1)
         {
-          arm_load_test_waypoints(); //预设一段测试路径，实际使用中可以替换为上位机发送的路径
-          debug_flag += 1;
+          arm_load_test_waypoints_custom();
+          debug_flag = 0;
         }
 
+
         // 1. 调用多段直线插补协调器 (它会从队列中成组提取路点)
-        arm_linear_interpolation_update(&arm, &arm_traj, 0.05f); 
+        arm_linear_interpolation_update(&arm, &arm_traj, 0.02f); 
 
         // 2. 分别推演 X 和 Y 的单段物理影子 (0.001f 代表 1ms)
         Traj_Adaptive_Update(&arm_traj.traj_x, arm.x0_now, 0.001f);
         Traj_Adaptive_Update(&arm_traj.traj_y, arm.y0_now, 0.001f);
         Traj_Adaptive_Update(&arm_traj.traj_w, A1_debug_485_2[0].measure.Pos, 0.001f);
 
+
         // 3. 将影子坐标交接给逆解器
-        arm.x0_target = arm_traj.traj_x.out_pos;
-        arm.y0_target = arm_traj.traj_y.out_pos;
-        arm.theta_target[0] = arm_traj.traj_w.out_pos;
+// ==============4月26日更新：增加遥控模式，仅供测试使用，正式使用时请删除=====================
+
+        // arm.x0_target = arm_traj.traj_x.out_pos;
+        // arm.y0_target = arm_traj.traj_y.out_pos;
+        // arm.theta_target[0] = arm_traj.traj_w.out_pos;
+        arm.x0_target = x0_target_remote;
+        arm.y0_target = y0_target_remote;
+        arm.theta_target[0] = theta0_target_remote;
+
 
         // 4. 开始逆向解算出各个 theta_target，并转换成电机位置环
         arm_route_point_calculate(&arm);
-
-      // 兜底：检测将要下发的位姿是否合法，若包含死点、反折点、越界：
+        // 兜底：检测将要下发的位姿是否合法，若包含死点、反折点、越界：
         if(arm_route_reachable_check(&arm) != IK_REACHABLE)
         {
-            // 清空荒诞的轨迹余党
+            x0_target_remote = arm.x0_target;
+            y0_target_remote = arm.y0_target;
+            theta0_target_remote = arm.theta_target[0];
+
+            // 清空非法轨迹残留
             arm_traj.traj_queue_x.count = 0;
             arm_traj.traj_queue_y.count = 0;
             arm_traj.traj_queue_w.count = 0;
             // 将“影子进度”拽回到当前物理世界真正的坐标身上去！
             arm_trajectory_init(&arm_traj, &arm); 
-            // 下发真实位置重新解算：机械臂瞬间进入抱死僵直锁定模式，不至于由于偏差而爆发堵转巨力
+            // 下发真实位置重新解算：机械臂进入阻尼缓下落模式
             arm.x0_target = arm.x0_now;
             arm.y0_target = arm.y0_now;
             arm.theta_target[0] = A1_debug_485_2[0].measure.Pos;
             arm_route_point_calculate(&arm);
         }
-
-        arm_route_execute(&arm, 10.0f, 0.1f);
-        
+        arm_route_execute(&arm, 10.0f, 0.125f);
       }      
+      
     //在不操纵机械臂的情况下默认举起到竖直位置，并时刻记录当前机械臂位姿，准备随时做路径切入
       else if(HT10A.switch_d == 0 || HT10A.switch_d == -1)
       {
         // 将机械臂抬起到竖直位置
         arm_joint_state_init(&arm);
+
         // 时刻初始化机械臂路径规划器的当前点为机械臂当前实际位姿，准备随时切入
         arm_trajectory_init(&arm_traj, &arm);
       }
+      if(HT10A.switch_d == 1 && air_pump_flag_remote == 1) {HAL_GPIO_WritePin(ARM_AIR_PUMP_GPIO_Port, ARM_AIR_PUMP_Pin, GPIO_PIN_SET);} // 开启吸泵
+      else                          {HAL_GPIO_WritePin(ARM_AIR_PUMP_GPIO_Port, ARM_AIR_PUMP_Pin, GPIO_PIN_RESET);} // 关闭吸泵
     }
     osDelay(1);
   }

@@ -6,11 +6,21 @@ uint8_t ht10a_buffer[30];				//遥控器原始数据
 REMOTE_STU HT10A;//在ht10a.c中定义的原始遥控器状态结构体
 REMOTE_STU HT10A_last = {0}; //在freertos.c中定义的遥控器last状态
 
-/*================================= 客制化判断逻辑 ===============================================*/
+/*================================================= 客制化判断逻辑 ========================================================*/
 #include "clamp.h"
 #include "chassis.h"
 #include "robotic_arm.h"
 #include "trajectory.h"
+
+//遥控器控制的目标位置
+float x0_target_remote = 0.15f; //初始目标位置，避免机械臂一开机就飞出去
+float y0_target_remote = 0.15f; //初始目标位置，避免机械臂一开机就飞出去
+float theta0_target_remote = 0.0f;
+float effector_pitch_target_remote = -PI/2.0f; //初始目标位置，避免末端执行器一开机就飞出去
+float effector_rotate_target_remote = 0.0f; //初始目标位置，避免末端执行器一开机就飞出去
+
+uint8_t air_pump_flag_remote = 0; //遥控器控制的气泵状态，0为不控制，1为吸
+
 /**
  * @brief 用户自定义判断函数，根据遥控器输入的状态进行相应的操作，一般直接插入ht10a_process中调用，切换项目时可注销
 */
@@ -73,15 +83,33 @@ void customized_judgment(void)
   //机械臂控制部分
   if(HT10A.switch_d == 1)
   {
-    //吸盘突进(无收回)
-    // if(HT10A_last.switch_a == 0 && HT10A.switch_a == 1)
-    // {
-    //   arm.x0_target += 0.1f;
-    // }
+    if(abs_int16(HT10A.right_x) > 500)
+    {
+      if(HT10A.right_x > 0) x0_target_remote += 0.00020f; // 右拨杆右移，增加x
+      else                x0_target_remote -= 0.00020f; // 右拨杆左移，减少x
+    }
+    if(abs_int16(HT10A.right_y) > 500)
+    {
+      if(HT10A.right_y > 0) y0_target_remote += 0.00020f; // 右拨杆前移，增加y
+      else                y0_target_remote -= 0.00020f; // 右拨杆后移，减少y
+    }
+    if(abs_int16(HT10A.left_x) > 500)
+    {
+      if(HT10A.left_x > 0) theta0_target_remote += PI/4000.0f; // 左拨杆右移，增加theta
+      else                theta0_target_remote -= PI/4000.0f; // 左拨杆左移，减少theta
+    }
+    if(HT10A_last.switch_b != HT10A.switch_b)
+    {
+      if(HT10A.switch_b == 1) air_pump_flag_remote = 1; // B开吸
+      else                    air_pump_flag_remote = 0; // B关吸
+    }
+    effector_pitch_target_remote = -PI/2.0f + (float)(HT10A.knob_a+8000)/16000.0f*PI/2.0f; // 俯仰角范围 [-PI/2, 0]
+    effector_rotate_target_remote = (float)(HT10A.knob_b+8000) / 16000.0f * PI; // 旋转角度范围 [0, PI]
+  
   }
 
 }
-/*================================ 客制化判断逻辑 ================================================*/
+/*================================================= 客制化判断逻辑 ========================================================*/
 
 /**
  * 接受HT10A的数据并进行处理
