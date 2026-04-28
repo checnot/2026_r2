@@ -267,12 +267,12 @@ void entry_robotic_arm(void const * argument)
   arm.effector_pitch_target = -PI/2.0f;
   arm.theta_target[4] = 0.0f;
 
-// =================================== 4.26更新，增加遥控控制 ========================================
-  effector_pitch_target_remote = -PI/2.0f;
-  effector_rotate_target_remote = 0.0f;
-  arm.effector_pitch_target = effector_pitch_target_remote;
-  arm.theta_target[4] = effector_rotate_target_remote;
-// =================================== 4.26更新，增加遥控控制 ========================================
+// =================================== 4.28更新，取消遥控控制 ========================================
+  // effector_pitch_target_remote = -PI/2.0f;
+  // effector_rotate_target_remote = 0.0f;
+  // arm.effector_pitch_target = effector_pitch_target_remote;
+  // arm.theta_target[4] = effector_rotate_target_remote;
+// =================================== 4.28更新，取消遥控控制 ========================================
 
 
 // // 机械臂路径参数初始化
@@ -302,8 +302,8 @@ void entry_robotic_arm(void const * argument)
       if(HT10A.switch_d == 1)
       {
         // 同步遥控器旋钮控制的末端执行器目标
-        arm.effector_pitch_target = effector_pitch_target_remote;
-        arm.theta_target[4] = effector_rotate_target_remote;
+        // arm.effector_pitch_target = effector_pitch_target_remote;
+        // arm.theta_target[4] = effector_rotate_target_remote;
 
         //测试用，仅在keil调试时使用
         if(debug_flag == 1)
@@ -323,14 +323,14 @@ void entry_robotic_arm(void const * argument)
 
 
         // 3. 将影子坐标交接给逆解器
-// ==============4月26日更新：增加遥控模式，仅供测试使用，正式使用时请删除=====================
+// ==============4月28日更新：去除遥控模式=====================
 
-        // arm.x0_target = arm_traj.traj_x.out_pos;
-        // arm.y0_target = arm_traj.traj_y.out_pos;
-        // arm.theta_target[0] = arm_traj.traj_w.out_pos;
-        arm.x0_target = x0_target_remote;
-        arm.y0_target = y0_target_remote;
-        arm.theta_target[0] = theta0_target_remote;
+        arm.x0_target = arm_traj.traj_x.out_pos;
+        arm.y0_target = arm_traj.traj_y.out_pos;
+        arm.theta_target[0] = arm_traj.traj_w.out_pos;
+        // arm.x0_target = x0_target_remote;
+        // arm.y0_target = y0_target_remote;
+        // arm.theta_target[0] = theta0_target_remote;
 
 
         // 4. 开始逆向解算出各个 theta_target，并转换成电机位置环
@@ -338,9 +338,9 @@ void entry_robotic_arm(void const * argument)
         // 兜底：检测将要下发的位姿是否合法，若包含死点、反折点、越界：
         if(arm_route_reachable_check(&arm) != IK_REACHABLE)
         {
-            x0_target_remote = arm.x0_target;
-            y0_target_remote = arm.y0_target;
-            theta0_target_remote = arm.theta_target[0];
+            // x0_target_remote = arm.x0_target;
+            // y0_target_remote = arm.y0_target;
+            // theta0_target_remote = arm.theta_target[0];
 
             // 清空非法轨迹残留
             arm_traj.traj_queue_x.count = 0;
@@ -366,8 +366,8 @@ void entry_robotic_arm(void const * argument)
         // 时刻初始化机械臂路径规划器的当前点为机械臂当前实际位姿，准备随时切入
         arm_trajectory_init(&arm_traj, &arm);
       }
-      if(HT10A.switch_d == 1 && air_pump_flag_remote == 1) {HAL_GPIO_WritePin(ARM_AIR_PUMP_GPIO_Port, ARM_AIR_PUMP_Pin, GPIO_PIN_SET);} // 开启吸泵
-      else                          {HAL_GPIO_WritePin(ARM_AIR_PUMP_GPIO_Port, ARM_AIR_PUMP_Pin, GPIO_PIN_RESET);} // 关闭吸泵
+      // if(HT10A.switch_d == 1 && air_pump_flag_remote == 1) {HAL_GPIO_WritePin(ARM_AIR_PUMP_GPIO_Port, ARM_AIR_PUMP_Pin, GPIO_PIN_SET);} // 开启吸泵
+      // else                          {HAL_GPIO_WritePin(ARM_AIR_PUMP_GPIO_Port, ARM_AIR_PUMP_Pin, GPIO_PIN_RESET);} // 关闭吸泵
     }
     osDelay(1);
   }
