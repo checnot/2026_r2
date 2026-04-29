@@ -229,13 +229,20 @@ void StartDefaultTask(void const * argument)
     // }
 		// data_send_vofa[3] = (float)debug_count;
 
-    data_send_vofa[0] = arm.x0_now;
-    data_send_vofa[1] = arm_traj.traj_x.out_pos;
-    data_send_vofa[2] = arm_traj.traj_queue_x.points[arm_traj.traj_queue_x.tail > 0 ? arm_traj.traj_queue_x.tail - 1 : 0];
-    data_send_vofa[3] = arm.y0_now;
-    data_send_vofa[4] = arm_traj.traj_y.out_pos;
-    data_send_vofa[5] = arm_traj.traj_queue_y.points[arm_traj.traj_queue_y.tail > 0 ? arm_traj.traj_queue_y.tail - 1 : 0];
+    // data_send_vofa[0] = arm.x0_now;
+    // data_send_vofa[1] = arm_traj.traj_x.out_pos;
+    // data_send_vofa[2] = arm_traj.traj_queue_x.points[arm_traj.traj_queue_x.tail > 0 ? arm_traj.traj_queue_x.tail - 1 : 0];
+    // data_send_vofa[3] = arm.y0_now;
+    // data_send_vofa[4] = arm_traj.traj_y.out_pos;
+    // data_send_vofa[5] = arm_traj.traj_queue_y.points[arm_traj.traj_queue_y.tail > 0 ? arm_traj.traj_queue_y.tail - 1 : 0];
 
+    data_send_vofa[0] = Radar_Pos.radar_x;
+    data_send_vofa[1] = chassis_route_traj.traj_vx.out_pos;
+    data_send_vofa[2] = chassis_route_traj.traj_vx.target_pos;
+    data_send_vofa[3] = Radar_Pos.radar_y;        
+    data_send_vofa[4] = chassis_route_traj.traj_vy.out_pos;
+    data_send_vofa[5] = chassis_route_traj.traj_vy.target_pos;      
+    data_send_vofa[6] = chassis_route_traj.traj_vx.out_vel;
     vofa_send_to_show_justfloat(&huart10, data_send_vofa);
 
   //vofa显示调试信息
@@ -366,35 +373,38 @@ void entry_chassis(void const * argument)
   /* Infinite loop */ 
   for(;;)
   {
-    if(m3508_fdcan3[0].Initial_flag == 200 && m3508_fdcan3[1].Initial_flag == 200 
-      && m3508_fdcan3[2].Initial_flag == 200 && m3508_fdcan3[3].Initial_flag == 200)
-    {
-      //switch_d为0时控制底盘
-      if(HT10A.switch_d == 0)
-      {
-        chassis_r2.vx = HT10A.left_y;
-        chassis_r2.vy = -HT10A.left_x;
-        chassis_r2.vw = -HT10A.right_x;
-        //遥控器按钮控制升降!!!!!!!!!!已将切换逻辑转移至ht10a.c中，避免了升降状态与底盘控制状态的耦合
-        // if(HT10A.switch_b == 1)       {chassis_r2.lift_front = 1;}
-        // else if(HT10A.switch_b == -1) {chassis_r2.lift_front = 0;}
-        // if(HT10A.switch_c == 1)       {chassis_r2.lift_back = 1;}
-        // else if(HT10A.switch_c == -1) {chassis_r2.lift_back = 0;}
-        chassis_lift_front_control(chassis_r2.lift_front);
-        chassis_lift_back_control(chassis_r2.lift_back);
-        omni_chassis_calculate(&chassis_r2, chassis_r2.vx, chassis_r2.vy, chassis_r2.vw);
-      }
-      //当不主动控制底盘时，默认停止底盘，但升降状态保留
-      else if(HT10A.switch_d == 1 || HT10A.switch_d == -1)
-      {
-        chassis_r2.vx = 0;
-        chassis_r2.vy = 0;
-        chassis_r2.vw = 0;
-        chassis_lift_front_control(chassis_r2.lift_front);
-        chassis_lift_back_control(chassis_r2.lift_back);
-        omni_chassis_calculate(&chassis_r2, chassis_r2.vx, chassis_r2.vy, chassis_r2.vw);
-      }
-    }
+   chassis_single_route_scheduler(&Radar_Pos, &chassis_route_traj,0.001);
+
+   omni_chassis_calculate(&chassis_r2, chassis_route_traj.traj_vx.out_vel, chassis_route_traj.traj_vy.out_vel, chassis_route_traj.traj_vw.out_vel);
+    // if(m3508_fdcan3[0].Initial_flag == 200 && m3508_fdcan3[1].Initial_flag == 200 
+    //   && m3508_fdcan3[2].Initial_flag == 200 && m3508_fdcan3[3].Initial_flag == 200)
+    // {
+    //   //switch_d为0时控制底盘
+    //   if(HT10A.switch_d == 0)
+    //   {
+    //     chassis_r2.vx = HT10A.left_y;
+    //     chassis_r2.vy = -HT10A.left_x;
+    //     chassis_r2.vw = -HT10A.right_x;
+    //     //遥控器按钮控制升降!!!!!!!!!!已将切换逻辑转移至ht10a.c中，避免了升降状态与底盘控制状态的耦合
+    //     // if(HT10A.switch_b == 1)       {chassis_r2.lift_front = 1;}
+    //     // else if(HT10A.switch_b == -1) {chassis_r2.lift_front = 0;}
+    //     // if(HT10A.switch_c == 1)       {chassis_r2.lift_back = 1;}
+    //     // else if(HT10A.switch_c == -1) {chassis_r2.lift_back = 0;}
+    //     chassis_lift_front_control(chassis_r2.lift_front);
+    //     chassis_lift_back_control(chassis_r2.lift_back);
+    //     omni_chassis_calculate(&chassis_r2, chassis_r2.vx, chassis_r2.vy, chassis_r2.vw);
+    //   }
+    //   //当不主动控制底盘时，默认停止底盘，但升降状态保留
+    //   else if(HT10A.switch_d == 1 || HT10A.switch_d == -1)
+    //   {
+    //     chassis_r2.vx = 0;
+    //     chassis_r2.vy = 0;
+    //     chassis_r2.vw = 0;
+    //     chassis_lift_front_control(chassis_r2.lift_front);
+    //     chassis_lift_back_control(chassis_r2.lift_back);
+    //     omni_chassis_calculate(&chassis_r2, chassis_r2.vx, chassis_r2.vy, chassis_r2.vw);
+    //   }
+    // }
     osDelay(1);
   }
   /* USER CODE END entry_chassis */

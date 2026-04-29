@@ -8,6 +8,14 @@
 #include "myuart.h"
 #include "m3508.h"
 #include "ht10a.h"
+#include "trajectory.h"
+#include "radar.h"
+
+#define DISTANCE_WHEEL_CENTER 0.25f //轮子到中心的距离，单位m
+#define CHASSIS_V_MAX 3.0f //底盘最大速度
+#define CHASSIS_A_MAX 6.0f //底盘最大加速度
+#define CHASSIS_TRACKING_POSITION_ERROR_THRESHOLD 2.0f //底盘跟踪位置误差阈值，单位mm
+#define CHASSIS_TRACKING_ANGLE_ERROR_THRESHOLD 0.5f //底盘跟踪角度误差阈值，单位rad
 
 /* 底盘控制相关结构体定义 */
 typedef struct {
@@ -18,12 +26,20 @@ typedef struct {
     int16_t wheel_speed[4]; // 四轮速度，直接对应轮部3508电机的目标速度
 } chassis_stu;
 
-extern chassis_stu chassis_r2; // 全局底盘实例
+/* 底盘轨迹控制相关结构体定义 */
+typedef struct{
+    Traj_Single_struct traj_vx; //底盘前向速度单轨迹
+    Traj_Single_struct traj_vy; //底盘横向速度单轨迹
+    Traj_Single_struct traj_vw; //底盘旋转速度单轨迹
+}chassis_route_traj_stu;
 
+extern chassis_stu chassis_r2; // 全局底盘实例
+extern chassis_route_traj_stu chassis_route_traj;
 void omni_chassis_calculate(chassis_stu *chassis, float vx, float vy, float vw);
 void chassis_lift_front_control(uint8_t lift_front);
 void chassis_lift_back_control(uint8_t lift_back);  
 void chassis_lift_control(uint8_t lift_mode, uint8_t lift_front_flag, uint8_t lift_back_flag, uint8_t lift_whole_flag);
 
+void chassis_single_route_scheduler(RADAR_POSITION * chassis_real_position, chassis_route_traj_stu* chassis_route_traj,float dt);
 #endif /* CHASSIS_H */
 
