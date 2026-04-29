@@ -695,6 +695,11 @@
               <FileType>1</FileType>
               <FilePath>..\user_lib\route.c</FilePath>
             </File>
+            <File>
+              <FileName>chassis_behavior.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\user_lib\chassis_behavior.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

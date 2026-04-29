@@ -483,9 +483,9 @@ PID_Struct Stop_Area_Slide_PID_Calculate(PID_Struct *PID, float Target, float Me
     polynomial_factor = Clamp_Float(polynomial_factor, 0.0f, 1.0f);
 
     // 使用多项式插值计算PID参数
-    PID->Kp = polynomial_factor * Kp_Parameter ; // 基础值10保证至少有值
+    PID->Kp = polynomial_factor * Kp_Parameter; // 基础值10保证至少有值
     PID->Ki = 0;                                     // 积分项保持为0
-    PID->Kd = 4 * PID->Kp ;                                     // 微分项也使用多项式插值
+    PID->Kd = 2 * PID->Kp ;                                     // 微分项也使用多项式插值
     return *PID;
 }
 /*********************************************************************************
@@ -673,8 +673,8 @@ static float Advanced_Angle_Control(Route_STU *Status, float start_angle, float 
     // 停止区：使用PID精确控制
     if (Status->Parameter.Abs_Angle_Error <= dynamic_stop_area)
     {
-        PID_Calculate(&Line_AnglePID, Status->Parameter.Current_Angle_Error, 0, 100.0f);
-        target_w_speed = Clamp_Float(Line_AnglePID.Output, -100.0f, 100.0f);
+        PID_Calculate(&Line_AnglePID, Status->Parameter.Current_Angle_Error, 0, 1000.0f);
+        target_w_speed = Clamp_Float(Line_AnglePID.Output, -1000.0f, 1000.0f);
     }
     // 减速区：根据剩余角度减速
     else if (Status->Parameter.Abs_Angle_Error <= dynamic_slow_area)
@@ -706,8 +706,8 @@ static float Advanced_Angle_Control(Route_STU *Status, float start_angle, float 
     {
         Status->Flag.W_Error = ENABLE;
         // 使用PID拉回
-        PID_Calculate(&Line_AnglePID, Status->Parameter.Current_Angle_Error, 0, 100.0f);
-        target_w_speed = Clamp_Float(Line_AnglePID.Output, -100.0f, 100.0f);
+        PID_Calculate(&Line_AnglePID, Status->Parameter.Current_Angle_Error, 0, 1000.0f);
+        target_w_speed = Clamp_Float(Line_AnglePID.Output, -1000.0f, 1000.0f);
     }
     else
     {
@@ -822,7 +822,7 @@ void Line(Route_STU *Status)
                                                          Status->Coordinate_System.Line_Now_Position.X,
                                                          (Status->Coordinate_System.Line_Target_Position.X - Status->Parameter.Line_Route_Stop_Area),
                                                          Status->Parameter.Kp, Status->Parameter.Kd);
-            PID_Calculate(&Line_StopPID, Status->Coordinate_System.Line_Now_Position.X, Status->Coordinate_System.Line_Target_Position.X, 1000.0f);
+            PID_Calculate(&Line_StopPID, Status->Coordinate_System.Line_Now_Position.X, Status->Coordinate_System.Line_Target_Position.X, 800.0f);
             Status->Coordinate_System.Line_Target_V.Vx = Line_StopPID.Output;
         }
 
@@ -910,10 +910,10 @@ void Chassis_Line_Route(float Target_X, float Target_Y, float Target_W, float St
 
     Route_Status.Parameter.Speedup_Rate = Up_Rate;
     Route_Status.Parameter.Slow_Rate = Down_Rate;
-    Route_Status.Parameter.Speedup_W_Rate = 0.4;
+    Route_Status.Parameter.Speedup_W_Rate = 0.1;
     Route_Status.Parameter.Slow_W_Rate = 0.4;
     Route_Status.Parameter.Line_Route_Stop_Area = Stop_Area;
-    Route_Status.Parameter.Angle_Stop_Area = 0.5f;
+    Route_Status.Parameter.Angle_Stop_Area = 15.0f;
 
     Route_Status.Parameter.Kp = Kp;
     Route_Status.Parameter.Kd = Kd;
@@ -1119,7 +1119,7 @@ void Route_Init(void)
 {
     PID_Set(&Line_AdjustPID, 8, 0, 10);
     PID_Set(&Line_StopPID, 10, 0, 13);
-    PID_Set(&Line_AnglePID, 80, 0, 30);
+    PID_Set(&Line_AnglePID, -80, 0, 30);
     PID_Set(&Cir_AdjustPID, 0.5f, 0.0f, 0.0f);
     PID_Set(&Cir_StopPID, 0.5f, 0.0f, 0.0f);
     PID_Set(&Cir_AnglePID, 0.5f, 0.0f, 0.0f);
@@ -1245,55 +1245,71 @@ typedef struct
 } Multi_Route_Params;
 
 // 定义3段路径参数
-const Multi_Route_Params g_route_segments[3] = {
+const Multi_Route_Params g_route_segments[4] = {
     // 第一段路径：从起点到中间点
     {
-        .target_x = 2000.0f,    // 目标X坐标 (mm)
-        .target_y = 2500.0f,    // 目标Y坐标
-        .target_w = 30.0f,       // 目标角度
+        .target_x = 810.0f,    // 目标X坐标 (mm)
+        .target_y = 930.0f,    // 目标Y坐标
+        .target_w = 0.0f,       // 目标角度
         .start_speed = 600.0f,    // 起始速度
-        .max_speed = 1200.0f,   // 最大速度
+        .max_speed = 1500.0f,   // 最大速度
         .end_speed = 0.0f,    // 结束速度
-        .start_w = 150.0f,        // 起始角速度
-        .max_w = 500.0f,          // 最大角速度
-        .up_rate = 0.3f,        // 加速区比例
-        .down_rate = 0.3f,      // 减速区比例
+        .start_w = 100.0f,        // 起始角速度
+        .max_w = 800.0f,          // 最大角速度
+        .up_rate = 0.1f,        // 加速区比例
+        .down_rate = 0.4f,      // 减速区比例
         .stop_area = 100.0f,    // 停止区大小
-        .kp = 5.0f,            // Kp参数
+        .kp = 7.5f,            // Kp参数
         .kd = 15.0f              // Kd参数
     },
     // 第二段路径：从中间点到第二个目标
     {
-        .target_x = 2000.0f,    // 目标X坐标
-        .target_y = 500.0f,    // 目标Y坐标
-        .target_w = 90.0f,      // 目标角度（旋转90度）
-        .start_speed = 500.0f,
-        .max_speed = 2000.0f,
-        .end_speed = 500.0f,
-        .start_w = 800.0f,
-        .max_w = 1200.0f,
-        .up_rate = 0.25f,
-        .down_rate = 0.25f,
-        .stop_area = 30.0f,
-        .kp = 12.0f,
-        .kd = 6.0f
-    },
-    // 第三段路径：从第二个目标返回起点
-    {
-        .target_x = 2500.0f,       // 返回起点X坐标
-        .target_y = 3000.0f,       // 返回起点Y坐标
-        .target_w = 0.0f,       // 返回起始角度
-        .start_speed = 400.0f,
-        .max_speed = 2000.0f,
-        .end_speed = 500.0f,
-        .start_w = 0.0f,
-        .max_w = 1.0f,
-        .up_rate = 0.2f,
-        .down_rate = 0.3f,
+        .target_x = 690.0f,    // 目标X坐标
+        .target_y = 50.0f,    // 目标Y坐标
+        .target_w = 0.0f,      // 目标角度
+        .start_speed = 600.0f,
+        .max_speed = 1500.0f,
+        .end_speed = 00.0f,
+        .start_w = 100.0f,
+        .max_w = 800.0f,
+        .up_rate = 0.1f,
+        .down_rate = 0.4f,
         .stop_area = 100.0f,
-        .kp = 15.0f,
-        .kd = 8.0f
-    }
+        .kp = 7.5f,
+        .kd = 15.0f
+    },
+    // 第三段路径：
+    {
+        .target_x = 1100.0f,       // 返回起点X坐标
+        .target_y = 815.0f,       // 返回起点Y坐标
+        .target_w = 175.0f,       // 返回起始角度
+        .start_speed = 600.0f,
+        .max_speed = 1500.0f,
+        .end_speed = 0.0f,
+        .start_w =600.0f,
+        .max_w = 1000.0f,
+        .up_rate = 0.1f,
+        .down_rate = 0.4f,
+        .stop_area = 100.0f,
+        .kp = 7.5f,
+        .kd = 15.0f
+    },
+    // 第四段路径：
+    {
+        .target_x = 2610.0f,       // 返回起点X坐标
+        .target_y = 2510.0f,       // 返回起点Y坐标
+        .target_w = 0.0f,       // 返回起始角度
+        .start_speed = 600.0f,
+        .max_speed = 2000.0f,
+        .end_speed = 0.0f,
+        .start_w =600.0f,
+        .max_w = 1000.0f,
+        .up_rate = 0.1f,
+        .down_rate = 0.4f,
+        .stop_area = 100.0f,
+        .kp = 7.5f,
+        .kd = 15.0f
+    }		
 };
 
 /*********************************************************************************
@@ -1308,7 +1324,7 @@ const Multi_Route_Params g_route_segments[3] = {
 void Chassis_Multi_Route_Segments(void)
 {
     // 检查当前段数是否有效
-    if (g_multi_route_segment >= 1)
+    if (g_multi_route_segment >= 4)
     {
         g_multi_route_segment = 0;      // 重置为第0段
         g_multi_route_is_running = 0;   // 停止运行标志
