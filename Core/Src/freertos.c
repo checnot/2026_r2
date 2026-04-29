@@ -369,7 +369,7 @@ void entry_chassis(void const * argument)
   chassis_r2.lift_back = 0;
   chassis_lift_front_control(chassis_r2.lift_front);
   chassis_lift_back_control(chassis_r2.lift_back);
-
+ chassis_route_traj_init();
   /* Infinite loop */ 
   for(;;)
   {

@@ -88,6 +88,17 @@ static inline float traj_sign2(float val) {
     if (val < 0.0f) return -1.0f;
     return 0.0f;
 }
+/**
+ * @brief 底盘路径轨迹实例初始化
+ * 
+ */
+void chassis_route_traj_init(void)
+{
+    Traj_Adaptive_Init(&chassis_route_traj.traj_vx, Radar_Pos.radar_x, 170.0f, CHASSIS_V_MAX, CHASSIS_A_MAX, CHASSIS_TRACKING_POSITION_ERROR_THRESHOLD);
+    Traj_Adaptive_Init(&chassis_route_traj.traj_vy, Radar_Pos.radar_y, 845.0f, CHASSIS_V_MAX, CHASSIS_A_MAX, CHASSIS_TRACKING_POSITION_ERROR_THRESHOLD);
+    Traj_Adaptive_Init(&chassis_route_traj.traj_vw, Radar_Pos.radar_yaw , 0.0f, CHASSIS_V_MAX, CHASSIS_A_MAX, CHASSIS_TRACKING_ANGLE_ERROR_THRESHOLD);
+    
+}
 /*
 *@brief 路径完成判定与锁定函数(由于x、y轴)
 *@param traj: 轨迹控制实例
@@ -97,12 +108,17 @@ static inline float traj_sign2(float val) {
 void chassis_single_route_completion_check(Traj_Single_struct * traj, float actual_pos)
 {
     float error = fabsf(traj->target_pos - actual_pos);
-    if (error < CHASSIS_TRACKING_POSITION_ERROR_THRESHOLD) // 误差小于误差阈值则判定完成
+    if (error < CHASSIS_ROUTE_ARRIVAL_THRESHOLD) // 误差小于误差阈值则判定完成
     {
         traj->is_finished = 1;
         traj->out_pos = traj->target_pos; // 锁定目标位置
         traj->out_vel = 0.0f; // 刹停
     }
+    else
+    {
+        traj->is_finished = 0;
+    }
+    
 }
 /*
 *@brief 路径完成判定与锁定函数(由于w轴)
@@ -113,11 +129,15 @@ void chassis_single_route_completion_check(Traj_Single_struct * traj, float actu
 void chassis_single_route_completion_check_angle(Traj_Single_struct * traj, float actual_angle)
 {
     float error = fabsf(traj->target_pos - actual_angle);
-    if (error < CHASSIS_TRACKING_ANGLE_ERROR_THRESHOLD) // 误差小于误差阈值则判定完成
+    if (error < CHASSIS_ANGLE_ARRIVAL_THRESHOLD) // 误差小于误差阈值则判定完成
     {
         traj->is_finished = 1;
         traj->out_pos = traj->target_pos; // 锁定目标位置
         traj->out_vel = 0.0f; // 刹停
+    }
+     else
+    {
+        traj->is_finished = 0;
     }
 }
 /*
@@ -164,10 +184,9 @@ void chassis_velocity_acceleration_allocation(Traj_Single_struct * traj, float p
 */
 void chassis_single_route_velocity_update(Traj_Single_struct * traj,float dist_to_target, float dt)
 {
-
-    float expected_vel = 0.0f;
-    float dir = traj_sign2(traj->target_pos - traj->out_pos);
     
+    float dir = traj_sign2(traj->target_pos - traj->out_pos);
+    float expected_vel =0; 
     float safe_decel_vel = sqrtf(2.0f * traj->a_max * dist_to_target);
         
         // 我们渴望本周期的速度 (上一周期速度 + 匀加速)
@@ -183,6 +202,10 @@ void chassis_single_route_velocity_update(Traj_Single_struct * traj,float dist_t
         if (expected_vel > safe_decel_vel) {
             expected_vel = safe_decel_vel;
         }
+        // 限制3：如果速度过小，强制提升到最小调整速度，确保能够克服静摩擦并开始移动
+        if (expected_vel < CHASSIS_ADJUSE_MIN_SPEED) {
+            expected_vel = CHASSIS_ADJUSE_MIN_SPEED;
+        }
     // 把推算出的速度附加方向符号，得到真正输出速度
         traj->out_vel = expected_vel * dir;
 }
@@ -193,6 +216,7 @@ void chassis_single_route_velocity_update(Traj_Single_struct * traj,float dist_t
  */
 void chassis_single_route_scheduler(RADAR_POSITION * chassis_real_position, chassis_route_traj_stu* chassis_route_traj,float dt)
 {
+    
     // === 1. 计算当前目标距离 ===
     float dist_to_actual_vx = fabsf(chassis_route_traj->traj_vx.target_pos - chassis_real_position->radar_x);
     float dist_to_out_vx = fabsf(chassis_route_traj->traj_vx.target_pos - chassis_route_traj->traj_vx.out_pos);
