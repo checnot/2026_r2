@@ -4,7 +4,8 @@ robotic_arm_stu arm;    //机械臂实例
 robotic_arm_traj_stu arm_traj; //机械臂轨迹实例
 
 /**
- * @brief 机械臂参数初始化函数，在机械臂任务开始时调用，进行机械臂固定参数的初始化
+ * @brief 机械臂参数初始化函数，在机械臂任务开始时调用，进行机械臂物理参数的初始化
+ * @note 这里的参数是根据机械臂的实际结构测量得到的，修改机械臂结构后需要重新测量并更新这些参数
 */
 void arm_joint_parameter_init(robotic_arm_stu *arm)
 {

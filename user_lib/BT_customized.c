@@ -4,6 +4,15 @@ static ArmPickState pick_state = PICK_IDLE; /* 抓取动作的状态机当前状
 static uint32_t pick_timer_ms = 0; /* 以 BT tick (示例为10ms) 计数，或在 Tick1ms 中累加 */
 
 
+/* ------------ 黑板 (行为树状态共享区) ------------ */
+static volatile struct {
+    uint8_t req_pick;     /* 发起一次自动取放请求 (1 = 有请求) */
+    uint8_t retry_count;  /* 重试计数（示例） */
+} bb;
+/* ------------ 黑板 (行为树状态共享区) ------------ */
+
+
+
 /*================================ 辅助函数 ================================*/
 
 /**
@@ -21,7 +30,7 @@ static inline uint8_t arm_if_arrived_xy(float tx, float ty)
 /**
  * @brief 条件节点：判断是否有一个机械臂取放块请求
 */
-static BT_Status Cond_HasPickRequest(void)
+static BT_Status Cond_Has_Arm_PickRequest(void)
 {
     return bb.req_pick ? BT_SUCCESS : BT_FAILURE;
 }
@@ -157,7 +166,7 @@ static BT_Status Act_Arm_Pick_FSM(void)
 /**
  * @brief 抓取完成后的收尾清理动作，重置黑板状态和 Sequence 记忆
 */
-static BT_Status Act_FinishCleanup(void)
+static BT_Status Act_Arm_Pick_FinishCleanup(void)
 {
     bb.req_pick = 0;
     bb.retry_count = 0;
@@ -179,9 +188,9 @@ static BT_Status BT_SimplePickTree_Root(void)
      *  3) 收尾清理
      */
     static const BT_NodeFunc seq[] = {
-        Cond_HasPickRequest,
+        Cond_Has_Arm_PickRequest,
         Act_Arm_Pick_FSM,
-        Act_FinishCleanup
+        Act_Arm_Pick_FinishCleanup
     };
 
     return BT_Sequence_Memory(seq, (uint8_t)(sizeof(seq) / sizeof(seq[0])), &seq_mem_idx);
@@ -222,8 +231,9 @@ void BT_Customized_Tick1ms(void)
     static uint8_t div10 = 0;
     div10++;
     if (div10 < 10) return; /* 每 10ms 执行一次 BT Tick */
-    div10 = 0;
 
+    //清空计时，遍历行为树
+    div10 = 0;
     (void)BT_SimplePickTree_Root();
 }
 

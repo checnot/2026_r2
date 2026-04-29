@@ -41,6 +41,7 @@
 #include "ht10a.h"
 #include "hi14.h"
 #include "trajectory.h"
+#include "BT_customized.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -258,12 +259,12 @@ void entry_robotic_arm(void const * argument)
   /* USER CODE BEGIN entry_robotic_arm */
 // 机械臂dh参数初始化
   arm_joint_parameter_init(&arm);
-// 3508参数初始化
+// 机械臂上的3508参数初始化
   m3508_parameter_init(&m3508_fdcan1[0], 2.2f, 15.0f, 2.2f, 6.0f);
   m3508_parameter_init(&m3508_fdcan1[1], 1.8f, 3.5f, 1.5f, 1.0f);
   m3508_parameter_init(&m3508_fdcan1[2], 1.8f, 3.5f, 1.5f, 1.0f);
 
-//末端执行器部分
+// 末端执行器默认目标姿态
   arm.effector_pitch_target = -PI/2.0f;
   arm.theta_target[4] = 0.0f;
 
@@ -274,15 +275,6 @@ void entry_robotic_arm(void const * argument)
   // arm.theta_target[4] = effector_rotate_target_remote;
 // =================================== 4.28更新，取消遥控控制 ========================================
 
-
-// // 机械臂路径参数初始化
-//   arm_trajectory_init(&arm_traj, &arm);
-// 给机械臂一个初始的待机位置
-  // arm_queue_add_point(&arm_traj, 0.15f, 0.15f, 0.0f, 0);
-  // arm_load_test_waypoints_rotate();
-  // //预设控制位置
-  // arm.x0_target = 0.15f;
-  // arm.y0_target = 0.15f;
 
   /* Infinite loop */
   for(;;)
@@ -504,11 +496,24 @@ void entry_clamp(void const * argument)
 void entry_cmd_task(void const * argument)
 {
   /* USER CODE BEGIN entry_cmd_task */
+
+  // 行为树相关初始化
+  BT_Customized_Init(); // 初始化行为树模块（黑板、状态机等）
+
   /* Infinite loop */
   for(;;)
   {
     // 1. 先比较：本地上一次记录的旧状态(HT10A_last) 和 最新的全局状态(HT10A)
     customized_judgment(); //根据比较结果进行各种判断和操作，具体逻辑由用户在 ht10a.c 的 customized_judgment() 中编写
+
+    // switch_d为 1 并且 switch_a 从 0 变为 1 时，发起一次自动取放请求
+    if (HT10A.switch_d == 1 &&(HT10A_last.switch_a == 0 && HT10A.switch_a == 1)) 
+    {
+      BT_RequestSimplePick();
+    }
+
+    // 调用 BT_Customized_Tick1ms（内部做 10ms 降频）
+    BT_Customized_Tick1ms();
 
     // 2. 后更新：判断完之后，再把最新的全局状态拷贝到本地，留作下一次循环(1ms后)对比使用
     HT10A_last = HT10A;

@@ -37,12 +37,7 @@
 /* ------------ 预设可配置参数（按需微调） ------------ */
 
 
-/* ------------ 黑板 (行为树状态共享区) ------------ */
-static volatile struct {
-    uint8_t req_pick;     /* 发起一次自动取放请求 (1 = 有请求) */
-    uint8_t retry_count;  /* 重试计数（示例） */
-} bb;
-/* ------------ 黑板 (行为树状态共享区) ------------ */
+
 
 /* 保存 Sequence 的记忆索引（Memory Sequence 使用） */
 static uint8_t seq_mem_idx = 0;
@@ -62,5 +57,10 @@ typedef enum {
 } ArmPickState;
 /* ------------ 下层 FSM 类型与状态 --------------- */
 
+
+void BT_Customized_Init(void);
+void BT_RequestSimplePick(void);
+
+void BT_Customized_Tick1ms(void);
 
 #endif // __BT_CUSTOMIZED_
