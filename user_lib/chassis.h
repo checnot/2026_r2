@@ -10,15 +10,18 @@
 #include "ht10a.h"
 #include "trajectory.h"
 #include "radar.h"
+#include "pid.h"
 
-#define DISTANCE_WHEEL_CENTER 0.35f //轮子到中心的距离，单位m
-#define CHASSIS_V_MAX 2000.0f //底盘最大速度
-#define CHASSIS_A_MAX 4000.0f //底盘最大加速度
+#define DISTANCE_WHEEL_CENTER 0.25f //轮子到中心的距离，单位m
+#define CHASSIS_V_MAX 3000.0f //底盘最大速度
+#define CHASSIS_A_MAX 6000.0f //底盘最大加速度
 #define CHASSIS_TRACKING_POSITION_ERROR_THRESHOLD 200.0f //底盘跟踪位置误差阈值，单位mm
-#define CHASSIS_TRACKING_ANGLE_ERROR_THRESHOLD 20.0f //底盘跟踪角度误差阈值，单位rad
-#define CHASSIS_ROUTE_ARRIVAL_THRESHOLD 5.0f //底盘路径到达判定阈值，单位mm    
-#define CHASSIS_ANGLE_ARRIVAL_THRESHOLD 0.5f //底盘路径到达判定阈值，单位度
-#define CHASSIS_ADJUSE_MIN_SPEED 500.0f //底盘调整最小速度
+#define CHASSIS_TRACKING_ANGLE_ERROR_THRESHOLD 10.0f //底盘跟踪角度误差阈值，单位rad
+#define CHASSIS_ROUTE_ARRIVAL_THRESHOLD 20.0f //底盘路径到达判定阈值，单位mm    
+#define CHASSIS_ANGLE_ARRIVAL_THRESHOLD 1.0f //底盘路径到达判定阈值，单位度
+#define CHASSIS_ADJUSE_MIN_SPEED 300.0f //底盘调整最小速度
+#define CHASSIS_ROUTE_FINAL_APPROACH_THRESHOLD 300.0f //底盘路径最终接近目标判定阈值，单位mm        
+#define CHASSIS_ROUTE_FINAL_APPROACH_ANGLE_THRESHOLD 5.0f //底盘路径最终接近目标判定阈值，单位度
 /* 底盘控制相关结构体定义 */
 typedef struct {
     float vx;           // 前向速度 (m/s)
@@ -33,15 +36,28 @@ typedef struct{
     Traj_Single_struct traj_vx; //底盘前向速度单轨迹
     Traj_Single_struct traj_vy; //底盘横向速度单轨迹
     Traj_Single_struct traj_vw; //底盘旋转速度单轨迹
+
+    Traj_Queue_struct traj_queue_vx; //底盘前向速度路径队列
+    Traj_Queue_struct traj_queue_vy; //底盘横向速度路径队列
+    Traj_Queue_struct traj_queue_vw; //底盘旋转速度路径队列
+
+    PID_Struct pid_final_vx; //前向速度PID实例      
+    PID_Struct pid_final_vy; //横向速度PID实例  
+    PID_Struct pid_final_vw; //旋转速度PID实例 
 }chassis_route_traj_stu;
+
+
 
 extern chassis_stu chassis_r2; // 全局底盘实例
 extern chassis_route_traj_stu chassis_route_traj;
+void chassis_world_to_robot_velocity(chassis_stu *chassis, float vx_world, float vy_world, float vw_world, float robot_yaw);
 void omni_chassis_calculate(chassis_stu *chassis, float vx, float vy, float vw);
 void chassis_lift_front_control(uint8_t lift_front);
 void chassis_lift_back_control(uint8_t lift_back);  
 void chassis_lift_control(uint8_t lift_mode, uint8_t lift_front_flag, uint8_t lift_back_flag, uint8_t lift_whole_flag);
 void chassis_route_traj_init(void);
+void chassis_multi_route_scheduler(chassis_route_traj_stu* chassis_route_traj,RADAR_POSITION * chassis_real_position);
+void chassis_route_point_add(chassis_route_traj_stu* chassis_route_traj, float target_vx, float target_vy, float target_vw);
 void chassis_single_route_scheduler(RADAR_POSITION * chassis_real_position, chassis_route_traj_stu* chassis_route_traj,float dt);
 #endif /* CHASSIS_H */
 

@@ -64,7 +64,7 @@ float debug_test_time;//用于测试的万能小变量
 
 int32_t debug_flag;
 float debug_position;
-
+uint8_t point_add = 0; //测试用：是否添加路径点的标志位 
 /* USER CODE END Variables */
 osThreadId defaultTaskHandle;
 osThreadId roboticarm_taskHandle;
@@ -236,13 +236,11 @@ void StartDefaultTask(void const * argument)
     // data_send_vofa[4] = arm_traj.traj_y.out_pos;
     // data_send_vofa[5] = arm_traj.traj_queue_y.points[arm_traj.traj_queue_y.tail > 0 ? arm_traj.traj_queue_y.tail - 1 : 0];
 
-    data_send_vofa[0] = Radar_Pos.radar_x;
-    data_send_vofa[1] = chassis_route_traj.traj_vx.out_pos;
-    data_send_vofa[2] = chassis_route_traj.traj_vx.target_pos;
-    data_send_vofa[3] = Radar_Pos.radar_y;        
-    data_send_vofa[4] = chassis_route_traj.traj_vy.out_pos;
-    data_send_vofa[5] = chassis_route_traj.traj_vy.target_pos;      
-    data_send_vofa[6] = chassis_route_traj.traj_vx.out_vel;
+    data_send_vofa[0] = m3508_fdcan3[0].M3508_Speed_PID.Target;
+    data_send_vofa[1] = m3508_fdcan3[1].M3508_Speed_PID.Target;
+    data_send_vofa[2] = m3508_fdcan3[2].M3508_Speed_PID.Target;
+    data_send_vofa[3] = m3508_fdcan3[3].M3508_Speed_PID.Target;
+
     vofa_send_to_show_justfloat(&huart10, data_send_vofa);
 
   //vofa显示调试信息
@@ -360,10 +358,10 @@ void entry_chassis(void const * argument)
 {
   /* USER CODE BEGIN entry_chassis */
 // 3508参数初始化
-  m3508_parameter_init(&m3508_fdcan3[0], 2.5f, 1.0f, 0.0f, 0.0f);
-  m3508_parameter_init(&m3508_fdcan3[1], 2.5f, 1.0f, 0.0f, 0.0f);
-  m3508_parameter_init(&m3508_fdcan3[2], 2.5f, 1.0f, 0.0f, 0.0f);
-  m3508_parameter_init(&m3508_fdcan3[3], 2.5f, 1.0f, 0.0f, 0.0f);
+  m3508_parameter_init(&m3508_fdcan3[0], 5.0f, 1.0f, 0.0f, 0.0f);
+  m3508_parameter_init(&m3508_fdcan3[1], 5.0f, 1.0f, 0.0f, 0.0f);
+  m3508_parameter_init(&m3508_fdcan3[2], 5.0f, 1.0f, 0.0f, 0.0f);
+  m3508_parameter_init(&m3508_fdcan3[3], 5.0f, 1.0f, 0.0f, 0.0f);
 // 底盘升降初始化为收回状态
   chassis_r2.lift_front = 0;
   chassis_r2.lift_back = 0;
@@ -373,9 +371,16 @@ void entry_chassis(void const * argument)
   /* Infinite loop */ 
   for(;;)
   {
-   chassis_single_route_scheduler(&Radar_Pos, &chassis_route_traj,0.001);
-
-   omni_chassis_calculate(&chassis_r2, chassis_route_traj.traj_vx.out_vel, chassis_route_traj.traj_vy.out_vel, chassis_route_traj.traj_vw.out_vel);
+    if(point_add == 1){
+      chassis_route_point_add(&chassis_route_traj,760.0f,120.0f,0.0f);
+			chassis_route_point_add(&chassis_route_traj,1060.0f,1030.0f,90.0f);
+			chassis_route_point_add(&chassis_route_traj,2200.0f,2530.0f,0.0f);
+      point_add = 0;
+    }
+   chassis_multi_route_scheduler( &chassis_route_traj,&Radar_Pos); 
+   chassis_single_route_scheduler(&Radar_Pos, &chassis_route_traj,1);
+   chassis_world_to_robot_velocity(&chassis_r2, chassis_route_traj.traj_vx.out_vel, chassis_route_traj.traj_vy.out_vel, chassis_route_traj.traj_vw.out_vel, Radar_Pos.radar_yaw);
+   omni_chassis_calculate(&chassis_r2, chassis_r2.vx, chassis_r2.vy, chassis_r2.vw);
     // if(m3508_fdcan3[0].Initial_flag == 200 && m3508_fdcan3[1].Initial_flag == 200 
     //   && m3508_fdcan3[2].Initial_flag == 200 && m3508_fdcan3[3].Initial_flag == 200)
     // {
