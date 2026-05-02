@@ -17,13 +17,13 @@
 #define ARM_PICK_APPROACH_X_2   0.80f   /* 预抓取上方点2 X */
 #define ARM_PICK_APPROACH_Y_2   0.45f   /* 预抓取上方点2 Y */
 #define ARM_PICK_TARGET_X     0.80f   /* 真正抓取点 X */
-#define ARM_PICK_TARGET_Y     0.36f   /* 真正抓取点 Y */
+#define ARM_PICK_TARGET_Y     0.35f   /* 真正抓取点 Y */
 #define ARM_PICK_TARGET_TIME  (uint16_t)1250 /* 抓取点停留时间 (ms) */
 #define ARM_SAFE_LIFT_X       0.80f   /* 抬升到安全高度的 X */
 #define ARM_SAFE_LIFT_Y       0.40f   /* 抬升到安全高度的 Y */
-#define ARM_SAFE_LIFT_TIME    (uint16_t)200 /* 抬升到安全高度过后停留时间 (ms) */
+#define ARM_SAFE_LIFT_TIME    (uint16_t)500 /* 抬升到安全高度过后停留时间 (ms) */
 #define ARM_STORE_X           0.40f   /* 存储点 X */
-#define ARM_STORE_Y           0.40f   /* 存储点 Y */
+#define ARM_STORE_Y           0.45f   /* 存储点 Y */
 
 #define ARM_HOME_X            0.15f   /* 机械臂待机位置 X */
 #define ARM_HOME_Y            0.15f   /* 机械臂待机位置 Y */
@@ -31,9 +31,8 @@
 #define ARM_SUCK_ON           1       /* 吸泵吸取动作标志 */
 #define ARM_SUCK_OFF          0       /* 吸泵停止动作标志 */
 
-#define ARRIVE_TOL        0.015f  /* 到位容差 (m) */
-#define PUMP_WAIT_MS      180     /* 吸泵等待时间 (ms) */
-#define ACTION_TIMEOUT_MS 4500    /* 单步动作超时 (ms) */
+#define ARRIVE_TOL        0.03f  /* 到位容差 (m) */
+#define ACTION_TIMEOUT_MS 5000    /* 单步动作超时 (ms) */
 /* ------------ 预设可配置参数（按需微调） ------------ */
 
 

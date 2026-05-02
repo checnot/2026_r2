@@ -306,7 +306,7 @@ void entry_robotic_arm(void const * argument)
 
 
         // 1. 调用多段直线插补协调器 (它会从队列中成组提取路点)
-        arm_linear_interpolation_update(&arm, &arm_traj, 0.02f); 
+        arm_linear_interpolation_update(&arm, &arm_traj, 0.03f); 
 
         // 2. 分别推演 X 和 Y 的单段物理影子 (0.001f 代表 1ms)
         Traj_Adaptive_Update(&arm_traj.traj_x, arm.x0_now, 0.001f);
@@ -346,7 +346,7 @@ void entry_robotic_arm(void const * argument)
             arm.theta_target[0] = A1_debug_485_2[0].measure.Pos;
             arm_route_point_calculate(&arm);
         }
-        arm_route_execute(&arm, 10.0f, 0.125f);
+        arm_route_execute(&arm, 10.0f, 0.20f);
       }      
       
     //在不操纵机械臂的情况下默认举起到竖直位置，并时刻记录当前机械臂位姿，准备随时做路径切入

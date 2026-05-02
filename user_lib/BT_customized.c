@@ -1,11 +1,11 @@
 #include "BT_customized.h"
 
-static ArmPickState pick_state = PICK_IDLE; /* 抓取动作的状态机当前状态 */
-static uint32_t pick_timer_ms = 0; /* 以 BT tick (示例为10ms) 计数，或在 Tick1ms 中累加 */
+ArmPickState pick_state = PICK_IDLE; /* 抓取动作的状态机当前状态 */
+uint32_t pick_timer_ms = 0; /* 以 BT tick (10ms为周期) 计数，或在 Tick1ms 中累加 */
 
 
 /* ------------ 黑板 (行为树状态共享区) ------------ */
-static volatile struct {
+struct {
     uint8_t req_pick;     /* 发起一次自动取放请求 (1 = 有请求) */
     uint8_t retry_count;  /* 重试计数（示例） */
 } bb;
@@ -99,7 +99,7 @@ static BT_Status Act_Arm_Pick_FSM(void)
             taskENTER_CRITICAL();
             arm_queue_add_point(&arm_traj, ARM_PICK_TARGET_X, ARM_PICK_TARGET_Y, arm.theta_target[0], ARM_PICK_TARGET_TIME, ARM_SUCK_ON);
             taskEXIT_CRITICAL();
-            pick_state = PICK_LIFT; /* 直接进入抬升阶段，等待轨迹完成后再判断是否成功 */
+            pick_state = PICK_STORE; /* 直接进入存储阶段，等待轨迹完成后再判断是否成功 */
             pick_timer_ms = 0;
         } else {
             if (++pick_timer_ms * 10 >= ACTION_TIMEOUT_MS) {
@@ -108,23 +108,25 @@ static BT_Status Act_Arm_Pick_FSM(void)
         }
         return BT_RUNNING;
 
-    case PICK_LIFT:
-        /* 等待吸泵建立真空（防止立即抬起导致掉落） */
-        if (pick_timer_ms * 10 >= ARM_PICK_TARGET_TIME) {
-            /* 吸牢后抬升到安全高度 */
-            taskENTER_CRITICAL();
-            arm_queue_add_point(&arm_traj, ARM_SAFE_LIFT_X, ARM_SAFE_LIFT_Y, arm.theta_target[0], ARM_SAFE_LIFT_TIME, ARM_SUCK_ON);
-            taskEXIT_CRITICAL();
-            pick_state = PICK_STORE;/* 抬升到安全高度后进入存储阶段 */
-            pick_timer_ms = 0;
-            return BT_RUNNING;
-        }
-        pick_timer_ms++;
-        return BT_RUNNING;
+    // case PICK_LIFT:
+    //     /* 等待吸盘到达抓取位置 */
+    //     if (arm_if_arrived_xy(ARM_PICK_TARGET_X, ARM_PICK_TARGET_Y) && pick_timer_ms * 10 >= ARM_PICK_TARGET_TIME) {
+    //         /* 到位后下发真正抓取点 */
+    //         taskENTER_CRITICAL();
+    //         arm_queue_add_point(&arm_traj, ARM_SAFE_LIFT_X, ARM_SAFE_LIFT_Y, arm.theta_target[0], ARM_SAFE_LIFT_TIME, ARM_SUCK_ON);
+    //         taskEXIT_CRITICAL();
+    //         pick_state = PICK_STORE; /* 直接进入存储阶段 */
+    //         pick_timer_ms = 0;
+    //     } else {
+    //         if (++pick_timer_ms * 10 >= ACTION_TIMEOUT_MS) {
+    //             pick_state = PICK_FAILED;
+    //         }
+    //     }
+    //     return BT_RUNNING;
 
     case PICK_STORE:
         /* 等待抬升完成 */
-        if (arm_if_arrived_xy(ARM_SAFE_LIFT_X, ARM_SAFE_LIFT_Y)) {
+        if (arm_if_arrived_xy(ARM_PICK_TARGET_X, ARM_PICK_TARGET_Y)) {
             /* 到位后下发临时存储点 */
             taskENTER_CRITICAL();
             arm_queue_add_point(&arm_traj, ARM_STORE_X, ARM_STORE_Y, arm.theta_target[0], 0, ARM_SUCK_ON);
@@ -144,6 +146,7 @@ static BT_Status Act_Arm_Pick_FSM(void)
             /* 到位时返回success */
             pick_state = PICK_IDLE; /* 进入完成阶段，等待轨迹完成后再判断是否成功 */
             pick_timer_ms = 0;
+            return BT_SUCCESS;
         } else {
             if (++pick_timer_ms * 10 >= ACTION_TIMEOUT_MS) {
                 pick_state = PICK_FAILED;
@@ -157,6 +160,7 @@ static BT_Status Act_Arm_Pick_FSM(void)
         arm_queue_add_point(&arm_traj, ARM_HOME_X, ARM_HOME_Y, arm.theta_target[0], 0, ARM_SUCK_OFF);
         pick_state = PICK_IDLE;
         pick_timer_ms = 0;
+        bb.req_pick = 0; /* 失败时清除请求，等待下一次触发 */
 
         return BT_FAILURE;
     }
@@ -170,7 +174,7 @@ static BT_Status Act_Arm_Pick_FinishCleanup(void)
 {
     bb.req_pick = 0;
     bb.retry_count = 0;
-    seq_mem_idx = 0;    /* 重置 Sequence 记忆，方便下一次请求 */
+    // seq_mem_idx = 0;    /* 重置 Sequence 记忆，方便下一次请求 */
     return BT_SUCCESS;
 }
 

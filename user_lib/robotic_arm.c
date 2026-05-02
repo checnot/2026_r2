@@ -219,15 +219,22 @@ void arm_linear_interpolation_update(robotic_arm_stu *arm, robotic_arm_traj_stu 
     uint8_t ready_w = arm_traj->traj_w.is_finished || 
                      (blend_radius > 0.001f && dist_act_w <= (blend_radius * 2.0f) && dist_out_w <= (blend_radius * 2.0f));
 
+
+    // 新增延时逻辑：如果还有延时没等完，就原地return，不下发下一个点
+    if (arm_traj->wait_counter > 0)
+    {
+        arm_traj->wait_counter--;
+        return; 
+    }
     // === 2. 联合抛点与参数动态重分配 ===
     if (ready_x && ready_y && ready_w) 
     {
-        // 新增延时逻辑：如果还有延时没等完，就原地return，不下发下一个点
-        if (arm_traj->wait_counter > 0)
-        {
-            arm_traj->wait_counter--;
-            return; 
-        }
+        // // 新增延时逻辑：如果还有延时没等完，就原地return，不下发下一个点
+        // if (arm_traj->wait_counter > 0)
+        // {
+        //     arm_traj->wait_counter--;
+        //     return; 
+        // }
         // 新增气泵逻辑
         uint8_t next_pump_action = arm_traj->pump_queue[arm_traj->traj_queue_x.tail];
         if (next_pump_action == 1) {

@@ -38,6 +38,7 @@ BT_Status BT_Sequence_Memory(const BT_NodeFunc* nodes, uint8_t count, uint8_t* m
             *memory_index = 0; // 遇到失败，重置记忆
             return BT_FAILURE;
         }
+        if (*memory_index >= count) break;
     }
     *memory_index = 0; // 整个序列全部成功完成，重置记忆，返回成功
     return BT_SUCCESS;
