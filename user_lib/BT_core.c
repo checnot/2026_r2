@@ -1,14 +1,14 @@
 #include "BT_core.h"
 
 /* ==================================================
- *      控制节点实现
+ *               控 制 节 点
  * ================================================== */
 
 /**
  * @brief BT顺序节点 (Reactive Sequence)
  * @return 被tick后从0子节点开始，遇到 FAILURE 或 RUNNING 立即返回该状态，全部成功返回 SUCCESS
  */
-BT_Status BT_Sequence_Reactive(const BT_NodeFunc* nodes, uint8_t count) 
+BT_Status BT_Sequence(const BT_NodeFunc* nodes, uint8_t count) 
 {
     for (uint8_t i = 0; i < count; i++) {
         BT_Status status = nodes[i]();
@@ -38,8 +38,9 @@ BT_Status BT_Sequence_Memory(const BT_NodeFunc* nodes, uint8_t count, uint8_t* m
             *memory_index = 0; // 遇到失败，重置记忆
             return BT_FAILURE;
         }
+        if (*memory_index >= count) break;
     }
-    *memory_index = 0; // 整个序列全部成功完成，重置记忆
+    *memory_index = 0; // 整个序列全部成功完成，重置记忆，返回成功
     return BT_SUCCESS;
 }
 
@@ -97,19 +98,17 @@ BT_Status BT_Parallel(const BT_NodeFunc* nodes, uint8_t count)
             success_count++;
         }
     }
-    
     // 全部成功才返回成功
     if (success_count == count) {
         return BT_SUCCESS; 
     }
-    
     // 还有节点没有执行完
     return BT_RUNNING; 
 }
 
 
 /* ==================================================
- *      装饰节点实现
+ *              装 饰 节 点
  * ================================================== */
 
 /**
