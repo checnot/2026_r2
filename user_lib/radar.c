@@ -2,12 +2,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
+#include "chassis.h"
 /**Livox雷达的数据回传处理**/
 
 RADAR_POSITION Radar_Pos;
 CHASSIS_POSITION Chassis_Pos;
-
+KalmanFilter_stu Radar_Kalman_X;
+KalmanFilter_stu Radar_Kalman_Y;
+KalmanFilter_stu Radar_Kalman_Z;
+KalmanFilter_stu Radar_Kalman_Yaw;
+float x, y, z, yaw;
 uint8_t Rec_Data[65];
 
 void Data_process_String(char *str)
@@ -26,9 +30,20 @@ void Data_process_String(char *str)
             Radar_Pos.radar_y = 1000.0f * temp_b;
             Radar_Pos.radar_z = 1000.0f * temp_c;
             Radar_Pos.radar_yaw = temp_d;
+          
+        
+//            if(abs_float(chassis_r2.vx) <20.0f && abs_float(chassis_r2.vy)  <20.0f)
+//            {
+//            Kalman_Init(&Radar_Kalman_X, 0.0001f, 100.0f, 0.0f, Radar_Pos.radar_x);
+//            Kalman_Init(&Radar_Kalman_Y, 0.0001f, 100.0f, 0.0f, Radar_Pos.radar_y);
+
+//            Radar_Pos.radar_x=Kalman_Update(&Radar_Kalman_X, Radar_Pos.radar_x);
+//            Radar_Pos.radar_y=Kalman_Update(&Radar_Kalman_Y, Radar_Pos.radar_y);
             
-            // 解算底盘坐标
+//            }
+//            // 解算底盘坐标
             Calculate_Chassis_Position();
+					x = Radar_Pos.radar_x;
         }
     }
 }
