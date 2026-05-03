@@ -28,7 +28,7 @@ typedef struct {
 
 
 /* ===================== 新增：多段路径规划 (队列与融合) ===================== */
-#define TRAJ_MAX_WAYPOINTS 16  // 支持连拼的路径点缓存数量
+#define TRAJ_MAX_WAYPOINTS 32  // 支持连拼的路径点缓存数量
 // 路径缓存队列管理器
 typedef struct {
     float points[TRAJ_MAX_WAYPOINTS];  // 目标位置数组

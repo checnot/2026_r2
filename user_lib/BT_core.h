@@ -27,7 +27,7 @@ typedef BT_Status (*BT_NodeFunc)(void);
  * 2. 核心控制节点原型
  * ================================================== */
 
-BT_Status BT_Sequence_Reactive(const BT_NodeFunc* nodes, uint8_t count);
+BT_Status BT_Sequence(const BT_NodeFunc* nodes, uint8_t count);
 BT_Status BT_Sequence_Memory(const BT_NodeFunc* nodes, uint8_t count, uint8_t* memory_index);
 
 BT_Status BT_Selector(const BT_NodeFunc* nodes, uint8_t count);
