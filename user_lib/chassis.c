@@ -128,9 +128,23 @@ void chassis_route_traj_init(void)
     Traj_Adaptive_Init(&chassis_route_traj.traj_vw, Radar_Pos.radar_yaw , 0.0f, CHASSIS_V_MAX, CHASSIS_A_MAX, CHASSIS_TRACKING_ANGLE_ERROR_THRESHOLD);
     
     // PID参数初始化，针对最终接近目标时的微调，输出限制在较小范围内    
-    PID_Set(&chassis_route_traj.pid_final_vx,7.0f, 0.0f, 4.0f);      
-    PID_Set(&chassis_route_traj.pid_final_vy,7.0f, 0.0f, 4.0f);
-    PID_Set(&chassis_route_traj.pid_final_vw, 150.0f, 0.0f, 1.0f);
+    PID_Set(&chassis_route_traj.pid_final_vx,7.0f, 0.0f, 3.0f);      
+    PID_Set(&chassis_route_traj.pid_final_vy,7.0f, 0.0f, 3.0f);
+    PID_Set(&chassis_route_traj.pid_final_vw, 30.0f, 0.0f, 5.0f);
+}
+/*
+ *@brief 角度控制边界保护函数，确保在角度接近±180度时，误差计算能够正确处理环绕问题
+ *@param target_yaw: 目标角度，单位度
+ *@param now_yaw: 当前角度，单位度 
+ *@return: 计算得到的误差值，单位度，范围在[-180, 180]之间  
+ */
+float chassis_angle_edge_protection(float target_yaw,float now_yaw)
+{
+    float error1= target_yaw - now_yaw;
+    float error2 = error1 > 0 ? error1 - 360.0f : error1 + 360.0f; // 计算环绕后的误差  
+    float error = fabsf(error1) < fabsf(error2) ? error1 : error2; // 选择绝对值较小的误差作为最终误差  
+    
+    return error;
 }
 /*
 *@brief 路径完成判定与锁定函数(由于x、y轴)
@@ -161,11 +175,12 @@ void chassis_single_route_completion_check(Traj_Single_struct * traj, float actu
 */
 void chassis_single_route_completion_check_angle(Traj_Single_struct * traj, float actual_angle)
 {
-    float error = fabsf(traj->target_pos - actual_angle);
+    float error = fabsf(chassis_angle_edge_protection(traj->target_pos, actual_angle));     
+    // float error = fabsf(traj->target_pos - actual_angle);
     if (error < CHASSIS_ANGLE_ARRIVAL_THRESHOLD) // 误差小于误差阈值则判定完成
     {
         traj->is_finished = 1;
-        traj->out_pos = traj->target_pos; // 锁定目标位置
+        // traj->out_pos = traj->target_pos; // 锁定目标位置
         traj->out_vel = 0.0f; // 刹停
     }
      else
@@ -295,9 +310,9 @@ void chassis_multi_route_scheduler(chassis_route_traj_stu* chassis_route_traj,RA
 /**
  * @brief 底盘路径点添加函数
  * @param chassis_route_traj: 底盘路径轨迹实例指针
- * @param target_vx: 前向速度目标点
- * @param target_vy: 横向速度目标点
- * @param target_vw: 旋转速度目标点  
+ * @param target_vx: 前向目标点
+ * @param target_vy: 横向目标点
+ * @param target_vw: 旋转角度目标点  
  * @note 该函数会将新的目标点添加到路径队列中，等待调度器切换执行
  */
  void chassis_route_point_add(chassis_route_traj_stu* chassis_route_traj, float target_vx, float target_vy, float target_vw)
@@ -307,6 +322,40 @@ void chassis_multi_route_scheduler(chassis_route_traj_stu* chassis_route_traj,RA
     Traj_Path_Queue_AddPoint(&chassis_route_traj->traj_queue_vy, target_vy);
     Traj_Path_Queue_AddPoint(&chassis_route_traj->traj_queue_vw, target_vw);
  }  
+ 
+/*
+*@brief 角度控制PID，为解决±180度边界问题，专门设计了一个角度PID计算函数，在误差计算时调用chassis_angle_edge_protection进行边界保护
+*@param pid: PID实例指针
+*@param measure: 当前测量值，单位度 
+*@param target: 目标值，单位度  
+*@param max_output: PID输出限制
+*@return: PID计算结果
+*/
+float chassis_angle_pid_calculate(PID_Struct * PID, float measure, float target, float max_output)
+{
+    float error = chassis_angle_edge_protection(target, measure);
+    PID->Measure = measure;
+    PID->Target = target;
+    PID->Error = error;
+    
+    PID->P_out = PID->Kp * PID->Error;
+	PID->I_out += PID->Ki * ((PID->Error + PID->LastError)/2);//梯形积分
+	PID->I_out = PID->I_out > (800 ? 800 : PID->I_out);//积分限幅
+	PID->D_out = PID->Kd * (PID->LastMeasure - PID->Measure);//微分项使用测量值的变化率，减少微分环节对目标值突变的敏感性
+	PID->Output = PID->P_out + PID->I_out + PID->D_out;
+
+	PID->LastMeasure = PID->Measure;
+	PID->LastLastError = PID->LastError;
+	
+	PID->LastError = PID->Error;
+
+	if(PID->Output > max_output)
+		{PID->Output = max_output;}
+	else if(PID->Output < -max_output)
+		{PID->Output = -max_output;}
+
+	return PID->Output;
+}
 /**
  * @brief 直线插补单段路径调度器
  * @note 必须放在 Traj_Adaptive_Update(x)、Traj_Adaptive_Update(y)、Traj_Adaptive_Update(w) 之前调用
@@ -319,29 +368,35 @@ void chassis_single_route_scheduler(RADAR_POSITION * chassis_real_position, chas
     float dist_to_out_vx = fabsf(chassis_route_traj->traj_vx.target_pos - chassis_route_traj->traj_vx.out_pos);
     float dist_to_actual_vy = fabsf(chassis_route_traj->traj_vy.target_pos - chassis_real_position->reliable_y);
     float dist_to_out_vy = fabsf(chassis_route_traj->traj_vy.target_pos - chassis_route_traj->traj_vy.out_pos);
-    float dist_to_actual_vw = fabsf(chassis_route_traj->traj_vw.target_pos - chassis_real_position->reliable_yaw);
-    float dist_to_out_vw = fabsf(chassis_route_traj->traj_vw.target_pos - chassis_route_traj->traj_vw.out_pos);
+    // float dist_to_actual_vw = fabsf(chassis_route_traj->traj_vw.target_pos - chassis_real_position->reliable_yaw);
+    // float dist_to_actual_vw = fabsf(chassis_angle_edge_protection(chassis_route_traj->traj_vw.target_pos, chassis_real_position->reliable_yaw));
+    // float dist_to_out_vw = fabsf(chassis_route_traj->traj_vw.target_pos - chassis_route_traj->traj_vw.out_pos);
     uint8_t x_integral_flag = 1;// 积分使能标志，初始为1，表示允许速度积分
     uint8_t y_integral_flag = 1;    
-    uint8_t w_integral_flag = 1;
+    // uint8_t w_integral_flag = 1;
     if(dist_to_out_vx<CHASSIS_ROUTE_FINAL_APPROACH_THRESHOLD) 
     {
         
-        PID_Calculate(&chassis_route_traj->pid_final_vx, chassis_real_position->reliable_x, chassis_route_traj->traj_vx.target_pos, CHASSIS_V_MAX/5.0f); // 计算PID输出，限制在较小范围内
+        PID_Calculate(&chassis_route_traj->pid_final_vx, chassis_real_position->reliable_x, chassis_route_traj->traj_vx.target_pos, CHASSIS_V_MAX/3.0f); // 计算PID输出，限制在较小范围内
         chassis_route_traj->traj_vx.out_vel = chassis_route_traj->pid_final_vx.Output; // 用PID输出修正速度，进行微调
     }
     if(dist_to_out_vy<CHASSIS_ROUTE_FINAL_APPROACH_THRESHOLD) 
     {
         
-        PID_Calculate(&chassis_route_traj->pid_final_vy, chassis_real_position->reliable_y, chassis_route_traj->traj_vy.target_pos, CHASSIS_V_MAX/5.0f); // 计算PID输出，限制在较小范围内
+        PID_Calculate(&chassis_route_traj->pid_final_vy, chassis_real_position->reliable_y, chassis_route_traj->traj_vy.target_pos, CHASSIS_V_MAX/3.0f); // 计算PID输出，限制在较小范围内
         chassis_route_traj->traj_vy.out_vel = chassis_route_traj->pid_final_vy.Output; // 用PID输出修正速度，进行微调
     }
-    if(dist_to_out_vw<CHASSIS_ROUTE_FINAL_APPROACH_ANGLE_THRESHOLD) 
+    if(chassis_route_traj->traj_vw.is_finished == 0)//角度纯靠PID调节
     {
-        
-        PID_Calculate(&chassis_route_traj->pid_final_vw, chassis_real_position->reliable_yaw, chassis_route_traj->traj_vw.target_pos, CHASSIS_V_MAX/5.0f); // 计算PID输出，限制在较小范围内
-        chassis_route_traj->traj_vw.out_vel = chassis_route_traj->pid_final_vw.Output; // 用PID输出修正速度，进行微调
+            chassis_angle_pid_calculate(&chassis_route_traj->pid_final_vw, chassis_real_position->reliable_yaw, chassis_route_traj->traj_vw.target_pos, CHASSIS_V_MAX/2.0f); // 计算PID输出，限制在较小范围内   
+            chassis_route_traj->traj_vw.out_vel = chassis_route_traj->pid_final_vw.Output; 
     }
+    // if(dist_to_out_vw<CHASSIS_ROUTE_FINAL_APPROACH_ANGLE_THRESHOLD) 
+    // {
+    //     chassis_angle_pid_calculate(&chassis_route_traj->pid_final_vw, chassis_real_position->reliable_yaw, chassis_route_traj->traj_vw.target_pos, CHASSIS_V_MAX/5.0f); // 计算PID输出，限制在较小范围内   
+    //     // PID_Calculate(&chassis_route_traj->pid_final_vw, chassis_real_position->reliable_yaw, chassis_route_traj->traj_vw.target_pos, CHASSIS_V_MAX/5.0f); // 计算PID输出，限制在较小范围内
+    //     chassis_route_traj->traj_vw.out_vel = chassis_route_traj->pid_final_vw.Output; // 用PID输出修正速度，进行微调
+    // }
      // === 2. 如果已经判定到达，强制锁定目标防止晃动 ===
     chassis_single_route_completion_check(&chassis_route_traj->traj_vx, chassis_real_position->reliable_x);
     chassis_single_route_completion_check(&chassis_route_traj->traj_vy, chassis_real_position->reliable_y);
@@ -354,21 +409,24 @@ void chassis_single_route_scheduler(RADAR_POSITION * chassis_real_position, chas
     // ===3.扰动自适应与补救策略（如果跟踪误差过大，先让目标影子回到合理范围内，等待实体追上来）===
     chassis_disturbance_adaptive(&chassis_route_traj->traj_vx, chassis_real_position->reliable_x);
     chassis_disturbance_adaptive(&chassis_route_traj->traj_vy, chassis_real_position->reliable_y);
-    chassis_disturbance_adaptive(&chassis_route_traj->traj_vw, chassis_real_position->reliable_yaw);
+    // chassis_disturbance_adaptive(&chassis_route_traj->traj_vw, chassis_real_position->reliable_yaw);
     // === 4. 速度推演 ===
-    float dis_total =   dist_to_actual_vx + dist_to_actual_vy + dist_to_actual_vw * DISTANCE_WHEEL_CENTER*1000.0f; 
-    float rate_vx = (dist_to_actual_vx + 0.001f) / (dis_total + 0.003f); // 加小常数避免除零
-    float rate_vy = (dist_to_actual_vy + 0.001f) / (dis_total + 0.003f);
-    float rate_vw = (dist_to_actual_vw * DISTANCE_WHEEL_CENTER*1000.0f + 0.001f) / (dis_total + 0.003f);
-
+    // float dis_total =   dist_to_actual_vx + dist_to_actual_vy + dist_to_actual_vw * DISTANCE_WHEEL_CENTER*1000.0f; 
+    // float rate_vx = (dist_to_actual_vx + 0.001f) / (dis_total + 0.003f); // 加小常数避免除零
+    // float rate_vy = (dist_to_actual_vy + 0.001f) / (dis_total + 0.003f);
+    // float rate_vw = (dist_to_actual_vw * DISTANCE_WHEEL_CENTER*1000.0f + 0.001f) / (dis_total + 0.003f);
+float dis_total =  sqrtf(dist_to_actual_vx * dist_to_actual_vx + dist_to_actual_vy * dist_to_actual_vy);
+    float rate_vx = (dist_to_actual_vx + 0.001f) / (dis_total + 0.002f); // 加小常数避免除零
+    float rate_vy = (dist_to_actual_vy + 0.001f) / (dis_total + 0.002f);
+    
     chassis_velocity_acceleration_allocation(&chassis_route_traj->traj_vx,rate_vx);
     chassis_velocity_acceleration_allocation(&chassis_route_traj->traj_vy,rate_vy);
-    chassis_velocity_acceleration_allocation(&chassis_route_traj->traj_vw,rate_vw);     
+    // chassis_velocity_acceleration_allocation(&chassis_route_traj->traj_vw,rate_vw);     
     if(chassis_route_traj->traj_vx.is_finished == 0 && dist_to_out_vx >= CHASSIS_ROUTE_FINAL_APPROACH_THRESHOLD) chassis_single_route_velocity_update(&chassis_route_traj->traj_vx, chassis_real_position->reliable_x, dt);
     if(chassis_route_traj->traj_vy.is_finished == 0 && dist_to_out_vy >= CHASSIS_ROUTE_FINAL_APPROACH_THRESHOLD) chassis_single_route_velocity_update(&chassis_route_traj->traj_vy, chassis_real_position->reliable_y, dt);
-    if(chassis_route_traj->traj_vw.is_finished == 0 && dist_to_out_vw >= CHASSIS_ROUTE_FINAL_APPROACH_ANGLE_THRESHOLD) chassis_single_route_velocity_update(&chassis_route_traj->traj_vw, chassis_real_position->reliable_yaw, dt);  
+    // if(chassis_route_traj->traj_vw.is_finished == 0 && dist_to_out_vw >= CHASSIS_ROUTE_FINAL_APPROACH_ANGLE_THRESHOLD) chassis_single_route_velocity_update(&chassis_route_traj->traj_vw, chassis_real_position->reliable_yaw, dt);  
     // ===5.速度积分===
     if(x_integral_flag) chassis_route_traj->traj_vx.out_pos = chassis_route_traj->traj_vx.out_pos + chassis_route_traj->traj_vx.out_vel * 0.001f;       
     if(y_integral_flag) chassis_route_traj->traj_vy.out_pos = chassis_route_traj->traj_vy.out_pos + chassis_route_traj->traj_vy.out_vel * 0.001f;
-    if(w_integral_flag) chassis_route_traj->traj_vw.out_pos = chassis_route_traj->traj_vw.out_pos + chassis_route_traj->traj_vw.out_vel / DISTANCE_WHEEL_CENTER * 0.001f;   
+    // if(w_integral_flag) chassis_route_traj->traj_vw.out_pos = chassis_route_traj->traj_vw.out_pos + chassis_route_traj->traj_vw.out_vel / DISTANCE_WHEEL_CENTER * 0.001f;   
 }

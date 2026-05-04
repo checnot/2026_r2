@@ -67,6 +67,7 @@ float debug_test_time; // 用于测试的万能小变量
 int32_t debug_flag;
 float debug_position;
 uint8_t point_add = 0; // 测试用：是否添加路径点的标志位
+uint8_t ponit_add1 = 0; // 测试用：是否添加路径点的标志位 
 uint8_t kalman_update_times = 0; // 卡尔曼滤波更新次数统计
 uint8_t kalman_init_flag = 0; // 卡尔曼滤波初始化flag
 
@@ -403,8 +404,14 @@ void entry_chassis(void const *argument)
     {
       //      chassis_route_point_add(&chassis_route_traj,55.0f,66.0f,0.0f);
       chassis_route_point_add(&chassis_route_traj, 1200.0f, 1400.0f, 90.0f);
-      chassis_route_point_add(&chassis_route_traj, 2200.0f, 3000.0f, 0.0f);
+      // chassis_route_point_add(&chassis_route_traj, 2200.0f, 3000.0f, 180.0f);
+			// chassis_route_point_add(&chassis_route_traj, 1200.0f, 3000.0f, -45.0f);
       point_add = 0;
+    }
+    if(ponit_add1 ==1)
+    {
+      chassis_route_point_add(&chassis_route_traj, 2200.0f,3000.0f, 180.0f);
+      ponit_add1 = 0;
     }
     Radar_Pos.radar_x_filtered = Kalman_Update(&Radar_Kalman_X, Radar_Pos.radar_x);
     Radar_Pos.radar_y_filtered = Kalman_Update(&Radar_Kalman_Y, Radar_Pos.radar_y);
@@ -554,21 +561,21 @@ void entry_cmd_task(void const *argument)
   /* Infinite loop */
   for (;;)
   {
-    // 1. 先比较：本地上一次记录的旧状态(HT10A_last) 和 最新的全局状态(HT10A)
-    customized_judgment(); //根据比较结果进行各种判断和操作，具体逻辑由用户在 ht10a.c 的 customized_judgment() 中编写
+    // // 1. 先比较：本地上一次记录的旧状态(HT10A_last) 和 最新的全局状态(HT10A)
+    // customized_judgment(); //根据比较结果进行各种判断和操作，具体逻辑由用户在 ht10a.c 的 customized_judgment() 中编写
 
-    // switch_d为 1 并且 switch_a 从 0 变为 1 时，发起一次自动取放请求
-    if (HT10A.switch_d == 1 &&(HT10A_last.switch_a == 0 && HT10A.switch_a == 1)) 
-    {
-      BT_RequestSimplePick();
-    }
+    // // switch_d为 1 并且 switch_a 从 0 变为 1 时，发起一次自动取放请求
+    // if (HT10A.switch_d == 1 &&(HT10A_last.switch_a == 0 && HT10A.switch_a == 1)) 
+    // {
+    //   BT_RequestSimplePick();
+    // }
 
-    // 调用 BT_Customized_Tick1ms（内部做 10ms 降频）
-    BT_Customized_Tick1ms();
+    // // 调用 BT_Customized_Tick1ms（内部做 10ms 降频）
+    // BT_Customized_Tick1ms();
 
-    // 2. 后更新：判断完之后，再把最新的全局状态拷贝到本地，留作下一次循环(1ms后)对比使用
-    HT10A_last = HT10A;
-
+    // // 2. 后更新：判断完之后，再把最新的全局状态拷贝到本地，留作下一次循环(1ms后)对比使用
+    // HT10A_last = HT10A;
+    // BT_Customized_Tick1ms_test();
     osDelay(1);
   }
   /* USER CODE END entry_cmd_task */

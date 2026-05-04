@@ -1,9 +1,10 @@
 #include "BT_customized.h"
 
 ArmPickState pick_state = PICK_IDLE; /* 抓取动作的状态机当前状态 */
+ChassisRouteState chassis_state = CHASSIS_ROUTE_IDLE;/*底盘路径状态机当前状态*/
 uint32_t pick_timer_ms = 0; /* 以 BT tick (10ms为周期) 计数，或在 Tick1ms 中累加 */
-
-
+uint32_t chassis_timer_ms = 0 ;
+uint8_t chassis_request_flag = 0; //底盘路径请求标志位，1为有请求，0为无请求    
 /* ------------ 黑板 (行为树状态共享区) ------------ */
 struct {
     uint8_t req_pick;     /* 发起一次自动取放请求 (1 = 有请求) */
@@ -166,7 +167,6 @@ static BT_Status Act_Arm_Pick_FSM(void)
     }
 
 }
-
 /**
  * @brief 抓取完成后的收尾清理动作，重置黑板状态和 Sequence 记忆
 */
@@ -238,6 +238,110 @@ void BT_Customized_Tick1ms(void)
 
     //清空计时，遍历行为树
     div10 = 0;
-    (void)BT_SimplePickTree_Root();
+     (void)BT_SimplePickTree_Root();
+   
 }
 
+/*====================================底盘路径行为树测试用============================*/static BT_Status Act_Chassis_Route_FSM(void)
+{
+    /* 该函数由 BT_Customized_Tick1ms 每 10ms 调用一次（示例），
+       route_timer_ms 的单位与 Tick 调用频率对应（本示例按 10ms 计数）。 */
+
+    switch (chassis_state) {       //根据当前状态执行对应的动作，并根据条件推进状态机
+
+    case CHASSIS_ROUTE_IDLE:
+        /* 第一次进入：回归到 HOME 位置，并进入 Position1 */
+        taskENTER_CRITICAL(); /* 保护轨迹队列写入，或使用 mutex */
+        chassis_route_point_add(&chassis_route_traj, 400.0f, 1400.0f, 0.0f);
+        taskEXIT_CRITICAL();
+        chassis_state = CHASSIS_ROUTE_1;
+        chassis_timer_ms = 0;
+        return BT_RUNNING;
+    case CHASSIS_ROUTE_1:
+        /* 等待到达抓取矛头位置 */
+        if (chassis_route_traj.traj_vx.is_finished && chassis_route_traj.traj_vy.is_finished && chassis_route_traj.traj_vw.is_finished) {
+            /* 到位后下发下一个点 */
+            taskENTER_CRITICAL();
+            chassis_route_point_add(&chassis_route_traj, 400.0f, 600.0f, 0.0f);
+            taskEXIT_CRITICAL();
+            chassis_state = CHASSIS_ROUTE_2;
+            chassis_timer_ms = 0;
+        }else if(++chassis_timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS)
+        {
+            chassis_state = CHASSIS_FAILED;
+        }
+        return BT_RUNNING;
+    case CHASSIS_ROUTE_2:
+        /* 等待到达抓取矛头位置 */
+        if (chassis_route_traj.traj_vx.is_finished && chassis_route_traj.traj_vy.is_finished && chassis_route_traj.traj_vw.is_finished) {
+            /* 到位后下发下一个点 */
+            taskENTER_CRITICAL();
+            chassis_route_point_add(&chassis_route_traj, 1200.0f, 1400.0f, 0.0f);
+            taskEXIT_CRITICAL();
+            chassis_state = CHASSIS_ROUTE_3;
+            chassis_timer_ms = 0;
+        }else if(++chassis_timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS)
+        {
+            chassis_state = CHASSIS_FAILED;
+        }
+        return BT_RUNNING;
+    case CHASSIS_ROUTE_3:
+        /* 等待到达对矛头位置 */
+        if (chassis_route_traj.traj_vx.is_finished && chassis_route_traj.traj_vy.is_finished && chassis_route_traj.traj_vw.is_finished) {
+            /* 到位时返回success */
+            chassis_state = CHASSIS_ROUTE_IDLE; /* 进入完成阶段，等待轨迹完成后再判断是否成功 */
+            chassis_timer_ms = 0;
+            return BT_SUCCESS;  
+        } else {
+            if (++chassis_timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS) {
+                chassis_state = CHASSIS_FAILED;
+            }
+        }
+        return BT_RUNNING;  
+    case CHASSIS_FAILED:
+     default:
+        /* 失败时复位并告诉上层失败，供上层 Selector 做重试或回退 */
+        chassis_route_point_add(&chassis_route_traj, 400.0f, 1400.0f, 0.0f);
+        chassis_state = CHASSIS_ROUTE_IDLE;
+        chassis_timer_ms = 0;
+        bb.req_pick = 0; /* 失败时清除请求，等待下一次触发 */
+        return BT_FAILURE;
+    }
+}
+static BT_Status CHASSIS_Request(void)
+{
+    return chassis_request_flag ? BT_SUCCESS : BT_FAILURE;
+}
+static BT_Status chassis_finish_cleanup(void)
+{
+    chassis_request_flag = 0;
+    chassis_timer_ms = 0;
+    return BT_SUCCESS;
+}
+static BT_Status BT_Chassis_Route_Tree_Root(void)
+{
+    /* 按顺序执行：
+     *  1) 有请求？
+     *  2) 执行底盘路径 FSM
+     *  3) 收尾清理
+     */
+    static const BT_NodeFunc seq[] = {
+        CHASSIS_Request,
+        Act_Chassis_Route_FSM,
+        chassis_finish_cleanup
+    };
+
+    return BT_Sequence_Memory(seq, (uint8_t)(sizeof(seq) / sizeof(seq[0])), &seq_mem_idx);
+}
+
+void BT_Customized_Tick1ms_test(void)
+{
+    static uint8_t div10 = 0;
+    div10++;
+    if (div10 < 10) return; /* 每 10ms 执行一次 BT Tick */
+
+    //清空计时，遍历行为树
+    div10 = 0;
+  
+    (void)BT_Chassis_Route_Tree_Root();
+}

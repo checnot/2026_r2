@@ -9,6 +9,7 @@
 #include "ht10a.h"
 #include "FreeRTOS.h"     // 用于 taskENTER_CRITICAL / taskEXIT_CRITICAL
 #include "task.h"
+#include "chassis.h"
 //================== 客制化头文件 ==================
 
 /* ------------ 预设可配置参数（按需微调） ------------ */
@@ -35,7 +36,7 @@
 #define ACTION_TIMEOUT_MS 5000    /* 单步动作超时 (ms) */
 /* ------------ 预设可配置参数（按需微调） ------------ */
 
-
+#define CHASSIS_ROUTE_TIMEOUT_MS 10000 /* 底盘路径超时 (ms) */
 
 
 /* 保存 Sequence 的记忆索引（Memory Sequence 使用） */
@@ -54,6 +55,14 @@ typedef enum {
     PICK_COMPLETE,
     PICK_FAILED
 } ArmPickState;
+typedef enum{
+    CHASSIS_ROUTE_IDLE,
+    CHASSIS_ROUTE_1,
+    CHASSIS_ROUTE_2,
+    CHASSIS_ROUTE_3,
+    CHASSIS_FAILED
+
+}ChassisRouteState;
 /* ------------ 下层 FSM 类型与状态 --------------- */
 
 
@@ -61,5 +70,6 @@ void BT_Customized_Init(void);
 void BT_RequestSimplePick(void);
 
 void BT_Customized_Tick1ms(void);
+void BT_Customized_Tick1ms_test(void);
 
 #endif // __BT_CUSTOMIZED_
