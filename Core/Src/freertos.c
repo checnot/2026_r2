@@ -501,7 +501,8 @@ void entry_cmd_task(void const *argument)
     // // 2. 后更新：判断完之后，再把最新的全局状态拷贝到本地，留作下一次循环(1ms后)对比使用
     // HT10A_last = HT10A;
     // BT_Customized_Tick1ms_test();
-    osDelay(1);
+    //wdahonkfnal
+     osDelay(1);
   }
   /* USER CODE END entry_cmd_task */
 }
