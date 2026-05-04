@@ -325,49 +325,62 @@ void entry_chassis(void const *argument)
   /* Infinite loop */
   for (;;)
   {
-    if (point_add == 1)
+// 测试用添加路径点
+    if(m3508_fdcan3[0].Initial_flag == 200 && m3508_fdcan3[1].Initial_flag == 200
+      && m3508_fdcan3[2].Initial_flag == 200 && m3508_fdcan3[3].Initial_flag == 200)
     {
-      //      chassis_route_point_add(&chassis_route_traj,55.0f,66.0f,0.0f);
-      chassis_route_point_add(&chassis_route_traj, 1200.0f, 1400.0f, 90.0f);
-      // chassis_route_point_add(&chassis_route_traj, 2200.0f, 3000.0f, 180.0f);
-			// chassis_route_point_add(&chassis_route_traj, 1200.0f, 3000.0f, -45.0f);
-      point_add = 0;
-    }
-    if(ponit_add1 ==1)
-    {
-      chassis_route_point_add(&chassis_route_traj, 2200.0f,3000.0f, 180.0f);
-      ponit_add1 = 0;
-    }
-    Radar_Pos.radar_x_filtered = Kalman_Update(&Radar_Kalman_X, Radar_Pos.radar_x);
-    Radar_Pos.radar_y_filtered = Kalman_Update(&Radar_Kalman_Y, Radar_Pos.radar_y);
-    Radar_Pos.radar_z_filtered = Kalman_Update(&Radar_Kalman_Z, Radar_Pos.radar_z);
+      if(point_add == 1)
+      {
+        //      chassis_route_point_add(&chassis_route_traj,55.0f,66.0f,0.0f);
+        chassis_route_point_add(&chassis_route_traj, 1200.0f, 1400.0f, 90.0f);
+        // chassis_route_point_add(&chassis_route_traj, 2200.0f, 3000.0f, 180.0f);
+        // chassis_route_point_add(&chassis_route_traj, 1200.0f, 3000.0f, -45.0f);
+        point_add = 0;
+      }
+      if(ponit_add1 ==1)
+      {
+        chassis_route_point_add(&chassis_route_traj, 2200.0f,3000.0f, 180.0f);
+        ponit_add1 = 0;
+      }
+// 测试用添加路径点
 
-    omni_chassis_inverse_calculate(&chassis_r2, m3508_fdcan3);
-    if (abs_float(chassis_r2.real_vx) < RADAR_Filter_Threshold && abs_float(chassis_r2.real_vy) < RADAR_Filter_Threshold)
-    {
-      // if(kalman_init_flag == 0)
-      // {
-      //   kalman_init_flag = 1; // 仅在第一次满足条件时初始化卡尔曼滤波器，避免频繁初始化
-      //   Kalman_Init(&Radar_Kalman_X, 0.0001f, 100.0f, 0.0f, Radar_Pos.radar_x);
-      //   Kalman_Init(&Radar_Kalman_Y, 0.0001f, 100.0f, 0.0f, Radar_Pos.radar_y);
-      // }
-    Radar_Pos.reliable_x = Radar_Pos.radar_x_filtered;
-    Radar_Pos.reliable_y = Radar_Pos.radar_y_filtered;
-    Radar_Pos.reliable_z = Radar_Pos.radar_z_filtered;
-    Radar_Pos.reliable_yaw = Radar_Pos.radar_yaw;
-    }
-    else
-    {
-      Radar_Pos.reliable_x = Radar_Pos.radar_x;
-      Radar_Pos.reliable_y = Radar_Pos.radar_y;
-      Radar_Pos.reliable_z = Radar_Pos.radar_z;
-      Radar_Pos.reliable_yaw = Radar_Pos.radar_yaw;
-    }
+      // 滤波后的雷达数据更新
+      Radar_Pos.radar_x_filtered = Kalman_Update(&Radar_Kalman_X, Radar_Pos.radar_x);
+      Radar_Pos.radar_y_filtered = Kalman_Update(&Radar_Kalman_Y, Radar_Pos.radar_y);
+      Radar_Pos.radar_z_filtered = Kalman_Update(&Radar_Kalman_Z, Radar_Pos.radar_z);
 
-    chassis_multi_route_scheduler(&chassis_route_traj, &Radar_Pos);
-    chassis_single_route_scheduler(&Radar_Pos, &chassis_route_traj, 1);
-    chassis_world_to_robot_velocity(&chassis_r2, chassis_route_traj.traj_vx.out_vel, chassis_route_traj.traj_vy.out_vel, chassis_route_traj.traj_vw.out_vel, Radar_Pos.reliable_yaw);
-    omni_chassis_calculate(&chassis_r2, chassis_r2.vx, chassis_r2.vy, chassis_r2.vw);
+      // 利用电机速度计算底盘实际速度（逆解算）
+      omni_chassis_inverse_calculate(&chassis_r2, m3508_fdcan3);
+
+      // 当底盘实际速度足够小时，认为雷达数据不可靠，使用滤波后的雷达数据
+      if (abs_float(chassis_r2.real_vx) < RADAR_Filter_Threshold && abs_float(chassis_r2.real_vy) < RADAR_Filter_Threshold)
+      {
+        // if(kalman_init_flag == 0)
+        // {
+        //   kalman_init_flag = 1; // 仅在第一次满足条件时初始化卡尔曼滤波器，避免频繁初始化
+        //   Kalman_Init(&Radar_Kalman_X, 0.0001f, 100.0f, 0.0f, Radar_Pos.radar_x);
+        //   Kalman_Init(&Radar_Kalman_Y, 0.0001f, 100.0f, 0.0f, Radar_Pos.radar_y);
+        // }
+        Radar_Pos.reliable_x = Radar_Pos.radar_x_filtered;
+        Radar_Pos.reliable_y = Radar_Pos.radar_y_filtered;
+        Radar_Pos.reliable_z = Radar_Pos.radar_z_filtered;
+        Radar_Pos.reliable_yaw = Radar_Pos.radar_yaw;
+      }
+      // 否则认为雷达数据可靠，直接使用原始雷达数据
+      else
+      {
+        Radar_Pos.reliable_x = Radar_Pos.radar_x;
+        Radar_Pos.reliable_y = Radar_Pos.radar_y;
+        Radar_Pos.reliable_z = Radar_Pos.radar_z;
+        Radar_Pos.reliable_yaw = Radar_Pos.radar_yaw;
+      }
+
+      // 多段-单段-坐标系变换-底盘解算 路径执行部分
+      chassis_multi_route_scheduler(&chassis_route_traj, &Radar_Pos);
+      chassis_single_route_scheduler(&Radar_Pos, &chassis_route_traj, 1);
+      chassis_world_to_robot_velocity(&chassis_r2, chassis_route_traj.traj_vx.out_vel, chassis_route_traj.traj_vy.out_vel, chassis_route_traj.traj_vw.out_vel, Radar_Pos.reliable_yaw);
+      omni_chassis_calculate(&chassis_r2, chassis_r2.vx, chassis_r2.vy, chassis_r2.vw);
+    }
     // if(m3508_fdcan3[0].Initial_flag == 200 && m3508_fdcan3[1].Initial_flag == 200
     //   && m3508_fdcan3[2].Initial_flag == 200 && m3508_fdcan3[3].Initial_flag == 200)
     // {
@@ -481,26 +494,22 @@ void entry_cmd_task(void const *argument)
   /* USER CODE BEGIN entry_cmd_task */
 
   // 行为树相关初始化
-  BT_Customized_Init(); // 初始化行为树模块（黑板、状态机等）
+  BT_Init_Combined_Task(); // 初始化行为树模块（黑板、状态机等）
 
   /* Infinite loop */
   for (;;)
   {
-    // // 1. 先比较：本地上一次记录的旧状态(HT10A_last) 和 最新的全局状态(HT10A)
-    // customized_judgment(); //根据比较结果进行各种判断和操作，具体逻辑由用户在 ht10a.c 的 customized_judgment() 中编写
 
-    // // switch_d为 1 并且 switch_a 从 0 变为 1 时，发起一次自动取放请求
-    // if (HT10A.switch_d == 1 &&(HT10A_last.switch_a == 0 && HT10A.switch_a == 1)) 
-    // {
-    //   BT_RequestSimplePick();
-    // }
+    // switch_d为 1 并且 switch_a 从 0 变为 1 时，发起一次自动组合任务请求
+    if (HT10A.switch_d == 1 &&(HT10A_last.switch_a == 0 && HT10A.switch_a == 1)) 
+    {
+      BT_Start_Combined_Task();
+    }
 
-    // // 调用 BT_Customized_Tick1ms（内部做 10ms 降频）
-    // BT_Customized_Tick1ms();
+    // 调用 BT_Customized_Tick1ms_Combined（内部做 10ms 降频）
+    BT_Customized_Tick1ms_Combined();
 
-    // // 2. 后更新：判断完之后，再把最新的全局状态拷贝到本地，留作下一次循环(1ms后)对比使用
-    // HT10A_last = HT10A;
-    // BT_Customized_Tick1ms_test();
+    HT10A_last = HT10A;
     osDelay(1);
   }
   /* USER CODE END entry_cmd_task */
