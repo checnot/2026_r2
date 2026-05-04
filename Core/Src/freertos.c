@@ -171,59 +171,12 @@ void StartDefaultTask(void const *argument)
 {
   /* USER CODE BEGIN StartDefaultTask */
 
-  // 测试用轨迹函数
-  //  A1_debug_485_1[1].id = 1;
-  //  A1_debug_485_1[1].mode = 10;
-  //=======================================================================
-  // 多段轨迹-初始化
-  // // 1. 单段轨迹参数初始化
-  // Traj_Adaptive_Init(&debug_traj_a1, 0.0, 0, 4.0f*PI, 8.0f*PI, PI/6.0f);
-  // // 2. 多段轨迹初始化
-  // Traj_Path_Queue_Init(&debug_traj_queue_a1, PI/90.0f); // 2度的融合半径
-  // // 3. 上位机发来一段乱七八糟的心情画图路径：
-  // Traj_Path_Queue_AddPoint(&debug_traj_queue_a1, PI/2.0f); // 抛入目标A
-  // Traj_Path_Queue_AddPoint(&debug_traj_queue_a1, -PI/2.0f); // 抛入目标B
-  // Traj_Path_Queue_AddPoint(&debug_traj_queue_a1, PI/2.0f); // 抛入目标C
-  // Traj_Path_Queue_AddPoint(&debug_traj_queue_a1, -PI/2.0f); // 抛入目标D
-
-  // //-------------------------------------------------------------
-  // Traj_Adaptive_Init(&debug_traj_m3508, 0.0, 0, 8192.0f*16.0f, 8192.0f*16.0f, 8192.0f);
-
-  // Traj_Path_Queue_Init(&debug_traj_queue_m3508, 512.0f); // 512单位的融合半径
-  // Traj_Path_Queue_AddPoint(&debug_traj_queue_m3508, 40000.0f); // 抛入目标A
-  // Traj_Path_Queue_AddPoint(&debug_traj_queue_m3508, -40000.0f); // 抛入目标B
-  // Traj_Path_Queue_AddPoint(&debug_traj_queue_m3508, 40000.0f); // 抛入目标C
-  // Traj_Path_Queue_AddPoint(&debug_traj_queue_m3508, -40000.0f); // 抛入目标D
-
-  // m3508_parameter_init(&m3508_fdcan1[3], 2.4f, 2.0f, 1.6f, 0.5f);
-  // 多段轨迹-初始化
-  //=======================================================================
-
   /* Infinite loop */
   for (;;)
   {
 
-    //=======================================================================
-    // 多段轨迹-规划与执行
-    // if(debug_flag == 1)
-    // {
-    //   //多段轨迹规划与执行示例（以A1电机为例，m3508同理）
-    //   Traj_Path_Queue_Update(&debug_traj_queue_a1, &debug_traj_a1, A1_debug_485_1[1].measure.Pos);
-    //   Traj_Adaptive_Update(&debug_traj_a1, A1_debug_485_1[1].measure.Pos, 0.001f);
-    //   A1_Motor_Position_Control(&A1_debug_485_1[1], debug_traj_a1.out_pos, 2.0f, 0.025f);
-
-    //   //------------------------------------------------------------
-
-    //   // Traj_Path_Queue_Update(&debug_traj_queue_m3508, &debug_traj_m3508, m3508_fdcan1[3].Angle_Sum);
-    //   // Traj_Adaptive_Update(&debug_traj_m3508, m3508_fdcan1[3].Angle_Sum, 0.001f);
-    //   // m3508_anglesum_control(&m3508_fdcan1[3], (int32_t)debug_traj_m3508.out_pos, 8192);
-
-    // }
-    // 多段轨迹-规划与执行
-    //=======================================================================
-
-    //=======================================================================
-    // vofa显示调试信息
+//=======================================================================
+  //vofa显示调试信息
 
     // data_send_vofa[0] = A1_debug_485_1[1].measure.Pos;
     // data_send_vofa[1] = debug_traj_a1.out_pos;
@@ -277,14 +230,6 @@ void entry_robotic_arm(void const *argument)
   arm.effector_pitch_target = -PI/2.0f;
   arm.theta_target[4] = 0.0f;
 
-// =================================== 4.28更新，取消遥控控制 ========================================
-  // effector_pitch_target_remote = -PI/2.0f;
-  // effector_rotate_target_remote = 0.0f;
-  // arm.effector_pitch_target = effector_pitch_target_remote;
-  // arm.theta_target[4] = effector_rotate_target_remote;
-// =================================== 4.28更新，取消遥控控制 ========================================
-
-
   /* Infinite loop */
   for (;;)
   {
@@ -302,17 +247,6 @@ void entry_robotic_arm(void const *argument)
     //启动机械臂
       if(HT10A.switch_d == 1)
       {
-        // 同步遥控器旋钮控制的末端执行器目标
-        // arm.effector_pitch_target = effector_pitch_target_remote;
-        // arm.theta_target[4] = effector_rotate_target_remote;
-
-        //测试用，仅在keil调试时使用
-        if(debug_flag == 1)
-        {
-          arm_load_test_waypoints_custom();
-          debug_flag = 0;
-        }
-
 
         // 1. 调用多段直线插补协调器 (它会从队列中成组提取路点)
         arm_linear_interpolation_update(&arm, &arm_traj, 0.03f); 
@@ -322,27 +256,18 @@ void entry_robotic_arm(void const *argument)
         Traj_Adaptive_Update(&arm_traj.traj_y, arm.y0_now, 0.001f);
         Traj_Adaptive_Update(&arm_traj.traj_w, A1_debug_485_2[0].measure.Pos, 0.001f);
 
-
         // 3. 将影子坐标交接给逆解器
 // ==============4月28日更新：去除遥控模式=====================
 
         arm.x0_target = arm_traj.traj_x.out_pos;
         arm.y0_target = arm_traj.traj_y.out_pos;
         arm.theta_target[0] = arm_traj.traj_w.out_pos;
-        // arm.x0_target = x0_target_remote;
-        // arm.y0_target = y0_target_remote;
-        // arm.theta_target[0] = theta0_target_remote;
-
 
         // 4. 开始逆向解算出各个 theta_target，并转换成电机位置环
         arm_route_point_calculate(&arm);
         // 兜底：检测将要下发的位姿是否合法，若包含死点、反折点、越界：
         if(arm_route_reachable_check(&arm) != IK_REACHABLE)
         {
-            // x0_target_remote = arm.x0_target;
-            // y0_target_remote = arm.y0_target;
-            // theta0_target_remote = arm.theta_target[0];
-
             // 清空非法轨迹残留
             arm_traj.traj_queue_x.count = 0;
             arm_traj.traj_queue_y.count = 0;
@@ -355,7 +280,7 @@ void entry_robotic_arm(void const *argument)
             arm.theta_target[0] = A1_debug_485_2[0].measure.Pos;
             arm_route_point_calculate(&arm);
         }
-        arm_route_execute(&arm, 10.0f, 0.20f);
+        arm_route_execute(&arm, 8.0f, 0.20f);
       }      
       
     //在不操纵机械臂的情况下默认举起到竖直位置，并时刻记录当前机械臂位姿，准备随时做路径切入
