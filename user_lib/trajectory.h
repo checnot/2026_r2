@@ -47,7 +47,6 @@ extern Traj_Single_struct debug_traj_a1;
 extern Traj_Queue_struct debug_traj_queue_a1;
 extern Traj_Single_struct debug_traj_m3508;
 extern Traj_Queue_struct debug_traj_queue_m3508;
-
 void Traj_Adaptive_Init(Traj_Single_struct *traj, float start_pos, float target_pos, float v_max, float a_max, float max_error);
 
 void Traj_Adaptive_Update(Traj_Single_struct *traj, float actual_pos, float dt);

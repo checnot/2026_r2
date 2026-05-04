@@ -8,7 +8,7 @@
 #include "a1_motor.h"
 #include "hi14.h"
 #include "ht10a.h"
-
+#include "radar.h"
 
 
 //引入uart1供 a1
@@ -30,6 +30,10 @@ extern DMA_HandleTypeDef hdma_uart8_rx;
 //引入uart6供 hi14
 extern DMA_HandleTypeDef hdma_usart6_tx;
 extern DMA_HandleTypeDef hdma_usart6_rx;
+
+//引入uart5供 radar
+extern DMA_HandleTypeDef hdma_uart5_tx;
+extern DMA_HandleTypeDef hdma_uart5_rx;
 
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size);
 void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart);

@@ -218,7 +218,7 @@ void Traj_Path_Queue_Update(Traj_Queue_struct *queue, Traj_Single_struct *traj, 
 
             queue->tail = (queue->tail + 1) % TRAJ_MAX_WAYPOINTS;
             queue->count--;
-            debug_count++; // 测试用：记录已经切换了几个点了
+            debug_count++; // 测试用：记录已经切换了\几个点了
             
             // 检查这个新目标，如果距离我们真实的物理位置只有不到 0.02 (约1度)
             // 说明这基本是个原地重复点 (比如用户把第一段的终点，又作为目标重新推入了一次队列)

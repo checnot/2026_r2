@@ -123,6 +123,7 @@ int main(void)
   MX_USART10_UART_Init();
   MX_UART8_Init();
   MX_TIM2_Init();
+  MX_UART5_Init();
   /* USER CODE BEGIN 2 */
   
 //FDCAN初始化，配置过滤器并开启CAN
@@ -148,7 +149,10 @@ int main(void)
   memset(dma_rx_buf, 0, sizeof(dma_rx_buf));
   HAL_UARTEx_ReceiveToIdle_DMA(&huart6, dma_rx_buf, sizeof(dma_rx_buf));
   __HAL_DMA_DISABLE_IT(&hdma_usart6_rx, DMA_IT_HT);
-
+//uart5-radar
+memset(Rec_Data, 0, sizeof(Rec_Data));
+HAL_UARTEx_ReceiveToIdle_DMA(&huart5, Rec_Data, sizeof(Rec_Data));
+__HAL_DMA_DISABLE_IT(&hdma_uart5_rx, DMA_IT_HT);
 //start tim2
   TIM2->CNT = 0;
   HAL_TIM_Base_Start_IT(&htim2);
@@ -158,7 +162,13 @@ int main(void)
 //start tim7
 	TIM7->CNT = 0;
 	HAL_TIM_Base_Start_IT(&htim7);
+//雷达卡尔曼滤波器初始化
 
+Kalman_Init(&Radar_Kalman_X, 0.0001f, 100.0f, 0.0f, 400.0f);
+Kalman_Init(&Radar_Kalman_Y, 0.0001f, 100.0f, 0.0f, 1400.0f);
+Kalman_Init(&Radar_Kalman_Z, 0.0001f, 100.0f, 0.0f, 140.0f);
+// Kalman_Init(&Radar_Kalman_Z, 0.0001f, 10.0f, 0.0f, 0.0f);
+// Kalman_Init(&Radar_Kalman_Yaw, 0.0001f, 10.0f, 0.0f, 0.0f); 
   A1_Motor_Parameter_Init(&A1_debug_485_2[0], 0, 0, 0, 0);
   A1_Motor_Parameter_Init(&A1_debug_485_2[1], 1, 0, 0, 0);
 

@@ -15,4 +15,6 @@ typedef struct {
     float x; /* 状态估计值 (Estimated Value)：当前的最优估计结果 */
 } KalmanFilter_stu;
 
+void Kalman_Init(KalmanFilter_stu *kf, float Q, float R, float initial_P, float initial_x);
+float Kalman_Update(KalmanFilter_stu *kf, float measurement);
 #endif /* FILTER_H */

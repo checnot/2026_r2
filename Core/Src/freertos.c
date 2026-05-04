@@ -1,20 +1,20 @@
 /* USER CODE BEGIN Header */
 /**
-  ******************************************************************************
-  * File Name          : freertos.c
-  * Description        : Code for freertos applications
-  ******************************************************************************
-  * @attention
-  *
-  * Copyright (c) 2026 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
-  ******************************************************************************
-  */
+ ******************************************************************************
+ * File Name          : freertos.c
+ * Description        : Code for freertos applications
+ ******************************************************************************
+ * @attention
+ *
+ * Copyright (c) 2026 STMicroelectronics.
+ * All rights reserved.
+ *
+ * This software is licensed under terms that can be found in the LICENSE file
+ * in the root directory of this software component.
+ * If no LICENSE file comes with this software, it is provided AS-IS.
+ *
+ ******************************************************************************
+ */
 /* USER CODE END Header */
 
 /* Includes ------------------------------------------------------------------*/
@@ -42,6 +42,7 @@
 #include "hi14.h"
 #include "trajectory.h"
 #include "BT_customized.h"
+#include "radar.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -61,10 +62,14 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
-float debug_test_time;//用于测试的万能小变量
+float debug_test_time; // 用于测试的万能小变量
 
 int32_t debug_flag;
 float debug_position;
+uint8_t point_add = 0; // 测试用：是否添加路径点的标志位
+uint8_t kalman_update_times = 0; // 卡尔曼滤波更新次数统计
+uint8_t kalman_init_flag = 0; // 卡尔曼滤波初始化flag
+
 
 /* USER CODE END Variables */
 osThreadId defaultTaskHandle;
@@ -78,22 +83,22 @@ osThreadId cmd_taskHandle;
 
 /* USER CODE END FunctionPrototypes */
 
-void StartDefaultTask(void const * argument);
-void entry_robotic_arm(void const * argument);
-void entry_chassis(void const * argument);
-void entry_clamp(void const * argument);
-void entry_cmd_task(void const * argument);
+void StartDefaultTask(void const *argument);
+void entry_robotic_arm(void const *argument);
+void entry_chassis(void const *argument);
+void entry_clamp(void const *argument);
+void entry_cmd_task(void const *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
 /* GetIdleTaskMemory prototype (linked to static allocation support) */
-void vApplicationGetIdleTaskMemory( StaticTask_t **ppxIdleTaskTCBBuffer, StackType_t **ppxIdleTaskStackBuffer, uint32_t *pulIdleTaskStackSize );
+void vApplicationGetIdleTaskMemory(StaticTask_t **ppxIdleTaskTCBBuffer, StackType_t **ppxIdleTaskStackBuffer, uint32_t *pulIdleTaskStackSize);
 
 /* USER CODE BEGIN GET_IDLE_TASK_MEMORY */
 static StaticTask_t xIdleTaskTCBBuffer;
 static StackType_t xIdleStack[configMINIMAL_STACK_SIZE];
 
-void vApplicationGetIdleTaskMemory( StaticTask_t **ppxIdleTaskTCBBuffer, StackType_t **ppxIdleTaskStackBuffer, uint32_t *pulIdleTaskStackSize )
+void vApplicationGetIdleTaskMemory(StaticTask_t **ppxIdleTaskTCBBuffer, StackType_t **ppxIdleTaskStackBuffer, uint32_t *pulIdleTaskStackSize)
 {
   *ppxIdleTaskTCBBuffer = &xIdleTaskTCBBuffer;
   *ppxIdleTaskStackBuffer = &xIdleStack[0];
@@ -103,11 +108,12 @@ void vApplicationGetIdleTaskMemory( StaticTask_t **ppxIdleTaskTCBBuffer, StackTy
 /* USER CODE END GET_IDLE_TASK_MEMORY */
 
 /**
-  * @brief  FreeRTOS initialization
-  * @param  None
-  * @retval None
-  */
-void MX_FREERTOS_Init(void) {
+ * @brief  FreeRTOS initialization
+ * @param  None
+ * @retval None
+ */
+void MX_FREERTOS_Init(void)
+{
   /* USER CODE BEGIN Init */
 
   /* USER CODE END Init */
@@ -152,22 +158,21 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
   /* USER CODE END RTOS_THREADS */
-
 }
 
 /* USER CODE BEGIN Header_StartDefaultTask */
 /**
-  * @brief  Function implementing the defaultTask thread.
-  * @param  argument: Not used
-  * @retval None
-  */
+ * @brief  Function implementing the defaultTask thread.
+ * @param  argument: Not used
+ * @retval None
+ */
 /* USER CODE END Header_StartDefaultTask */
-void StartDefaultTask(void const * argument)
+void StartDefaultTask(void const *argument)
 {
   /* USER CODE BEGIN StartDefaultTask */
 
   /* Infinite loop */
-  for(;;)
+  for (;;)
   {
 
 //=======================================================================
@@ -181,19 +186,23 @@ void StartDefaultTask(void const * argument)
     // } else {
     //     data_send_vofa[2] = 0.0f;// 默认输出0
     // }
-		// data_send_vofa[3] = (float)debug_count;
+    // data_send_vofa[3] = (float)debug_count;
 
-    data_send_vofa[0] = arm.x0_now;
-    data_send_vofa[1] = arm_traj.traj_x.out_pos;
-    data_send_vofa[2] = arm_traj.traj_queue_x.points[arm_traj.traj_queue_x.tail > 0 ? arm_traj.traj_queue_x.tail - 1 : 0];
-    data_send_vofa[3] = arm.y0_now;
-    data_send_vofa[4] = arm_traj.traj_y.out_pos;
-    data_send_vofa[5] = arm_traj.traj_queue_y.points[arm_traj.traj_queue_y.tail > 0 ? arm_traj.traj_queue_y.tail - 1 : 0];
+    // data_send_vofa[0] = arm.x0_now;
+    // data_send_vofa[1] = arm_traj.traj_x.out_pos;
+    // data_send_vofa[2] = arm_traj.traj_queue_x.points[arm_traj.traj_queue_x.tail > 0 ? arm_traj.traj_queue_x.tail - 1 : 0];
+    // data_send_vofa[3] = arm.y0_now;
+    // data_send_vofa[4] = arm_traj.traj_y.out_pos;
+    // data_send_vofa[5] = arm_traj.traj_queue_y.points[arm_traj.traj_queue_y.tail > 0 ? arm_traj.traj_queue_y.tail - 1 : 0];
 
+    data_send_vofa[0] = Radar_Pos.radar_x;
+
+    data_send_vofa[1] = Radar_Pos.radar_x_filtered;
+		data_send_vofa[2] = Radar_Pos.reliable_x;
     vofa_send_to_show_justfloat(&huart10, data_send_vofa);
 
-  //vofa显示调试信息
-//=======================================================================
+    // vofa显示调试信息
+    //=======================================================================
     debug_test_time += 0.001f;
     osDelay(1);
   }
@@ -202,15 +211,15 @@ void StartDefaultTask(void const * argument)
 
 /* USER CODE BEGIN Header_entry_robotic_arm */
 /**
-* @brief Function implementing the robotic_arm thread.
-* @param argument: Not used
-* @retval None 
-*/
+ * @brief Function implementing the robotic_arm thread.
+ * @param argument: Not used
+ * @retval None
+ */
 /* USER CODE END Header_entry_robotic_arm */
-void entry_robotic_arm(void const * argument)
+void entry_robotic_arm(void const *argument)
 {
   /* USER CODE BEGIN entry_robotic_arm */
-// 机械臂dh参数初始化
+  // 机械臂dh参数初始化
   arm_joint_parameter_init(&arm);
 // 机械臂上的3508参数初始化
   m3508_parameter_init(&m3508_fdcan1[0], 2.2f, 15.0f, 2.2f, 6.0f);
@@ -222,7 +231,7 @@ void entry_robotic_arm(void const * argument)
   arm.theta_target[4] = 0.0f;
 
   /* Infinite loop */
-  for(;;)
+  for (;;)
   {
     arm_joint_state_update(&arm);
     arm_route_point_calculate(&arm);
@@ -293,57 +302,94 @@ void entry_robotic_arm(void const * argument)
 
 /* USER CODE BEGIN Header_entry_chassis */
 /**
-* @brief Function implementing the chassis_r2 thread.
-* @param argument: Not used
-* @retval None
-*/
+ * @brief Function implementing the chassis_r2 thread.
+ * @param argument: Not used
+ * @retval None
+ */
 /* USER CODE END Header_entry_chassis */
-void entry_chassis(void const * argument)
+void entry_chassis(void const *argument)
 {
   /* USER CODE BEGIN entry_chassis */
-// 3508参数初始化
-  m3508_parameter_init(&m3508_fdcan3[0], 2.5f, 1.0f, 0.0f, 0.0f);
-  m3508_parameter_init(&m3508_fdcan3[1], 2.5f, 1.0f, 0.0f, 0.0f);
-  m3508_parameter_init(&m3508_fdcan3[2], 2.5f, 1.0f, 0.0f, 0.0f);
-  m3508_parameter_init(&m3508_fdcan3[3], 2.5f, 1.0f, 0.0f, 0.0f);
-// 底盘升降初始化为收回状态
+  // 3508参数初始化
+  m3508_parameter_init(&m3508_fdcan3[0], 8.0f, 1.0f, 0.0f, 0.0f);
+  m3508_parameter_init(&m3508_fdcan3[1], 8.0f, 1.0f, 0.0f, 0.0f);
+  m3508_parameter_init(&m3508_fdcan3[2], 8.0f, 1.0f, 0.0f, 0.0f);
+  m3508_parameter_init(&m3508_fdcan3[3], 8.0f, 1.0f, 0.0f, 0.0f);
+  // 底盘升降初始化为收回状态
   chassis_r2.lift_front = 0;
   chassis_r2.lift_back = 0;
   chassis_lift_front_control(chassis_r2.lift_front);
   chassis_lift_back_control(chassis_r2.lift_back);
-
-  /* Infinite loop */ 
-  for(;;)
+  chassis_route_traj_init();
+  /* Infinite loop */
+  for (;;)
   {
-    if(m3508_fdcan3[0].Initial_flag == 200 && m3508_fdcan3[1].Initial_flag == 200 
-      && m3508_fdcan3[2].Initial_flag == 200 && m3508_fdcan3[3].Initial_flag == 200)
+    if (point_add == 1)
     {
-      //switch_d为0时控制底盘
-      if(HT10A.switch_d == 0)
-      {
-        chassis_r2.vx = HT10A.left_y;
-        chassis_r2.vy = -HT10A.left_x;
-        chassis_r2.vw = -HT10A.right_x;
-        //遥控器按钮控制升降!!!!!!!!!!已将切换逻辑转移至ht10a.c中，避免了升降状态与底盘控制状态的耦合
-        // if(HT10A.switch_b == 1)       {chassis_r2.lift_front = 1;}
-        // else if(HT10A.switch_b == -1) {chassis_r2.lift_front = 0;}
-        // if(HT10A.switch_c == 1)       {chassis_r2.lift_back = 1;}
-        // else if(HT10A.switch_c == -1) {chassis_r2.lift_back = 0;}
-        chassis_lift_front_control(chassis_r2.lift_front);
-        chassis_lift_back_control(chassis_r2.lift_back);
-        omni_chassis_calculate(&chassis_r2, chassis_r2.vx, chassis_r2.vy, chassis_r2.vw);
-      }
-      //当不主动控制底盘时，默认停止底盘，但升降状态保留
-      else if(HT10A.switch_d == 1 || HT10A.switch_d == -1)
-      {
-        chassis_r2.vx = 0;
-        chassis_r2.vy = 0;
-        chassis_r2.vw = 0;
-        chassis_lift_front_control(chassis_r2.lift_front);
-        chassis_lift_back_control(chassis_r2.lift_back);
-        omni_chassis_calculate(&chassis_r2, chassis_r2.vx, chassis_r2.vy, chassis_r2.vw);
-      }
+      //      chassis_route_point_add(&chassis_route_traj,55.0f,66.0f,0.0f);
+      chassis_route_point_add(&chassis_route_traj, 1200.0f, 1400.0f, 90.0f);
+      chassis_route_point_add(&chassis_route_traj, 2200.0f, 3000.0f, 0.0f);
+      point_add = 0;
     }
+    Radar_Pos.radar_x_filtered = Kalman_Update(&Radar_Kalman_X, Radar_Pos.radar_x);
+    Radar_Pos.radar_y_filtered = Kalman_Update(&Radar_Kalman_Y, Radar_Pos.radar_y);
+    Radar_Pos.radar_z_filtered = Kalman_Update(&Radar_Kalman_Z, Radar_Pos.radar_z);
+
+    omni_chassis_inverse_calculate(&chassis_r2, m3508_fdcan3);
+    if (abs_float(chassis_r2.real_vx) < RADAR_Filter_Threshold && abs_float(chassis_r2.real_vy) < RADAR_Filter_Threshold)
+    {
+      // if(kalman_init_flag == 0)
+      // {
+      //   kalman_init_flag = 1; // 仅在第一次满足条件时初始化卡尔曼滤波器，避免频繁初始化
+      //   Kalman_Init(&Radar_Kalman_X, 0.0001f, 100.0f, 0.0f, Radar_Pos.radar_x);
+      //   Kalman_Init(&Radar_Kalman_Y, 0.0001f, 100.0f, 0.0f, Radar_Pos.radar_y);
+      // }
+    Radar_Pos.reliable_x = Radar_Pos.radar_x_filtered;
+    Radar_Pos.reliable_y = Radar_Pos.radar_y_filtered;
+    Radar_Pos.reliable_z = Radar_Pos.radar_z_filtered;
+    Radar_Pos.reliable_yaw = Radar_Pos.radar_yaw;
+    }
+    else
+    {
+      Radar_Pos.reliable_x = Radar_Pos.radar_x;
+      Radar_Pos.reliable_y = Radar_Pos.radar_y;
+      Radar_Pos.reliable_z = Radar_Pos.radar_z;
+      Radar_Pos.reliable_yaw = Radar_Pos.radar_yaw;
+    }
+
+    chassis_multi_route_scheduler(&chassis_route_traj, &Radar_Pos);
+    chassis_single_route_scheduler(&Radar_Pos, &chassis_route_traj, 1);
+    chassis_world_to_robot_velocity(&chassis_r2, chassis_route_traj.traj_vx.out_vel, chassis_route_traj.traj_vy.out_vel, chassis_route_traj.traj_vw.out_vel, Radar_Pos.reliable_yaw);
+    omni_chassis_calculate(&chassis_r2, chassis_r2.vx, chassis_r2.vy, chassis_r2.vw);
+    // if(m3508_fdcan3[0].Initial_flag == 200 && m3508_fdcan3[1].Initial_flag == 200
+    //   && m3508_fdcan3[2].Initial_flag == 200 && m3508_fdcan3[3].Initial_flag == 200)
+    // {
+    //   //switch_d为0时控制底盘
+    //   if(HT10A.switch_d == 0)
+    //   {
+    //     chassis_r2.vx = HT10A.left_y;
+    //     chassis_r2.vy = -HT10A.left_x;
+    //     chassis_r2.vw = -HT10A.right_x;
+    //     //遥控器按钮控制升降!!!!!!!!!!已将切换逻辑转移至ht10a.c中，避免了升降状态与底盘控制状态的耦合
+    //     // if(HT10A.switch_b == 1)       {chassis_r2.lift_front = 1;}
+    //     // else if(HT10A.switch_b == -1) {chassis_r2.lift_front = 0;}
+    //     // if(HT10A.switch_c == 1)       {chassis_r2.lift_back = 1;}
+    //     // else if(HT10A.switch_c == -1) {chassis_r2.lift_back = 0;}
+    //     chassis_lift_front_control(chassis_r2.lift_front);
+    //     chassis_lift_back_control(chassis_r2.lift_back);
+    //     omni_chassis_calculate(&chassis_r2, chassis_r2.vx, chassis_r2.vy, chassis_r2.vw);
+    //   }
+    //   //当不主动控制底盘时，默认停止底盘，但升降状态保留
+    //   else if(HT10A.switch_d == 1 || HT10A.switch_d == -1)
+    //   {
+    //     chassis_r2.vx = 0;
+    //     chassis_r2.vy = 0;
+    //     chassis_r2.vw = 0;
+    //     chassis_lift_front_control(chassis_r2.lift_front);
+    //     chassis_lift_back_control(chassis_r2.lift_back);
+    //     omni_chassis_calculate(&chassis_r2, chassis_r2.vx, chassis_r2.vy, chassis_r2.vw);
+    //   }
+    // }
     osDelay(1);
   }
   /* USER CODE END entry_chassis */
@@ -351,53 +397,58 @@ void entry_chassis(void const * argument)
 
 /* USER CODE BEGIN Header_entry_clamp */
 /**
-* @brief Function implementing the clamp_task thread.
-* @param argument: Not used
-* @retval None
-*/
+ * @brief Function implementing the clamp_task thread.
+ * @param argument: Not used
+ * @retval None
+ */
 /* USER CODE END Header_entry_clamp */
-void entry_clamp(void const * argument)
+void entry_clamp(void const *argument)
 {
   /* USER CODE BEGIN entry_clamp */
 
-  //夹爪电机初始化
-	m3508_parameter_init(&m3508_fdcan2[0],5,2,0.5,0.2);
-  m3508_parameter_init(&m3508_fdcan2[1],5,2,0.5,0.2);
-  m3508_parameter_init(&m3508_fdcan2[2],5,2,0.5,0.2);
-	m3508_parameter_init(&m3508_fdcan2[3],5,2,0.5,0.2);
-  //标志位初始化
+  // 夹爪电机初始化
+  m3508_parameter_init(&m3508_fdcan2[0], 5, 2, 0.5, 0.2);
+  m3508_parameter_init(&m3508_fdcan2[1], 5, 2, 0.5, 0.2);
+  m3508_parameter_init(&m3508_fdcan2[2], 5, 2, 0.5, 0.2);
+  m3508_parameter_init(&m3508_fdcan2[3], 5, 2, 0.5, 0.2);
+  // 标志位初始化
   clamp.catch_flag = 0;
   clamp.rotate_flag = 0;
   clamp.retractable_flag = 0;
   clamp.lift_flag = 0;
 
   /* Infinite loop */
-  for(;;)
+  for (;;)
   {
-    if(  m3508_fdcan2[1].Initial_flag == 200 
-      && m3508_fdcan2[2].Initial_flag == 200 && m3508_fdcan2[3].Initial_flag == 200)
+    if (m3508_fdcan2[1].Initial_flag == 200 && m3508_fdcan2[2].Initial_flag == 200 && m3508_fdcan2[3].Initial_flag == 200)
     {
-      if(HT10A.switch_d == -1)
+      if (HT10A.switch_d == -1)
       {
         //!!!!!!!!!!!!!!!该部分切换逻辑转移至ht10a.c中
 
-        //气缸驱动夹爪部分
-        // if      (HT10A.switch_b == 1) {clamp.catch_flag = 1;}
-        // else if (HT10A.switch_b == -1) {clamp.catch_flag = 0;}
+        // 气缸驱动夹爪部分
+        //  if      (HT10A.switch_b == 1) {clamp.catch_flag = 1;}
+        //  else if (HT10A.switch_b == -1) {clamp.catch_flag = 0;}
         clamp_open_control(clamp.catch_flag);
-        //夹爪旋转部分
-        // if      (HT10A.knob_a >=1000) {clamp.rotate_flag = 1;}
-        // else if (HT10A.knob_a <= -1000) {clamp.rotate_flag = 0;}
+        // 夹爪旋转部分
+        //  if      (HT10A.knob_a >=1000) {clamp.rotate_flag = 1;}
+        //  else if (HT10A.knob_a <= -1000) {clamp.rotate_flag = 0;}
         clamp_rotate_control(clamp.rotate_flag * CLAMP_ROTATE_MAX_POSITION, &m3508_fdcan2[3]);
-        //夹爪伸缩部分
-        // if      (HT10A.switch_c == 1) {clamp.retractable_flag = 1;}
-        // else if (HT10A.switch_c == -1) {clamp.retractable_flag = 0;}
+        // 夹爪伸缩部分
+        //  if      (HT10A.switch_c == 1) {clamp.retractable_flag = 1;}
+        //  else if (HT10A.switch_c == -1) {clamp.retractable_flag = 0;}
         clamp_extend_control(clamp.retractable_flag * CLAMP_EXTEND_MAX_POSITION, &m3508_fdcan2[2]);
-        //夹爪升降部分
-        if(abs_int16(HT10A.left_y) > 100){m3508_speed_control(&m3508_fdcan2[1], HT10A.left_y, 8192);}
-        else                             {m3508_speed_control(&m3508_fdcan2[1], 0, 8192);}
+        // 夹爪升降部分
+        if (abs_int16(HT10A.left_y) > 100)
+        {
+          m3508_speed_control(&m3508_fdcan2[1], HT10A.left_y, 8192);
+        }
+        else
+        {
+          m3508_speed_control(&m3508_fdcan2[1], 0, 8192);
+        }
       }
-      else if(HT10A.switch_d == 1 || HT10A.switch_d == 0)
+      else if (HT10A.switch_d == 1 || HT10A.switch_d == 0)
       {
         clamp_open_control(clamp.catch_flag);
         clamp_rotate_control(clamp.rotate_flag * CLAMP_ROTATE_MAX_POSITION, &m3508_fdcan2[3]);
@@ -413,12 +464,12 @@ void entry_clamp(void const * argument)
 
 /* USER CODE BEGIN Header_entry_cmd_task */
 /**
-* @brief Function implementing the cmd_task thread.
-* @param argument: Not used
-* @retval None
-*/
+ * @brief Function implementing the cmd_task thread.
+ * @param argument: Not used
+ * @retval None
+ */
 /* USER CODE END Header_entry_cmd_task */
-void entry_cmd_task(void const * argument)
+void entry_cmd_task(void const *argument)
 {
   /* USER CODE BEGIN entry_cmd_task */
 
@@ -426,7 +477,7 @@ void entry_cmd_task(void const * argument)
   BT_Customized_Init(); // 初始化行为树模块（黑板、状态机等）
 
   /* Infinite loop */
-  for(;;)
+  for (;;)
   {
     // 1. 先比较：本地上一次记录的旧状态(HT10A_last) 和 最新的全局状态(HT10A)
     customized_judgment(); //根据比较结果进行各种判断和操作，具体逻辑由用户在 ht10a.c 的 customized_judgment() 中编写
@@ -442,7 +493,6 @@ void entry_cmd_task(void const * argument)
 
     // 2. 后更新：判断完之后，再把最新的全局状态拷贝到本地，留作下一次循环(1ms后)对比使用
     HT10A_last = HT10A;
-
 
     osDelay(1);
   }
