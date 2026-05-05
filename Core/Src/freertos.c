@@ -231,6 +231,10 @@ void entry_robotic_arm(void const *argument)
   arm.effector_pitch_target = -PI/2.0f;
   arm.theta_target[4] = 0.0f;
 
+// 向机械臂添加默认路径点，替代之前的单位置环上电复位
+  arm_queue_add_point(&arm_traj, 0.0f, 0.40f, 0.0f, 500, 0);
+  arm_queue_add_point(&arm_traj, 0.15f, 0.15f, 0.0f, 0, 0);
+
   /* Infinite loop */
   for (;;)
   {
@@ -246,8 +250,8 @@ void entry_robotic_arm(void const *argument)
 
 
     //启动机械臂
-      if(HT10A.switch_d == 1)
-      {
+      // if(HT10A.switch_d == 1)
+      // {
 
         // 1. 调用多段直线插补协调器 (它会从队列中成组提取路点)
         arm_linear_interpolation_update(&arm, &arm_traj, 0.03f); 
@@ -282,17 +286,17 @@ void entry_robotic_arm(void const *argument)
             arm_route_point_calculate(&arm);
         }
         arm_route_execute(&arm, 8.0f, 0.20f);
-      }      
+      // }
       
     //在不操纵机械臂的情况下默认举起到竖直位置，并时刻记录当前机械臂位姿，准备随时做路径切入
-      else if(HT10A.switch_d == 0 || HT10A.switch_d == -1)
-      {
-        // 将机械臂抬起到竖直位置
-        arm_joint_state_init(&arm);
+      // else if(HT10A.switch_d == 0 || HT10A.switch_d == -1)
+      // {
+      //   // 将机械臂抬起到竖直位置
+      //   arm_joint_state_init(&arm);
 
-        // 时刻初始化机械臂路径规划器的当前点为机械臂当前实际位姿，准备随时切入
-        arm_trajectory_init(&arm_traj, &arm);
-      }
+      //   // 时刻初始化机械臂路径规划器的当前点为机械臂当前实际位姿，准备随时切入
+      //   arm_trajectory_init(&arm_traj, &arm);
+      // }
       // if(HT10A.switch_d == 1 && air_pump_flag_remote == 1) {HAL_GPIO_WritePin(ARM_AIR_PUMP_GPIO_Port, ARM_AIR_PUMP_Pin, GPIO_PIN_SET);} // 开启吸泵
       // else                          {HAL_GPIO_WritePin(ARM_AIR_PUMP_GPIO_Port, ARM_AIR_PUMP_Pin, GPIO_PIN_RESET);} // 关闭吸泵
     }

@@ -187,7 +187,7 @@ void arm_trajectory_init(robotic_arm_traj_stu *arm_traj, robotic_arm_stu *arm)
 
 
 /**
- * @brief 直线插补多段路径调度器
+ * @brief 直线插补多段路径调度器，包括了机械臂路径计算，路径点的联合抛出，以及机械臂到达路径点后的延时控制和气泵控制
  * @note 周期1ms，如果强行放在周期不一致的任务中会导致延时bug
  * @note 必须放在 Traj_Adaptive_Update(x) 和 Traj_Adaptive_Update(y) 之前调用
  */
