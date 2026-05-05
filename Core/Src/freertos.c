@@ -288,17 +288,6 @@ void entry_robotic_arm(void const * argument)
         }
         arm_route_execute(&arm, 8.0f, 0.20f);
       
-    //在不操纵机械臂的情况下默认举起到竖直位置，并时刻记录当前机械臂位姿，准备随时做路径切入
-      // else if(HT10A.switch_d == 0 || HT10A.switch_d == -1)
-      // {
-      //   // 将机械臂抬起到竖直位置
-      //   arm_joint_state_init(&arm);
-
-      //   // 时刻初始化机械臂路径规划器的当前点为机械臂当前实际位姿，准备随时切入
-      //   arm_trajectory_init(&arm_traj, &arm);
-      // }
-      // if(HT10A.switch_d == 1 && air_pump_flag_remote == 1) {HAL_GPIO_WritePin(ARM_AIR_PUMP_GPIO_Port, ARM_AIR_PUMP_Pin, GPIO_PIN_SET);} // 开启吸泵
-      // else                          {HAL_GPIO_WritePin(ARM_AIR_PUMP_GPIO_Port, ARM_AIR_PUMP_Pin, GPIO_PIN_RESET);} // 关闭吸泵
     }
     osDelay(1);
   }
@@ -329,25 +318,11 @@ void entry_chassis(void const * argument)
   /* Infinite loop */
   for (;;)
   {
-// 测试用添加路径点
     if(m3508_fdcan3[0].Initial_flag == 200 && m3508_fdcan3[1].Initial_flag == 200
       && m3508_fdcan3[2].Initial_flag == 200 && m3508_fdcan3[3].Initial_flag == 200)
     {
-      // if(point_add == 1)
-      // {
-      //   //      chassis_route_point_add(&chassis_route_traj,55.0f,66.0f,0.0f);
-      //   chassis_route_point_add(&chassis_route_traj, 1200.0f, 1400.0f, 90.0f);
-      //   // chassis_route_point_add(&chassis_route_traj, 2200.0f, 3000.0f, 180.0f);
-      //   // chassis_route_point_add(&chassis_route_traj, 1200.0f, 3000.0f, -45.0f);
-      //   point_add = 0;
-      // }
-      // if(point_add1 ==1)
-      // {
-      //   chassis_route_point_add(&chassis_route_traj, 2200.0f,3000.0f, 180.0f);
-      //   point_add1 = 0;
-      // }
-// 测试用添加路径点
 
+      // 底盘卡尔曼滤波初始化已转移至main.c中
       // 滤波后的雷达数据更新
       Radar_Pos.radar_x_filtered = Kalman_Update(&Radar_Kalman_X, Radar_Pos.radar_x);
       Radar_Pos.radar_y_filtered = Kalman_Update(&Radar_Kalman_Y, Radar_Pos.radar_y);
@@ -359,12 +334,7 @@ void entry_chassis(void const * argument)
       // 当底盘实际速度足够小时，认为雷达数据不可靠，使用滤波后的雷达数据
       if (abs_float(chassis_r2.real_vx) < RADAR_Filter_Threshold && abs_float(chassis_r2.real_vy) < RADAR_Filter_Threshold)
       {
-        // if(kalman_init_flag == 0)
-        // {
-        //   kalman_init_flag = 1; // 仅在第一次满足条件时初始化卡尔曼滤波器，避免频繁初始化
-        //   Kalman_Init(&Radar_Kalman_X, 0.0001f, 100.0f, 0.0f, Radar_Pos.radar_x);
-        //   Kalman_Init(&Radar_Kalman_Y, 0.0001f, 100.0f, 0.0f, Radar_Pos.radar_y);
-        // }
+
         Radar_Pos.reliable_x = Radar_Pos.radar_x_filtered;
         Radar_Pos.reliable_y = Radar_Pos.radar_y_filtered;
         Radar_Pos.reliable_z = Radar_Pos.radar_z_filtered;
@@ -385,35 +355,7 @@ void entry_chassis(void const * argument)
       chassis_world_to_robot_velocity(&chassis_r2, chassis_route_traj.traj_vx.out_vel, chassis_route_traj.traj_vy.out_vel, chassis_route_traj.traj_vw.out_vel, Radar_Pos.reliable_yaw);
       omni_chassis_calculate(&chassis_r2, chassis_r2.vx, chassis_r2.vy, chassis_r2.vw);
     }
-    // if(m3508_fdcan3[0].Initial_flag == 200 && m3508_fdcan3[1].Initial_flag == 200
-    //   && m3508_fdcan3[2].Initial_flag == 200 && m3508_fdcan3[3].Initial_flag == 200)
-    // {
-    //   //switch_d为0时控制底盘
-    //   if(HT10A.switch_d == 0)
-    //   {
-    //     chassis_r2.vx = HT10A.left_y;
-    //     chassis_r2.vy = -HT10A.left_x;
-    //     chassis_r2.vw = -HT10A.right_x;
-    //     //遥控器按钮控制升降!!!!!!!!!!已将切换逻辑转移至ht10a.c中，避免了升降状态与底盘控制状态的耦合
-    //     // if(HT10A.switch_b == 1)       {chassis_r2.lift_front = 1;}
-    //     // else if(HT10A.switch_b == -1) {chassis_r2.lift_front = 0;}
-    //     // if(HT10A.switch_c == 1)       {chassis_r2.lift_back = 1;}
-    //     // else if(HT10A.switch_c == -1) {chassis_r2.lift_back = 0;}
-    //     chassis_lift_front_control(chassis_r2.lift_front);
-    //     chassis_lift_back_control(chassis_r2.lift_back);
-    //     omni_chassis_calculate(&chassis_r2, chassis_r2.vx, chassis_r2.vy, chassis_r2.vw);
-    //   }
-    //   //当不主动控制底盘时，默认停止底盘，但升降状态保留
-    //   else if(HT10A.switch_d == 1 || HT10A.switch_d == -1)
-    //   {
-    //     chassis_r2.vx = 0;
-    //     chassis_r2.vy = 0;
-    //     chassis_r2.vw = 0;
-    //     chassis_lift_front_control(chassis_r2.lift_front);
-    //     chassis_lift_back_control(chassis_r2.lift_back);
-    //     omni_chassis_calculate(&chassis_r2, chassis_r2.vx, chassis_r2.vy, chassis_r2.vw);
-    //   }
-    // }
+
     osDelay(1);
   }
   /* USER CODE END entry_chassis */
