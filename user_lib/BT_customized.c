@@ -454,9 +454,9 @@ static BT_Status Act_Chassis_Move_FSM_MC(void)
     switch (task_chassis_state) {
         
         case CHASSIS_IDLE:
-            /* 刚进入本节点，下发前往维持在HOME的指令 */
+            /* 刚进入本节点，下发前往HOME的指令 */
             taskENTER_CRITICAL(); // 下发轨迹队列涉及到共享资源，最好进入临界区保护
-            chassis_route_point_add(&chassis_route_traj, CHASSIS_HOME_MC_X, CHASSIS_HOME_MC_Y, 0.0f);
+            chassis_route_point_add(&chassis_route_traj, CHASSIS_HOME_MC_X, CHASSIS_HOME_MC_Y, CHASSIS_HOME_MC_W);
             taskEXIT_CRITICAL();
             
             task_chassis_state = CHASSIS_TO_RACK;
@@ -464,14 +464,14 @@ static BT_Status Act_Chassis_Move_FSM_MC(void)
             return BT_RUNNING;    // 告诉上层 BT 树：“我这个节点还没做完，你需要继续调用我”
 
         case CHASSIS_TO_RACK:
-            /* 轮询底盘底层 PID 和 轨迹生成器 是否到位 */
+            /* 检查是否到达HOME点 */
             if (chassis_route_traj.traj_vx.is_finished && 
                 chassis_route_traj.traj_vy.is_finished && 
                 chassis_route_traj.traj_vw.is_finished) 
             {
-                /* 拾取RACK点到了，目前暂时定为马上前往下一个点 */
+                /* HOME点到了，立马前往RACK点 */
                 taskENTER_CRITICAL();
-                chassis_route_point_add(&chassis_route_traj, CHASSIS_DOCKING_X, CHASSIS_DOCKING_Y, CHASSIS_DOCKING_W); 
+                chassis_route_point_add(&chassis_route_traj, CHASSIS_RACK_6_X, CHASSIS_RACK_6_Y, CHASSIS_RACK_6_W); 
                 taskEXIT_CRITICAL();
                 
                 task_chassis_state = CHASSIS_TO_DOCKING;
@@ -484,14 +484,14 @@ static BT_Status Act_Chassis_Move_FSM_MC(void)
             return BT_RUNNING;
 
         case CHASSIS_TO_DOCKING:
-            /* 检查是否到达对接点 */
+            /* 检查是否完成取矛头 */
             if (chassis_route_traj.traj_vx.is_finished && 
                 chassis_route_traj.traj_vy.is_finished && 
                 chassis_route_traj.traj_vw.is_finished) 
             {
-                /* 暂定对接瞬间成功，直接前往下一个点 */
+                /* 暂定取矛头瞬间成功，直接前往对接点 */
                 taskENTER_CRITICAL();
-                chassis_route_point_add(&chassis_route_traj, CHASSIS_SCANNING_X, CHASSIS_SCANNING_Y, CHASSIS_SCANNING_W); 
+                chassis_route_point_add(&chassis_route_traj, CHASSIS_DOCKING_X, CHASSIS_DOCKING_Y, CHASSIS_DOCKING_W); 
                 taskEXIT_CRITICAL();
 
                 task_chassis_state = CHASSIS_TO_SCANNING; // 状态推进，防止下次误入
@@ -504,14 +504,14 @@ static BT_Status Act_Chassis_Move_FSM_MC(void)
             return BT_RUNNING;
         
         case CHASSIS_TO_SCANNING:
-            /* 检查是否到达扫描点 */
+            /* 检查是否完成对接 */
             if (chassis_route_traj.traj_vx.is_finished && 
                 chassis_route_traj.traj_vy.is_finished && 
                 chassis_route_traj.traj_vw.is_finished) 
             {
-                /* 暂定扫描瞬间成功，直接前往下一个点 */
+                /* 暂定对接瞬间成功，直接前往扫描点 */
                 taskENTER_CRITICAL();
-                chassis_route_point_add(&chassis_route_traj, CHASSIS_ENTRY_2_X, CHASSIS_ENTRY_2_Y, CHASSIS_ENTRY_2_W); 
+                chassis_route_point_add(&chassis_route_traj, CHASSIS_SCANNING_X, CHASSIS_SCANNING_Y, CHASSIS_SCANNING_W); 
                 taskEXIT_CRITICAL();
 
                 task_chassis_state = CHASSIS_TO_PICK; // 状态推进，防止下次误入
@@ -524,16 +524,21 @@ static BT_Status Act_Chassis_Move_FSM_MC(void)
             return BT_RUNNING;
         
         case CHASSIS_TO_PICK:
-            /* 检查是否到达拾取点 */
+            /* 检查是否扫描完毕 */
             if (chassis_route_traj.traj_vx.is_finished && 
                 chassis_route_traj.traj_vy.is_finished && 
                 chassis_route_traj.traj_vw.is_finished) 
             {
+                /* 假设扫描瞬间成功前往拾取点 */
+                taskENTER_CRITICAL();
+                chassis_route_point_add(&chassis_route_traj, CHASSIS_ENTRY_2_X, CHASSIS_ENTRY_2_Y, CHASSIS_ENTRY_2_W); 
+                taskEXIT_CRITICAL();
+
                 /* 当到达拾取点之后，返回bt_success，将行为树往下推进，控制权给到机械臂部分 */
                 task_chassis_state = CHASSIS_TO_PICK_DONE; // 状态推进，防止下次误入
                 chassis_timer_ms = 0;
                 /* 目前期望的拾取点到了，向行为树返回 SUCCESS，行为树将调用下一个节点(机械臂拾取) */
-                return BT_SUCCESS;   
+                return BT_RUNNING;   
             } 
             else if (++chassis_timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS) {
                 return BT_FAILURE;
@@ -541,9 +546,21 @@ static BT_Status Act_Chassis_Move_FSM_MC(void)
             return BT_RUNNING;
                     
         case CHASSIS_TO_PICK_DONE:
-            /* 若因意外（如上层重调用）再次进入此状态，因为已经完成这段功能，直接放行 */
-            return BT_SUCCESS; 
-            
+            /* 检测是否到达拾取点 */
+            if (chassis_route_traj.traj_vx.is_finished && 
+                chassis_route_traj.traj_vy.is_finished && 
+                chassis_route_traj.traj_vw.is_finished) 
+            {
+                /* 在到达拾取点后返回SUCCESS，BT下一步调用机械臂节点 */
+                chassis_timer_ms = 0;
+                return BT_SUCCESS; 
+            }
+            else if (++chassis_timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS) {
+                return BT_FAILURE;
+            }
+            return BT_RUNNING;
+
+        // 默认未知情况返回FAILURE，保护行为树不被卡死
         default:
             return BT_FAILURE;
     }

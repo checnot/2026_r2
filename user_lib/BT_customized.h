@@ -50,6 +50,7 @@
 // 矛头位置：最靠近坐标系原点的第一个矛头为1，依次递增
 #define CHASSIS_RACK_6_X 1550.0f      /* 武馆区域 第六个矛头位置 X (mm) */
 #define CHASSIS_RACK_6_Y 600.0f      /* 武馆区域 第六个矛头位置 Y (mm) */
+#define CHASSIS_RACK_6_W 0.0f        /* 武馆区域 第六个矛头位置 W (deg) */
 // 与R1的对接位置（暂定该位置，后续可重设）
 #define CHASSIS_DOCKING_X 1200.0f      /* 武馆区域 对接位置 X (mm) */
 #define CHASSIS_DOCKING_Y 1400.0f      /* 武馆区域 对接位置 Y (mm) */
@@ -83,7 +84,7 @@ typedef enum {
     CHASSIS_TO_RACK,     /* 正在前往拾取准备点 */
     CHASSIS_TO_DOCKING,     /* 正在前往真正的拾取点 */
     CHASSIS_TO_SCANNING,     /* 前往扫描位置，准备扫描 */
-    CHASSIS_TO_PICK,
+    CHASSIS_TO_PICK,        /* 前往拾取点 */
     CHASSIS_TO_PICK_DONE,  /* 到达拾取点，底盘第一段任务完成 */
     
     CHASSIS_TO_STANDBY,    // 第二段任务开始：正在前往待机点
