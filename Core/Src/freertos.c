@@ -67,7 +67,7 @@ float debug_test_time; // 用于测试的万能小变量
 int32_t debug_flag;
 float debug_position;
 uint8_t point_add = 0; // 测试用：是否添加路径点的标志位
-uint8_t ponit_add1 = 0; // 测试用：是否添加路径点的标志位 
+uint8_t point_add1 = 0; // 测试用：是否添加路径点的标志位 
 uint8_t kalman_update_times = 0; // 卡尔曼滤波更新次数统计
 uint8_t kalman_init_flag = 0; // 卡尔曼滤波初始化flag
 
@@ -333,19 +333,19 @@ void entry_chassis(void const * argument)
     if(m3508_fdcan3[0].Initial_flag == 200 && m3508_fdcan3[1].Initial_flag == 200
       && m3508_fdcan3[2].Initial_flag == 200 && m3508_fdcan3[3].Initial_flag == 200)
     {
-      if(point_add == 1)
-      {
-        //      chassis_route_point_add(&chassis_route_traj,55.0f,66.0f,0.0f);
-        chassis_route_point_add(&chassis_route_traj, 1200.0f, 1400.0f, 90.0f);
-        // chassis_route_point_add(&chassis_route_traj, 2200.0f, 3000.0f, 180.0f);
-        // chassis_route_point_add(&chassis_route_traj, 1200.0f, 3000.0f, -45.0f);
-        point_add = 0;
-      }
-      if(ponit_add1 ==1)
-      {
-        chassis_route_point_add(&chassis_route_traj, 2200.0f,3000.0f, 180.0f);
-        ponit_add1 = 0;
-      }
+      // if(point_add == 1)
+      // {
+      //   //      chassis_route_point_add(&chassis_route_traj,55.0f,66.0f,0.0f);
+      //   chassis_route_point_add(&chassis_route_traj, 1200.0f, 1400.0f, 90.0f);
+      //   // chassis_route_point_add(&chassis_route_traj, 2200.0f, 3000.0f, 180.0f);
+      //   // chassis_route_point_add(&chassis_route_traj, 1200.0f, 3000.0f, -45.0f);
+      //   point_add = 0;
+      // }
+      // if(point_add1 ==1)
+      // {
+      //   chassis_route_point_add(&chassis_route_traj, 2200.0f,3000.0f, 180.0f);
+      //   point_add1 = 0;
+      // }
 // 测试用添加路径点
 
       // 滤波后的雷达数据更新

@@ -299,7 +299,7 @@ static BT_Status Act_Chassis_Route_FSM(void)
     case CHASSIS_ROUTE_IDLE:
         /* 第一次进入：回归到 HOME 位置，并进入 Position1 */
         taskENTER_CRITICAL(); /* 保护轨迹队列写入，或使用 mutex */
-        chassis_route_point_add(&chassis_route_traj, 400.0f, 1400.0f, 0.0f);
+        chassis_route_point_add(&chassis_route_traj, 400.0f, 1400.0f, 0.0f,1000);
         taskEXIT_CRITICAL();
         chassis_state = CHASSIS_ROUTE_1;
         chassis_timer_ms = 0;
@@ -309,7 +309,7 @@ static BT_Status Act_Chassis_Route_FSM(void)
         if (chassis_route_traj.traj_vx.is_finished && chassis_route_traj.traj_vy.is_finished && chassis_route_traj.traj_vw.is_finished) {
             /* 到位后下发下一个点 */
             taskENTER_CRITICAL();
-            chassis_route_point_add(&chassis_route_traj, 400.0f, 600.0f, 0.0f);
+            chassis_route_point_add(&chassis_route_traj, 400.0f, 600.0f, 0.0f,1000);
             taskEXIT_CRITICAL();
             chassis_state = CHASSIS_ROUTE_2;
             chassis_timer_ms = 0;
@@ -323,7 +323,7 @@ static BT_Status Act_Chassis_Route_FSM(void)
         if (chassis_route_traj.traj_vx.is_finished && chassis_route_traj.traj_vy.is_finished && chassis_route_traj.traj_vw.is_finished) {
             /* 到位后下发下一个点 */
             taskENTER_CRITICAL();
-            chassis_route_point_add(&chassis_route_traj, 1200.0f, 1400.0f, 0.0f);   //对接位置
+            chassis_route_point_add(&chassis_route_traj, 1200.0f, 1400.0f, 0.0f,1000);   //对接位置
             taskEXIT_CRITICAL();
             chassis_state = CHASSIS_ROUTE_3;
             chassis_timer_ms = 0;
@@ -348,7 +348,7 @@ static BT_Status Act_Chassis_Route_FSM(void)
     case CHASSIS_FAILED:
     default:
         /* 失败时复位并告诉上层失败，供上层 Selector 做重试或回退 */
-        chassis_route_point_add(&chassis_route_traj, 400.0f, 1400.0f, 0.0f);
+        chassis_route_point_add(&chassis_route_traj, 400.0f, 1400.0f, 0.0f,1000);
         chassis_state = CHASSIS_ROUTE_IDLE;
         chassis_timer_ms = 0;
         bb.req_chassis_route = 0; /* 失败时清除请求，等待下一次触发 */
@@ -456,7 +456,7 @@ static BT_Status Act_Chassis_Move_FSM_MC(void)
         case CHASSIS_IDLE:
             /* 刚进入本节点，下发前往HOME的指令 */
             taskENTER_CRITICAL(); // 下发轨迹队列涉及到共享资源，最好进入临界区保护
-            chassis_route_point_add(&chassis_route_traj, CHASSIS_HOME_MC_X, CHASSIS_HOME_MC_Y, CHASSIS_HOME_MC_W);
+            chassis_route_point_add(&chassis_route_traj, CHASSIS_HOME_MC_X, CHASSIS_HOME_MC_Y, CHASSIS_HOME_MC_W, 2000);
             taskEXIT_CRITICAL();
             
             task_chassis_state = CHASSIS_TO_RACK;
@@ -471,7 +471,7 @@ static BT_Status Act_Chassis_Move_FSM_MC(void)
             {
                 /* HOME点到了，立马前往RACK点 */
                 taskENTER_CRITICAL();
-                chassis_route_point_add(&chassis_route_traj, CHASSIS_RACK_6_X, CHASSIS_RACK_6_Y, CHASSIS_RACK_6_W); 
+                chassis_route_point_add(&chassis_route_traj, CHASSIS_RACK_6_X, CHASSIS_RACK_6_Y, CHASSIS_RACK_6_W, 15000); 
                 taskEXIT_CRITICAL();
                 
                 task_chassis_state = CHASSIS_TO_DOCKING;
@@ -491,7 +491,7 @@ static BT_Status Act_Chassis_Move_FSM_MC(void)
             {
                 /* 暂定取矛头瞬间成功，直接前往对接点 */
                 taskENTER_CRITICAL();
-                chassis_route_point_add(&chassis_route_traj, CHASSIS_DOCKING_X, CHASSIS_DOCKING_Y, CHASSIS_DOCKING_W); 
+                chassis_route_point_add(&chassis_route_traj, CHASSIS_DOCKING_X, CHASSIS_DOCKING_Y, CHASSIS_DOCKING_W, 10000);
                 taskEXIT_CRITICAL();
 
                 task_chassis_state = CHASSIS_TO_SCANNING; // 状态推进，防止下次误入
@@ -511,7 +511,7 @@ static BT_Status Act_Chassis_Move_FSM_MC(void)
             {
                 /* 暂定对接瞬间成功，直接前往扫描点 */
                 taskENTER_CRITICAL();
-                chassis_route_point_add(&chassis_route_traj, CHASSIS_SCANNING_X, CHASSIS_SCANNING_Y, CHASSIS_SCANNING_W); 
+                chassis_route_point_add(&chassis_route_traj, CHASSIS_SCANNING_X, CHASSIS_SCANNING_Y, CHASSIS_SCANNING_W, 10000); 
                 taskEXIT_CRITICAL();
 
                 task_chassis_state = CHASSIS_TO_PICK; // 状态推进，防止下次误入
@@ -531,7 +531,7 @@ static BT_Status Act_Chassis_Move_FSM_MC(void)
             {
                 /* 假设扫描瞬间成功前往拾取点 */
                 taskENTER_CRITICAL();
-                chassis_route_point_add(&chassis_route_traj, CHASSIS_ENTRY_2_X, CHASSIS_ENTRY_2_Y, CHASSIS_ENTRY_2_W); 
+                chassis_route_point_add(&chassis_route_traj, CHASSIS_ENTRY_2_X, CHASSIS_ENTRY_2_Y, CHASSIS_ENTRY_2_W, 10000); 
                 taskEXIT_CRITICAL();
 
                 /* 当到达拾取点之后，返回bt_success，将行为树往下推进，控制权给到机械臂部分 */
@@ -619,7 +619,7 @@ static BT_Status Act_Chassis_MoveToStandby(void)
         case CHASSIS_TO_PICK_DONE:
             /* 从抓取完成跳入本状态机后，下发待机点指令 */
             taskENTER_CRITICAL();
-            chassis_route_point_add(&chassis_route_traj, CHASSIS_HOME_MC_X, CHASSIS_HOME_MC_Y, CHASSIS_HOME_MC_W);
+            chassis_route_point_add(&chassis_route_traj, CHASSIS_HOME_MC_X, CHASSIS_HOME_MC_Y, CHASSIS_HOME_MC_W, 2000);
             taskEXIT_CRITICAL();
             
             task_chassis_state = CHASSIS_TO_STANDBY;
