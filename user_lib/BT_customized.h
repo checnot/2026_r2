@@ -17,11 +17,14 @@
 
 #define ARM_PICK_P200_APPROACH_X_1   0.30f   /* 预抓取上方点1 X */
 #define ARM_PICK_P200_APPROACH_Y_1   0.45f   /* 预抓取上方点1 Y */
+
 #define ARM_PICK_P200_APPROACH_X_2   0.80f   /* 预抓取上方点2 X */
 #define ARM_PICK_P200_APPROACH_Y_2   0.45f   /* 预抓取上方点2 Y */
+
 #define ARM_PICK_P200_TARGET_X     0.80f   /* 真正抓取点 X */
 #define ARM_PICK_P200_TARGET_Y     0.35f   /* 真正抓取点 Y */
-#define ARM_PICK_P200_TARGET_TIME  (uint16_t)1250 /* 抓取点停留时间 (ms) */
+#define ARM_PICK_P200_TARGET_TIME  (uint16_t)2000 /* 抓取点停留时间 (ms) */
+
 #define ARM_SAFE_P200_LIFT_X       0.80f   /* 抬升到安全高度的 X */
 #define ARM_SAFE_P200_LIFT_Y       0.40f   /* 抬升到安全高度的 Y */
 #define ARM_SAFE_P200_LIFT_TIME    (uint16_t)500 /* 抬升到安全高度过后停留时间 (ms) */
@@ -48,7 +51,7 @@
 #define CHASSIS_HOME_MC_W 0.0f        /* 武馆区域 底盘 HOME 位置 W (deg) */
 
 // 矛头位置：最靠近坐标系原点的第一个矛头为1，依次递增
-#define CHASSIS_RACK_6_X 1550.0f      /* 武馆区域 第六个矛头位置 X (mm) */
+#define CHASSIS_RACK_6_X 1450.0f      /* 武馆区域 第六个矛头位置 X (mm) */
 #define CHASSIS_RACK_6_Y 600.0f      /* 武馆区域 第六个矛头位置 Y (mm) */
 #define CHASSIS_RACK_6_W 0.0f        /* 武馆区域 第六个矛头位置 W (deg) */
 // 与R1的对接位置（暂定该位置，后续可重设）

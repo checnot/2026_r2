@@ -71,6 +71,7 @@ uint8_t ponit_add1 = 0; // 测试用：是否添加路径点的标志位
 uint8_t kalman_update_times = 0; // 卡尔曼滤波更新次数统计
 uint8_t kalman_init_flag = 0; // 卡尔曼滤波初始化flag
 
+uint8_t traj_init_flag_arm = 0;
 
 /* USER CODE END Variables */
 osThreadId defaultTaskHandle;
@@ -84,16 +85,16 @@ osThreadId cmd_taskHandle;
 
 /* USER CODE END FunctionPrototypes */
 
-void StartDefaultTask(void const *argument);
-void entry_robotic_arm(void const *argument);
-void entry_chassis(void const *argument);
-void entry_clamp(void const *argument);
-void entry_cmd_task(void const *argument);
+void StartDefaultTask(void const * argument);
+void entry_robotic_arm(void const * argument);
+void entry_chassis(void const * argument);
+void entry_clamp(void const * argument);
+void entry_cmd_task(void const * argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
 /* GetIdleTaskMemory prototype (linked to static allocation support) */
-void vApplicationGetIdleTaskMemory(StaticTask_t **ppxIdleTaskTCBBuffer, StackType_t **ppxIdleTaskStackBuffer, uint32_t *pulIdleTaskStackSize);
+void vApplicationGetIdleTaskMemory( StaticTask_t **ppxIdleTaskTCBBuffer, StackType_t **ppxIdleTaskStackBuffer, uint32_t *pulIdleTaskStackSize );
 
 /* USER CODE BEGIN GET_IDLE_TASK_MEMORY */
 static StaticTask_t xIdleTaskTCBBuffer;
@@ -109,12 +110,11 @@ void vApplicationGetIdleTaskMemory(StaticTask_t **ppxIdleTaskTCBBuffer, StackTyp
 /* USER CODE END GET_IDLE_TASK_MEMORY */
 
 /**
- * @brief  FreeRTOS initialization
- * @param  None
- * @retval None
- */
-void MX_FREERTOS_Init(void)
-{
+  * @brief  FreeRTOS initialization
+  * @param  None
+  * @retval None
+  */
+void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN Init */
 
   /* USER CODE END Init */
@@ -159,6 +159,7 @@ void MX_FREERTOS_Init(void)
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
   /* USER CODE END RTOS_THREADS */
+
 }
 
 /* USER CODE BEGIN Header_StartDefaultTask */
@@ -168,7 +169,7 @@ void MX_FREERTOS_Init(void)
  * @retval None
  */
 /* USER CODE END Header_StartDefaultTask */
-void StartDefaultTask(void const *argument)
+void StartDefaultTask(void const * argument)
 {
   /* USER CODE BEGIN StartDefaultTask */
 
@@ -217,7 +218,7 @@ void StartDefaultTask(void const *argument)
  * @retval None
  */
 /* USER CODE END Header_entry_robotic_arm */
-void entry_robotic_arm(void const *argument)
+void entry_robotic_arm(void const * argument)
 {
   /* USER CODE BEGIN entry_robotic_arm */
   // 机械臂dh参数初始化
@@ -231,27 +232,27 @@ void entry_robotic_arm(void const *argument)
   arm.effector_pitch_target = -PI/2.0f;
   arm.theta_target[4] = 0.0f;
 
-// 向机械臂添加默认路径点，替代之前的单位置环上电复位
-  arm_queue_add_point(&arm_traj, 0.0f, 0.40f, 0.0f, 500, 0);
-  arm_queue_add_point(&arm_traj, 0.15f, 0.15f, 0.0f, 0, 0);
-
   /* Infinite loop */
   for (;;)
   {
     arm_joint_state_update(&arm);
     arm_route_point_calculate(&arm);
+    if(traj_init_flag_arm < 1)
+    {
+      arm_trajectory_init(&arm_traj, &arm);
+      // 向机械臂添加默认路径点，替代之前的单位置环上电复位
+      arm_queue_add_point(&arm_traj, 0.0f, 0.40f, 0.0f, 500, 0);
+      arm_queue_add_point(&arm_traj, 0.15f, 0.15f, 0.0f, 0, 0);
+      traj_init_flag_arm++;
+    }
 
     //等待初始化完成
-    if(m3508_fdcan1[0].Initial_flag == 200 && A1_debug_485_2[1].Pos_init_flag == 200)
+    if(m3508_fdcan1[0].Initial_flag == 200 && A1_debug_485_2[1].Pos_init_flag == 200 && traj_init_flag_arm == 1)
     {
     //保持执行器水平
       if(m3508_fdcan1[1].Initial_flag == 200 && m3508_fdcan1[2].Initial_flag == 200)
       {arm_actuator_stable_control(&arm, arm.effector_pitch_target, arm.theta_target[4]);}
 
-
-    //启动机械臂
-      // if(HT10A.switch_d == 1)
-      // {
 
         // 1. 调用多段直线插补协调器 (它会从队列中成组提取路点)
         arm_linear_interpolation_update(&arm, &arm_traj, 0.03f); 
@@ -286,7 +287,6 @@ void entry_robotic_arm(void const *argument)
             arm_route_point_calculate(&arm);
         }
         arm_route_execute(&arm, 8.0f, 0.20f);
-      // }
       
     //在不操纵机械臂的情况下默认举起到竖直位置，并时刻记录当前机械臂位姿，准备随时做路径切入
       // else if(HT10A.switch_d == 0 || HT10A.switch_d == -1)
@@ -312,7 +312,7 @@ void entry_robotic_arm(void const *argument)
  * @retval None
  */
 /* USER CODE END Header_entry_chassis */
-void entry_chassis(void const *argument)
+void entry_chassis(void const * argument)
 {
   /* USER CODE BEGIN entry_chassis */
   // 3508参数初始化
@@ -426,7 +426,7 @@ void entry_chassis(void const *argument)
  * @retval None
  */
 /* USER CODE END Header_entry_clamp */
-void entry_clamp(void const *argument)
+void entry_clamp(void const * argument)
 {
   /* USER CODE BEGIN entry_clamp */
 
@@ -444,41 +444,17 @@ void entry_clamp(void const *argument)
   /* Infinite loop */
   for (;;)
   {
+    // 等待初始化完成之后一直执行夹爪控制，仅依赖上层状态机修改夹爪状态标志位，无需耦合遥控器状态
     if (m3508_fdcan2[1].Initial_flag == 200 && m3508_fdcan2[2].Initial_flag == 200 && m3508_fdcan2[3].Initial_flag == 200)
     {
-      if (HT10A.switch_d == -1)
-      {
-        //!!!!!!!!!!!!!!!该部分切换逻辑转移至ht10a.c中
-
-        // 气缸驱动夹爪部分
-        //  if      (HT10A.switch_b == 1) {clamp.catch_flag = 1;}
-        //  else if (HT10A.switch_b == -1) {clamp.catch_flag = 0;}
-        clamp_open_control(clamp.catch_flag);
-        // 夹爪旋转部分
-        //  if      (HT10A.knob_a >=1000) {clamp.rotate_flag = 1;}
-        //  else if (HT10A.knob_a <= -1000) {clamp.rotate_flag = 0;}
-        clamp_rotate_control(clamp.rotate_flag * CLAMP_ROTATE_MAX_POSITION, &m3508_fdcan2[3]);
-        // 夹爪伸缩部分
-        //  if      (HT10A.switch_c == 1) {clamp.retractable_flag = 1;}
-        //  else if (HT10A.switch_c == -1) {clamp.retractable_flag = 0;}
-        clamp_extend_control(clamp.retractable_flag * CLAMP_EXTEND_MAX_POSITION, &m3508_fdcan2[2]);
-        // 夹爪升降部分
-        if (abs_int16(HT10A.left_y) > 100)
-        {
-          m3508_speed_control(&m3508_fdcan2[1], HT10A.left_y, 8192);
-        }
-        else
-        {
-          m3508_speed_control(&m3508_fdcan2[1], 0, 8192);
-        }
-      }
-      else if (HT10A.switch_d == 1 || HT10A.switch_d == 0)
-      {
-        clamp_open_control(clamp.catch_flag);
-        clamp_rotate_control(clamp.rotate_flag * CLAMP_ROTATE_MAX_POSITION, &m3508_fdcan2[3]);
-        clamp_extend_control(clamp.retractable_flag * CLAMP_EXTEND_MAX_POSITION, &m3508_fdcan2[2]);
-        m3508_speed_control(&m3508_fdcan2[1], 0, 8192);
-      }
+      // 气缸驱动夹爪部分
+      clamp_open_control(clamp.catch_flag);
+      // 夹爪旋转部分
+      clamp_rotate_control(clamp.rotate_flag * CLAMP_ROTATE_MAX_POSITION, &m3508_fdcan2[3]);
+      // 夹爪伸缩部分
+      clamp_extend_control(clamp.retractable_flag * CLAMP_EXTEND_MAX_POSITION, &m3508_fdcan2[2]);
+      // 夹爪升降部分
+      clamp_lift_control(clamp.lift_flag * CLAMP_LIFT_SPECIAL_POSITION1, &m3508_fdcan2[1]);
     }
 
     osDelay(1);
@@ -493,7 +469,7 @@ void entry_clamp(void const *argument)
  * @retval None
  */
 /* USER CODE END Header_entry_cmd_task */
-void entry_cmd_task(void const *argument)
+void entry_cmd_task(void const * argument)
 {
   /* USER CODE BEGIN entry_cmd_task */
 
