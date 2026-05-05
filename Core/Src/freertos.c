@@ -67,7 +67,7 @@ float debug_test_time; // 用于测试的万能小变量
 int32_t debug_flag;
 float debug_position;
 uint8_t point_add = 0; // 测试用：是否添加路径点的标志位
-uint8_t ponit_add1 = 0; // 测试用：是否添加路径点的标志位 
+uint8_t point_add1 = 0; // 测试用：是否添加路径点的标志位 
 uint8_t kalman_update_times = 0; // 卡尔曼滤波更新次数统计
 uint8_t kalman_init_flag = 0; // 卡尔曼滤波初始化flag
 
@@ -325,22 +325,23 @@ void entry_chassis(void const *argument)
   /* Infinite loop */
   for (;;)
   {
-    if (point_add == 1)
-    {
-      //      chassis_route_point_add(&chassis_route_traj,55.0f,66.0f,0.0f);
-      chassis_route_point_add(&chassis_route_traj, 1200.0f, 1400.0f, 90.0f);
-      // chassis_route_point_add(&chassis_route_traj, 2200.0f, 3000.0f, 180.0f);
+   if (point_add == 1)
+   {
+     //      chassis_route_point_add(&chassis_route_traj,55.0f,66.0f,0.0f);
+     chassis_route_point_add(&chassis_route_traj, 1450.0f, 600.0f, 0.0f);
+     // chassis_route_point_add(&chassis_route_traj, 2200.0f, 3000.0f, 180.0f);
 			// chassis_route_point_add(&chassis_route_traj, 1200.0f, 3000.0f, -45.0f);
-      point_add = 0;
-    }
-    if(ponit_add1 ==1)
-    {
-      chassis_route_point_add(&chassis_route_traj, 2200.0f,3000.0f, 180.0f);
-      ponit_add1 = 0;
-    }
-    Radar_Pos.radar_x_filtered = Kalman_Update(&Radar_Kalman_X, Radar_Pos.radar_x);
-    Radar_Pos.radar_y_filtered = Kalman_Update(&Radar_Kalman_Y, Radar_Pos.radar_y);
-    Radar_Pos.radar_z_filtered = Kalman_Update(&Radar_Kalman_Z, Radar_Pos.radar_z);
+     point_add = 0;
+   }
+   if(point_add1 ==1)
+   {
+     chassis_route_point_add(&chassis_route_traj, 1200.0f,1400.0f, 180.0f);
+			chassis_route_point_add(&chassis_route_traj, 2000.0f,3000.0f, 90.0f);
+     point_add1 = 0;
+   }
+   Radar_Pos.radar_x_filtered = Kalman_Update(&Radar_Kalman_X, Radar_Pos.radar_x);
+   Radar_Pos.radar_y_filtered = Kalman_Update(&Radar_Kalman_Y, Radar_Pos.radar_y);
+   Radar_Pos.radar_z_filtered = Kalman_Update(&Radar_Kalman_Z, Radar_Pos.radar_z);
 
     omni_chassis_inverse_calculate(&chassis_r2, m3508_fdcan3);
     if (abs_float(chassis_r2.real_vx) < RADAR_Filter_Threshold && abs_float(chassis_r2.real_vy) < RADAR_Filter_Threshold)
@@ -501,7 +502,6 @@ void entry_cmd_task(void const *argument)
     // // 2. 后更新：判断完之后，再把最新的全局状态拷贝到本地，留作下一次循环(1ms后)对比使用
     // HT10A_last = HT10A;
     // BT_Customized_Tick1ms_test();
-    //wdahonkfnal
      osDelay(1);
   }
   /* USER CODE END entry_cmd_task */
