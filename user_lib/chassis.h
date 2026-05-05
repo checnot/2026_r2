@@ -19,7 +19,6 @@
 #define CHASSIS_TRACKING_ANGLE_ERROR_THRESHOLD 10.0f //底盘跟踪角度误差阈值，单位rad
 #define CHASSIS_ROUTE_ARRIVAL_THRESHOLD 10.0f //底盘路径到达判定阈值，单位mm    
 #define CHASSIS_ANGLE_ARRIVAL_THRESHOLD 1.0f //底盘路径到达判定阈值，单位度
-#define CHASSIS_ADJUSE_MIN_SPEED 300.0f //底盘调整最小速度
 #define CHASSIS_ROUTE_FINAL_APPROACH_THRESHOLD 300.0f //底盘路径最终接近目标判定阈值，单位mm        
 #define CHASSIS_ROUTE_FINAL_APPROACH_ANGLE_THRESHOLD 5.0f //底盘路径最终接近目标判定阈值，单位度
 /* 底盘控制相关结构体定义 */
@@ -45,6 +44,11 @@ typedef struct{
     Traj_Queue_struct traj_queue_vy; //底盘横向速度路径队列
     Traj_Queue_struct traj_queue_vw; //底盘旋转速度路径队列
 
+     // ---- 延时控制属性 ----
+    uint16_t delay_queue[TRAJ_MAX_WAYPOINTS];  // 与位置队列下标同步，存储每个点到达后的延时时间(ms)
+    uint16_t target_delay_ms;                  // 当前正在执行的目标点所要求的延时
+    uint16_t wait_counter;                     // 当前目标点到达后，正在倒计时的计数器
+
     PID_Struct pid_final_vx; //前向速度PID实例      
     PID_Struct pid_final_vy; //横向速度PID实例  
     PID_Struct pid_final_vw; //旋转速度PID实例 
@@ -62,7 +66,7 @@ void chassis_lift_back_control(uint8_t lift_back);
 void chassis_lift_control(uint8_t lift_mode, uint8_t lift_front_flag, uint8_t lift_back_flag, uint8_t lift_whole_flag);
 void chassis_route_traj_init(void);
 void chassis_multi_route_scheduler(chassis_route_traj_stu* chassis_route_traj,RADAR_POSITION * chassis_real_position);
-void chassis_route_point_add(chassis_route_traj_stu* chassis_route_traj, float target_vx, float target_vy, float target_vw);
+void chassis_route_point_add(chassis_route_traj_stu* chassis_route_traj, float target_vx, float target_vy, float target_vw, uint16_t delay_time_ms);
 void chassis_single_route_scheduler(RADAR_POSITION * chassis_real_position, chassis_route_traj_stu* chassis_route_traj,float dt);
 #endif /* CHASSIS_H */
 

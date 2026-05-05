@@ -48,7 +48,7 @@
 #define CHASSIS_HOME_MC_W 0.0f        /* 武馆区域 底盘 HOME 位置 W (deg) */
 
 // 矛头位置：最靠近坐标系原点的第一个矛头为1，依次递增
-#define CHASSIS_RACK_6_X 1550.0f      /* 武馆区域 第六个矛头位置 X (mm) */
+#define CHASSIS_RACK_6_X 1450.0f      /* 武馆区域 第六个矛头位置 X (mm) */
 #define CHASSIS_RACK_6_Y 600.0f      /* 武馆区域 第六个矛头位置 Y (mm) */
 #define CHASSIS_RACK_6_W 0.0f        /* 武馆区域 第六个矛头位置 W (deg) */
 // 与R1的对接位置（暂定该位置，后续可重设）

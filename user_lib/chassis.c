@@ -128,9 +128,9 @@ void chassis_route_traj_init(void)
     Traj_Adaptive_Init(&chassis_route_traj.traj_vw, Radar_Pos.radar_yaw , 0.0f, CHASSIS_V_MAX, CHASSIS_A_MAX, CHASSIS_TRACKING_ANGLE_ERROR_THRESHOLD);
     
     // PID参数初始化，针对最终接近目标时的微调，输出限制在较小范围内    
-    PID_Set(&chassis_route_traj.pid_final_vx,7.0f, 0.0f, 3.0f);      
-    PID_Set(&chassis_route_traj.pid_final_vy,7.0f, 0.0f, 3.0f);
-    PID_Set(&chassis_route_traj.pid_final_vw, 30.0f, 0.0f, 5.0f);
+    PID_Set(&chassis_route_traj.pid_final_vx,10.0f, 0.0f, 3.0f);      
+    PID_Set(&chassis_route_traj.pid_final_vy,10.0f, 0.0f, 3.0f);
+    PID_Set(&chassis_route_traj.pid_final_vw, 40.0f, 0.0f, 5.0f);
 }
 /*
  *@brief 角度控制边界保护函数，确保在角度接近±180度时，误差计算能够正确处理环绕问题
@@ -268,10 +268,7 @@ void chassis_single_route_velocity_update(Traj_Single_struct * traj,float now_po
         if (expected_vel > safe_decel_vel) {
             expected_vel = safe_decel_vel;
         }
-        // 限制3：如果速度过小，强制提升速度，确保能够克服静摩擦并开始移动
-        // while(expected_vel < CHASSIS_ADJUSE_MIN_SPEED) {
-        //     expected_vel = expected_vel * 1.5f; // 以指数方式提升速度，快速脱离低速区
-        // }
+       
     // 把推算出的速度附加方向符号，得到真正输出速度
         traj->out_vel = expected_vel * dir_final;
 }
@@ -285,6 +282,12 @@ void chassis_multi_route_scheduler(chassis_route_traj_stu* chassis_route_traj,RA
     // 如果任意一个轴的队列为空，说明点位不齐，不进行出队（保证X/Y/W同步出队）
     if(chassis_route_traj->traj_queue_vx.count == 0 || chassis_route_traj->traj_queue_vy.count == 0 || chassis_route_traj->traj_queue_vw.count == 0) return;
 
+// 新增延时逻辑：如果还有延时没等完，就原地return，不下发下一个点
+    if (chassis_route_traj->wait_counter > 0)
+    {
+        chassis_route_traj->wait_counter--;
+        return;  
+    }
     // 如果当前轨迹已经完成，并且队列中还有待执行的轨迹点，则切换到下一个轨迹点
     if (chassis_route_traj->traj_vx.is_finished && chassis_route_traj->traj_vy.is_finished && chassis_route_traj->traj_vw.is_finished) 
     {
@@ -292,6 +295,10 @@ void chassis_multi_route_scheduler(chassis_route_traj_stu* chassis_route_traj,RA
         chassis_route_traj->traj_vx.target_pos = chassis_route_traj->traj_queue_vx.points[chassis_route_traj->traj_queue_vx.tail];
         chassis_route_traj->traj_vy.target_pos = chassis_route_traj->traj_queue_vy.points[chassis_route_traj->traj_queue_vy.tail];
         chassis_route_traj->traj_vw.target_pos = chassis_route_traj->traj_queue_vw.points[chassis_route_traj->traj_queue_vw.tail];
+        // 提取该点的预设延时，并赋给计数器
+        uint16_t next_delay = chassis_route_traj->delay_queue[chassis_route_traj->traj_queue_vx.tail];
+        chassis_route_traj->target_delay_ms = next_delay;
+        chassis_route_traj->wait_counter = next_delay; // 为到达这个点后的停顿上满发条！
         
         // 队列出队，注意这里是循环队列
         chassis_route_traj->traj_queue_vx.tail = (chassis_route_traj->traj_queue_vx.tail + 1) % TRAJ_MAX_WAYPOINTS;
@@ -313,11 +320,17 @@ void chassis_multi_route_scheduler(chassis_route_traj_stu* chassis_route_traj,RA
  * @param target_vx: 前向目标点
  * @param target_vy: 横向目标点
  * @param target_vw: 旋转角度目标点  
+ * @param delay_time_ms: 到达该目标点后需要等待的时间，单位毫秒
  * @note 该函数会将新的目标点添加到路径队列中，等待调度器切换执行
  */
- void chassis_route_point_add(chassis_route_traj_stu* chassis_route_traj, float target_vx, float target_vy, float target_vw)
+ void chassis_route_point_add(chassis_route_traj_stu* chassis_route_traj, float target_vx, float target_vy, float target_vw, uint16_t delay_time_ms)
  {
-      // 将坐标压入各自队列
+      
+      // 将x的head作为其他元素的索引，进行延时和气泵标志的存储
+    if (chassis_route_traj->traj_queue_vx.count >= TRAJ_MAX_WAYPOINTS) return;
+    // 将延时信息存储到轨迹实例中，和点位队列下标同步
+    chassis_route_traj->delay_queue[chassis_route_traj->traj_queue_vx.head] = delay_time_ms;
+    // 将坐标压入各自队列
     Traj_Path_Queue_AddPoint(&chassis_route_traj->traj_queue_vx, target_vx);
     Traj_Path_Queue_AddPoint(&chassis_route_traj->traj_queue_vy, target_vy);
     Traj_Path_Queue_AddPoint(&chassis_route_traj->traj_queue_vw, target_vw);
