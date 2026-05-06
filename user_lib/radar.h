@@ -6,7 +6,7 @@
 // #include "chassis.h"
 #include "own_lib.h"
 
-#define RADAR_Filter_Threshold 100.0f //雷达数据滤波的速度阈值
+#define RADAR_Filter_Threshold 80.0f //雷达数据滤波的速度阈值
 typedef struct {
 		float radar_x;
 		float radar_y;

@@ -128,9 +128,9 @@ void chassis_route_traj_init(void)
     Traj_Adaptive_Init(&chassis_route_traj.traj_vw, Radar_Pos.radar_yaw , 0.0f, CHASSIS_V_MAX, CHASSIS_A_MAX, CHASSIS_TRACKING_ANGLE_ERROR_THRESHOLD);
     
     // PID参数初始化，针对最终接近目标时的微调，输出限制在较小范围内    
-    PID_Set(&chassis_route_traj.pid_final_vx,10.0f, 0.0f, 3.0f);      
-    PID_Set(&chassis_route_traj.pid_final_vy,10.0f, 0.0f, 3.0f);
-    PID_Set(&chassis_route_traj.pid_final_vw, 40.0f, 0.0f, 5.0f);
+    PID_Set(&chassis_route_traj.pid_final_vx,9.0f, 0.0f, 3.0f);      
+    PID_Set(&chassis_route_traj.pid_final_vy,9.0f, 0.0f, 3.0f);
+    PID_Set(&chassis_route_traj.pid_final_vw, 50.0f, 0.0f, 5.0f);
 }
 /*
  *@brief 角度控制边界保护函数，确保在角度接近±180度时，误差计算能够正确处理环绕问题

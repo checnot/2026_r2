@@ -6,8 +6,25 @@ clamp_struct clamp;//夹爪结构体
  * @brief 夹爪升降控制函数，当距离误差过大时，先以较大速度快速接近目标位置，当距离误差较小时，使用位置PID进行精准控制
  * @param target_position 目标位置，单位为电机位置计数值
  */
-void clamp_lift_control(int32_t target_position, M3508_Motor_Struct *motor)
+void clamp_lift_control(uint8_t lift_flag, M3508_Motor_Struct *motor)
 {
+    int32_t target_position;
+    if (lift_flag == 0)
+    {
+        target_position = 0; // 复位位置
+    }
+    else if (lift_flag == 1)
+    {
+        target_position = CLAMP_LIFT_SPECIAL_POSITION1; // 抓矛头位置
+    }
+    else if (lift_flag == 2)
+    {
+        target_position = CLAMP_LIFT_SPECIAL_POSITION2; // 抓矛头后抬起位置
+    }
+    else if (lift_flag == 3)
+    {
+        target_position = CLAMP_LIFT_SPECIAL_POSITION3; // 暂定对杆位置
+    }
     float position_error = target_position - motor->Angle_Sum; // 计算位置误差
     if (abs_float(position_error) < 10000.f)                   // 位置pid精准控制
     {

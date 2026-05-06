@@ -8,8 +8,9 @@
 #include "m3508.h"
 
 #define CLAMP_LIFT_MAX_POSITION -895000      // 上升最大位置
-#define CLAMP_LIFT_SPECIAL_POSITION1 -790000 // 抓取矛头位置
+#define CLAMP_LIFT_SPECIAL_POSITION1 -810000 // 抓取矛头位置
 #define CLAMP_LIFT_SPECIAL_POSITION2 -880000 // 抓取矛头后抬起位置
+#define CLAMP_LIFT_SPECIAL_POSITION3 -50000  // 暂定对杆位置
 #define CLAMP_ROTATE_MAX_POSITION -580000    // 旋转最大角度位置，顺时针旋转为正
 #define CLAMP_EXTEND_MAX_POSITION -480000    // 伸缩最大位置
 
@@ -25,7 +26,7 @@ typedef struct
 extern clamp_struct clamp;//夹爪结构体
 
 void clamp_position_init(M3508_Motor_Struct *lift_motor, M3508_Motor_Struct *rotate_motor, M3508_Motor_Struct *extend_motor);
-void clamp_lift_control(int32_t target_position, M3508_Motor_Struct * motor) ;
+void clamp_lift_control(uint8_t lift_flag, M3508_Motor_Struct *motor);
 void clamp_rotate_control(int32_t target_angle, M3508_Motor_Struct * motor);
 void clamp_extend_control(int32_t target_length, M3508_Motor_Struct * motor);
 void clamp_open_control(int8_t open_flag);

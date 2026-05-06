@@ -196,9 +196,9 @@ void StartDefaultTask(void const *argument)
     // data_send_vofa[4] = arm_traj.traj_y.out_pos;
     // data_send_vofa[5] = arm_traj.traj_queue_y.points[arm_traj.traj_queue_y.tail > 0 ? arm_traj.traj_queue_y.tail - 1 : 0];
 
-    data_send_vofa[0] = Radar_Pos.radar_x;
+    data_send_vofa[0] = Radar_Pos.reliable_yaw;
 
-    data_send_vofa[1] = Radar_Pos.radar_x_filtered;
+    data_send_vofa[1] = chassis_route_traj.traj_vw.target_pos;
 		data_send_vofa[2] = Radar_Pos.reliable_x;
     vofa_send_to_show_justfloat(&huart10, data_send_vofa);
 
@@ -333,26 +333,26 @@ void entry_chassis(void const *argument)
     if(m3508_fdcan3[0].Initial_flag == 200 && m3508_fdcan3[1].Initial_flag == 200
       && m3508_fdcan3[2].Initial_flag == 200 && m3508_fdcan3[3].Initial_flag == 200)
     {
-      // if(point_add == 1)
-      // {
-      //   //      chassis_route_point_add(&chassis_route_traj,55.0f,66.0f,0.0f);
-      //   chassis_route_point_add(&chassis_route_traj, 1200.0f, 1400.0f, 90.0f);
-      //   // chassis_route_point_add(&chassis_route_traj, 2200.0f, 3000.0f, 180.0f);
-      //   // chassis_route_point_add(&chassis_route_traj, 1200.0f, 3000.0f, -45.0f);
-      //   point_add = 0;
-      // }
-      // if(point_add1 ==1)
-      // {
-      //   chassis_route_point_add(&chassis_route_traj, 2200.0f,3000.0f, 180.0f);
-      //   point_add1 = 0;
-      // }
+      if(point_add == 1)
+      {
+        //      chassis_route_point_add(&chassis_route_traj,55.0f,66.0f,0.0f);
+        chassis_route_point_add(&chassis_route_traj, 1250.0f, 560.0f, 0.0f,0);
+        // chassis_route_point_add(&chassis_route_traj, 2200.0f, 3000.0f, 180.0f);
+        // chassis_route_point_add(&chassis_route_traj, 1200.0f, 3000.0f, -45.0f);
+        point_add = 0;
+      }
+      if(point_add1 ==1)
+      {
+        chassis_route_point_add(&chassis_route_traj, 1200.0f,2000.0f, 180.0f,0);
+        point_add1 = 0;
+      }
 // 测试用添加路径点
 
       // 滤波后的雷达数据更新
       Radar_Pos.radar_x_filtered = Kalman_Update(&Radar_Kalman_X, Radar_Pos.radar_x);
       Radar_Pos.radar_y_filtered = Kalman_Update(&Radar_Kalman_Y, Radar_Pos.radar_y);
       Radar_Pos.radar_z_filtered = Kalman_Update(&Radar_Kalman_Z, Radar_Pos.radar_z);
-
+ // Radar_Pos.radar_yaw_filtered = Kalman_Update(&Radar_Kalman_Yaw, Radar_Pos.radar_yaw);
       // 利用电机速度计算底盘实际速度（逆解算）
       omni_chassis_inverse_calculate(&chassis_r2, m3508_fdcan3);
 
@@ -446,41 +446,16 @@ void entry_clamp(void const *argument)
   {
     if (m3508_fdcan2[1].Initial_flag == 200 && m3508_fdcan2[2].Initial_flag == 200 && m3508_fdcan2[3].Initial_flag == 200)
     {
-      if (HT10A.switch_d == -1)
-      {
-        //!!!!!!!!!!!!!!!该部分切换逻辑转移至ht10a.c中
-
         // 气缸驱动夹爪部分
-        //  if      (HT10A.switch_b == 1) {clamp.catch_flag = 1;}
-        //  else if (HT10A.switch_b == -1) {clamp.catch_flag = 0;}
         clamp_open_control(clamp.catch_flag);
         // 夹爪旋转部分
-        //  if      (HT10A.knob_a >=1000) {clamp.rotate_flag = 1;}
-        //  else if (HT10A.knob_a <= -1000) {clamp.rotate_flag = 0;}
         clamp_rotate_control(clamp.rotate_flag * CLAMP_ROTATE_MAX_POSITION, &m3508_fdcan2[3]);
         // 夹爪伸缩部分
-        //  if      (HT10A.switch_c == 1) {clamp.retractable_flag = 1;}
-        //  else if (HT10A.switch_c == -1) {clamp.retractable_flag = 0;}
         clamp_extend_control(clamp.retractable_flag * CLAMP_EXTEND_MAX_POSITION, &m3508_fdcan2[2]);
         // 夹爪升降部分
-        if (abs_int16(HT10A.left_y) > 100)
-        {
-          m3508_speed_control(&m3508_fdcan2[1], HT10A.left_y, 8192);
-        }
-        else
-        {
-          m3508_speed_control(&m3508_fdcan2[1], 0, 8192);
-        }
-      }
-      else if (HT10A.switch_d == 1 || HT10A.switch_d == 0)
-      {
-        clamp_open_control(clamp.catch_flag);
-        clamp_rotate_control(clamp.rotate_flag * CLAMP_ROTATE_MAX_POSITION, &m3508_fdcan2[3]);
-        clamp_extend_control(clamp.retractable_flag * CLAMP_EXTEND_MAX_POSITION, &m3508_fdcan2[2]);
-        m3508_speed_control(&m3508_fdcan2[1], 0, 8192);
-      }
+        clamp_lift_control(clamp.lift_flag, &m3508_fdcan2[1]);
+    
     }
-
     osDelay(1);
   }
   /* USER CODE END entry_clamp */
