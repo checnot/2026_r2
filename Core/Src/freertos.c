@@ -43,6 +43,7 @@
 #include "trajectory.h"
 #include "BT_customized.h"
 #include "radar.h"
+#include "MF_planner.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -84,16 +85,16 @@ osThreadId cmd_taskHandle;
 
 /* USER CODE END FunctionPrototypes */
 
-void StartDefaultTask(void const *argument);
-void entry_robotic_arm(void const *argument);
-void entry_chassis(void const *argument);
-void entry_clamp(void const *argument);
-void entry_cmd_task(void const *argument);
+void StartDefaultTask(void const * argument);
+void entry_robotic_arm(void const * argument);
+void entry_chassis(void const * argument);
+void entry_clamp(void const * argument);
+void entry_cmd_task(void const * argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
 /* GetIdleTaskMemory prototype (linked to static allocation support) */
-void vApplicationGetIdleTaskMemory(StaticTask_t **ppxIdleTaskTCBBuffer, StackType_t **ppxIdleTaskStackBuffer, uint32_t *pulIdleTaskStackSize);
+void vApplicationGetIdleTaskMemory( StaticTask_t **ppxIdleTaskTCBBuffer, StackType_t **ppxIdleTaskStackBuffer, uint32_t *pulIdleTaskStackSize );
 
 /* USER CODE BEGIN GET_IDLE_TASK_MEMORY */
 static StaticTask_t xIdleTaskTCBBuffer;
@@ -109,12 +110,11 @@ void vApplicationGetIdleTaskMemory(StaticTask_t **ppxIdleTaskTCBBuffer, StackTyp
 /* USER CODE END GET_IDLE_TASK_MEMORY */
 
 /**
- * @brief  FreeRTOS initialization
- * @param  None
- * @retval None
- */
-void MX_FREERTOS_Init(void)
-{
+  * @brief  FreeRTOS initialization
+  * @param  None
+  * @retval None
+  */
+void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN Init */
 
   /* USER CODE END Init */
@@ -159,6 +159,7 @@ void MX_FREERTOS_Init(void)
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
   /* USER CODE END RTOS_THREADS */
+
 }
 
 /* USER CODE BEGIN Header_StartDefaultTask */
@@ -168,26 +169,22 @@ void MX_FREERTOS_Init(void)
  * @retval None
  */
 /* USER CODE END Header_StartDefaultTask */
-void StartDefaultTask(void const *argument)
+void StartDefaultTask(void const * argument)
 {
   /* USER CODE BEGIN StartDefaultTask */
+
+  MFPlanner_Init(&mf_planner_ctx);
+  MFPlanner_LoadFixedDemoMap(&mf_planner_ctx);
+  MFPlanner_BuildFullPlan(&mf_planner_ctx, 0, 0, 3); // 从入口区地面(0,0)出发，规划拾取3个R2KFS的完整动作列表
 
   /* Infinite loop */
   for (;;)
   {
 
-//=======================================================================
-  //vofa显示调试信息
+    
 
-    // data_send_vofa[0] = A1_debug_485_1[1].measure.Pos;
-    // data_send_vofa[1] = debug_traj_a1.out_pos;
-    // if(debug_traj_queue_a1.tail > 0) {
-    //     // 由于Traj_Path_Queue_Update的特性，需要-1才能显示当前正在前往的目标
-    //     data_send_vofa[2] = debug_traj_queue_a1.points[debug_traj_queue_a1.tail - 1];
-    // } else {
-    //     data_send_vofa[2] = 0.0f;// 默认输出0
-    // }
-    // data_send_vofa[3] = (float)debug_count;
+  //=======================================================================
+  // vofa显示调试信息
 
     // data_send_vofa[0] = arm.x0_now;
     // data_send_vofa[1] = arm_traj.traj_x.out_pos;
@@ -202,8 +199,8 @@ void StartDefaultTask(void const *argument)
 		data_send_vofa[2] = Radar_Pos.reliable_x;
     vofa_send_to_show_justfloat(&huart10, data_send_vofa);
 
-    // vofa显示调试信息
-    //=======================================================================
+  // vofa显示调试信息
+  //=======================================================================
     debug_test_time += 0.001f;
     osDelay(1);
   }
@@ -217,7 +214,7 @@ void StartDefaultTask(void const *argument)
  * @retval None
  */
 /* USER CODE END Header_entry_robotic_arm */
-void entry_robotic_arm(void const *argument)
+void entry_robotic_arm(void const * argument)
 {
   /* USER CODE BEGIN entry_robotic_arm */
   // 机械臂dh参数初始化
@@ -312,7 +309,7 @@ void entry_robotic_arm(void const *argument)
  * @retval None
  */
 /* USER CODE END Header_entry_chassis */
-void entry_chassis(void const *argument)
+void entry_chassis(void const * argument)
 {
   /* USER CODE BEGIN entry_chassis */
   // 3508参数初始化
@@ -426,7 +423,7 @@ void entry_chassis(void const *argument)
  * @retval None
  */
 /* USER CODE END Header_entry_clamp */
-void entry_clamp(void const *argument)
+void entry_clamp(void const * argument)
 {
   /* USER CODE BEGIN entry_clamp */
 
@@ -468,7 +465,7 @@ void entry_clamp(void const *argument)
  * @retval None
  */
 /* USER CODE END Header_entry_cmd_task */
-void entry_cmd_task(void const *argument)
+void entry_cmd_task(void const * argument)
 {
   /* USER CODE BEGIN entry_cmd_task */
 
