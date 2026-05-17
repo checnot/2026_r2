@@ -175,7 +175,7 @@ void StartDefaultTask(void const * argument)
 
   MFPlanner_Init(&mf_planner_ctx);
   MFPlanner_LoadFixedDemoMap(&mf_planner_ctx);
-  MFPlanner_BuildFullPlan(&mf_planner_ctx, 0, 0, 3); // 从入口区地面(0,0)出发，规划拾取3个R2KFS的完整动作列表
+  MFPlanner_BuildFullPlan(&mf_planner_ctx, 0, 1, 3); // 从入口区地面(0,1)出发，规划拾取3个R2KFS的完整动作列表
 
   /* Infinite loop */
   for (;;)

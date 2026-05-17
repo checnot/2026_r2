@@ -484,9 +484,19 @@ void MFPlanner_LoadFixedDemoMap(MF_Planner* ctx)
         { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_EMPTY }
     };
 
+    /* 另一个 预设KFS 分布：用于测试 */
+    MF_CellType demo_cell2[MF_ROWS][MF_COLS] = {
+        { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_EMPTY },
+        { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_R2KFS },
+        { MF_CELL_EMPTY,  MF_CELL_R2KFS,  MF_CELL_R1KFS },
+        { MF_CELL_R1KFS,  MF_CELL_FAKEKFS, MF_CELL_R1KFS },
+        { MF_CELL_EMPTY,  MF_CELL_R2KFS,  MF_CELL_R2KFS },
+        { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_EMPTY }
+    };
+
     /* 拷贝到上下文中 */
     memcpy(ctx->height, demo_height, sizeof(demo_height));
-    memcpy(ctx->cell, demo_cell, sizeof(demo_cell));
+    memcpy(ctx->cell, demo_cell2, sizeof(demo_cell2));
 }
 
 /**
@@ -496,6 +506,7 @@ void MFPlanner_LoadFixedDemoMap(MF_Planner* ctx)
  * @param start_col R2 初始列(0~2)
  * @param r2kfs_need 需要拾取的 R2KFS 数量
  * @return true 表示规划成功
+ * @note 决策核心
  * @note 规划顺序为：依次选择一个最近的 R2KFS -> 走到相邻格 -> 面对拾取
  * @note 若 R1KFS 阻断路径，则允许穿过并插入等待动作
  */
@@ -571,9 +582,15 @@ bool MFPlanner_BuildFullPlan(MF_Planner* ctx,
         int8_t dc = (int8_t)best_target_c - (int8_t)best_adj_c;
         /* 面向目标格的方向即为拾取方向 */
         MF_Dir pick_dir = MF_DirFromDelta(dr, dc);
+        /* 计算拾取动作的相对高度 */
+        int16_t height_diff = (int16_t)ctx->height[best_target_r][best_target_c]
+                                    - (int16_t)ctx->height[best_adj_r][best_adj_c];
+        /* 向数组中填入动作 */
         if (!MF_PushAction(ctx, MF_ACT_PICK_R2, pick_dir, best_target_r, best_target_c)) {
             return false;
         }
+        /* 回填高度差到刚 push 的动作中 */
+        ctx->actions[ctx->action_count - 1].height_pick_diff = height_diff;
 
         /* 取走后变为通路 */
         ctx->cell[best_target_r][best_target_c] = MF_CELL_EMPTY;
@@ -582,6 +599,57 @@ bool MFPlanner_BuildFullPlan(MF_Planner* ctx,
         cur_r = best_adj_r;
         cur_c = best_adj_c;
     }
+
+
+    /* ================================================================ */
+    /* 所有 R2KFS 拾取完毕后，规划从当前位置走到出口区地面(row5)的路径 */
+    /* 出口候选列：col0 和 col2，选择总路程更短的那一个                */
+    /* ================================================================ */
+    bool allow_r1kfs_for_exit = true; /* 允许穿过 R1KFS(此时已无 R2KFS 需要保护) */
+
+    /* 两个出口候选：row5,col0 和 row5,col2 */
+    uint8_t exit_candidates_row[2] = { 5, 5 };    /* 两个候选出口行 */
+    uint8_t exit_candidates_col[2] = { 0, 2 };    /* 两个候选出口列 */
+
+    bool found_exit = false;                       /* 是否找到可达出口 */
+    uint8_t best_exit_path[MF_MAX_NODES];          /* 最优出口路径 */
+    uint8_t best_exit_len = 0;                     /* 最优出口路径长度 */
+
+    for (uint8_t e = 0; e < 2; e++) {
+        /* 依次对每个候选出口跑 A* */
+        uint8_t exit_r = exit_candidates_row[e];
+        uint8_t exit_c = exit_candidates_col[e];
+
+        /* 若当前位置已在候选出口上，直接选中(路程为0) */
+        if (cur_r == exit_r && cur_c == exit_c) {
+            found_exit = true;
+            best_exit_len = 0;
+            break; /* 已到出口，无需再找 */
+        }
+
+        uint8_t exit_path[MF_MAX_NODES];
+        uint8_t exit_len = 0;
+
+        /* A* 搜索从当前位置到该候选出口的路径 */
+        if (MF_AStar(ctx, cur_r, cur_c, exit_r, exit_c,
+                        allow_r1kfs_for_exit, exit_path, &exit_len)) {
+            /* 比较路径长度，保留更短的 */
+            if (!found_exit || exit_len < best_exit_len) {
+                found_exit = true;
+                best_exit_len = exit_len;
+                memcpy(best_exit_path, exit_path, exit_len);
+            }
+        }
+    }
+
+    if (found_exit && best_exit_len > 0) {
+        /* 将最优出口路径翻译为移动动作序列 */
+        if (!MF_AddPathActions(ctx, best_exit_path, best_exit_len)) {
+            return false;
+        }
+    }
+    /* 若 found_exit==false 或 best_exit_len==0(已站在出口上)，跳过出口移动 */
+
 
     return true;
 }
