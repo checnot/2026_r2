@@ -27,7 +27,8 @@ typedef enum {
 	MF_CELL_EMPTY = 0,
 	MF_CELL_R1KFS,   /* R1KFS：可等待清除，不可登上 */
 	MF_CELL_R2KFS,   /* R2KFS：不可登上，可相邻拾取 */
-	MF_CELL_FAKEKFS  /* FAKEKFS：绝对禁止接触与登上 */
+	MF_CELL_FAKEKFS,  /* FAKEKFS：绝对禁止接触与登上 */
+	MF_CELL_UNKNOWN   /* 未知状态，表还未经过扫描，禁止对其进行操作 */
 } MF_CellType;
 
 typedef enum {
@@ -42,7 +43,8 @@ typedef enum {
 	MF_ACT_STEP_UP,       /* 上台阶(+200) */
 	MF_ACT_STEP_DOWN,     /* 下台阶(-200) */
 	MF_ACT_PICK_R2,       /* 面对相邻 R2KFS 拾取 */
-	MF_ACT_WAIT_R1        /* 等待 R1 清除 R1KFS */
+	MF_ACT_WAIT_R1,       /* 等待 R1 清除 R1KFS */
+	MF_ACT_SCAN           /* 在当前位置面朝某方向扫描，揭示前方若干行 */
 } MF_ActionType;
 
 typedef struct {
@@ -93,10 +95,15 @@ bool MFPlanner_AdvanceAction(MF_Planner* ctx);
 
 void MFPlanner_NotifyR1KfsRemoved(MF_Planner* ctx, uint8_t row, uint8_t col);
 
-const char* MFPlanner_ActionTypeName(MF_ActionType type);
+/*---------------------- 多步/动态规划暂存 ----------------------*/
 
-const char* MFPlanner_DirName(MF_Dir dir);
+void MFPlanner_ScanRows(MF_Planner* ctx, uint8_t start_row, uint8_t end_row);
 
-uint16_t MFPlanner_DumpPlan(const MF_Planner* ctx, char* out_buf, uint16_t buf_len);
+bool MFPlanner_BuildPhase1(MF_Planner* ctx,uint8_t start_row,uint8_t start_col,uint8_t* out_r2kfs_picked);
+
+bool MFPlanner_BuildPhase2(MF_Planner* ctx, uint8_t r2kfs_need);
+
+/*---------------------- 多步/动态规划暂存 ----------------------*/
+
 
 #endif // __MF_PLANNER_H

@@ -110,6 +110,10 @@ static bool MF_IsBlockedForMove(const MF_Planner* ctx, uint8_t r, uint8_t c, boo
         /* 空格可直接登上 */
         return false;
     }
+    if (t == MF_CELL_UNKNOWN) {
+        /* 未知格：尚未扫描，视为障碍，禁止登上 */
+        return true;
+    }
     if (t == MF_CELL_R1KFS) {
         /* R1KFS 是否可穿过取决于 allow_r1kfs */
         return allow_r1kfs ? false : true;
@@ -494,9 +498,28 @@ void MFPlanner_LoadFixedDemoMap(MF_Planner* ctx)
         { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_EMPTY }
     };
 
+    /* 另一个 预设KFS 分布：用于测试 */
+    MF_CellType demo_cell3[MF_ROWS][MF_COLS] = {
+        { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_EMPTY },
+        { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_R2KFS },
+        { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_R1KFS },
+        { MF_CELL_R1KFS,  MF_CELL_FAKEKFS, MF_CELL_R1KFS },
+        { MF_CELL_R2KFS,  MF_CELL_R2KFS,  MF_CELL_R2KFS },
+        { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_EMPTY }
+    };
+
     /* 拷贝到上下文中 */
     memcpy(ctx->height, demo_height, sizeof(demo_height));
-    memcpy(ctx->cell, demo_cell2, sizeof(demo_cell2));
+    memcpy(ctx->cell, demo_cell3, sizeof(demo_cell3));
+
+    /* 将 row1~row4 标记为 UNKNOWN(模拟相机尚未扫描) */
+    /* row0 和 row5 是地面，始终已知为 EMPTY */
+    for (uint8_t r = 1; r <= 4; r++) {
+        for (uint8_t c = 0; c < MF_COLS; c++) {
+            ctx->cell[r][c] = MF_CELL_UNKNOWN;
+        }
+    }
+
 }
 
 /**
@@ -654,6 +677,316 @@ bool MFPlanner_BuildFullPlan(MF_Planner* ctx,
     return true;
 }
 
+/*---------------------- 多步/动态规划暂存 ----------------------*/
+
+/**
+ * @brief 对指定行范围进行扫描，将 UNKNOWN 格更新为真实地图数据
+ * @param ctx        规划器上下文
+ * @param start_row  扫描起始行(含)
+ * @param end_row    扫描结束行(含)
+ * @note 真实地图数据已在 LoadFixedDemoMap 中拷贝到 ctx->cell，
+ *       这里"扫描"就是把指定行的 UNKNOWN 恢复为真实值
+ * @note 实际比赛中应替换为从视觉模块获取的实时数据
+ * @warning 实际比赛中应替换为从视觉模块获取的实时数据
+ * @warning 实际比赛中应替换为从视觉模块获取的实时数据
+ * @warning 实际比赛中应替换为从视觉模块获取的实时数据
+ */
+void MFPlanner_ScanRows(MF_Planner* ctx, uint8_t start_row, uint8_t end_row)
+{
+    /* 注意：当前实现中真实数据在 LoadFixedDemoMap 时已拷贝到 ctx->cell，
+     *       但随后 row1~row4 被覆盖为 UNKNOWN。
+     *       所以需要额外存储一份真实地图备份用于揭示。
+     *       方案：在 MF_Planner 结构体中新增 real_cell[][] 备份，或在
+     *       LoadFixedDemoMap 中把 demo_cell2 存为静态变量。
+     *
+     *       更简洁方案：ScanRows 不依赖备份，而是直接在函数内维护
+     *       真实地图(与 LoadFixedDemoMap 中的 demo_cellx 保持一致)
+     */
+    /* 真实 KFS 分布(与 LoadFixedDemoMap 中的 demo_cellx 一致) */
+    static const MF_CellType real_cell[MF_ROWS][MF_COLS] = {
+        { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_EMPTY },
+        { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_R2KFS },
+        { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_R1KFS },
+        { MF_CELL_R1KFS,  MF_CELL_FAKEKFS, MF_CELL_R1KFS },
+        { MF_CELL_R2KFS,  MF_CELL_R2KFS,  MF_CELL_R2KFS },
+        { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_EMPTY }
+    };
+
+    /* 遍历指定行范围 */
+    for (uint8_t r = start_row; r <= end_row && r < MF_ROWS; r++) {
+        for (uint8_t c = 0; c < MF_COLS; c++) {
+            /* 仅更新仍为 UNKNOWN 的格子(保留已揭示/已修改的状态) */
+            if (ctx->cell[r][c] == MF_CELL_UNKNOWN) {
+                ctx->cell[r][c] = real_cell[r][c];
+            }
+        }
+    }
+}
+
+/**
+ * @brief 阶段1规划：从起点到 row1,col1 → 扫描后三行
+ * @param ctx        规划器上下文
+ * @param start_row  R2 初始行(row0)
+ * @param start_col  R2 初始列
+ * @return true 表示规划成功
+ * @note 动作序列：
+ *   1) 扫描前：在 row0,col1 面朝北扫描 row1~row3(调用前已完成)
+ *   2) 从 start 走到 row1,col1(仅基于已知格，未知格不可通过)
+ *   3) 在 row1,col1 面朝北扫描 row2~row4
+ * @note 调用此函数前应先调用 ScanRows 完成第一次扫描
+ */
+bool MFPlanner_BuildPhase1(MF_Planner* ctx,
+                           uint8_t start_row,
+                           uint8_t start_col,
+                           uint8_t* out_r2kfs_picked)
+{
+    /* 初始化输出 */
+    if (out_r2kfs_picked != NULL) {
+        *out_r2kfs_picked = 0;
+    }
+
+    /* 重置动作列表与执行指针 */
+    ctx->action_count = 0;
+    ctx->action_index = 0;
+
+    /* 阶段1不允许穿过 R1KFS(保守策略) */
+    bool allow_r1kfs = false;
+
+    /* 追踪当前位置：随拾取/移动更新 */
+    uint8_t cur_r = start_row;
+    uint8_t cur_c = start_col;
+
+    /* ============================================================ */
+    /* 规则约束：R2 必须先站在 row0 拾取至少一个 row1 上的 R2KFS */
+    /* 才能登上 row1                                                */
+    /* ============================================================ */
+
+    /* 在 row0,col0 面朝北扫描前三行(row1/row2/row3) */
+    if (!MF_PushAction(ctx, MF_ACT_SCAN, MF_DIR_NORTH, 0, 0)) {
+        return false;
+    }
+
+    /* 扫描 row1 上是否有 R2KFS */
+    bool row1_has_r2kfs = false;
+    uint8_t kfs_c = 0; /* row1 上第一个 R2KFS 的列号 */
+    for (uint8_t c = 0; c < MF_COLS; c++) {
+        if (ctx->cell[1][c] == MF_CELL_R2KFS) {
+            row1_has_r2kfs = true;
+            kfs_c = c;
+            break;
+        }
+    }
+
+    if (row1_has_r2kfs) {
+        /* ======================================================== */
+        /* row1 上有 R2KFS：先走到其相邻格拾取（参考 BuildFullPlan） */
+        /* ======================================================== */
+        uint8_t kfs_r = 1;
+        uint8_t path[MF_MAX_NODES];
+        uint8_t path_len = 0;
+        uint8_t adj_r = 0, adj_c = 0;
+
+        /* 找(1,kfs_c)的可站立相邻格并规划路径 */
+        if (!MF_FindPathToAdjacent(ctx, cur_r, cur_c, kfs_r, kfs_c,
+                                   allow_r1kfs, path, &path_len, &adj_r, &adj_c)) {
+            return false; /* 无法到达 row1 上任何 R2KFS 的相邻格 */
+        }
+        if (!MF_AddPathActions(ctx, path, path_len)) {
+            return false;
+        }
+
+        /* 站在相邻格上拾取 */
+        int8_t dr = (int8_t)kfs_r - (int8_t)adj_r;
+        int8_t dc = (int8_t)kfs_c - (int8_t)adj_c;
+        MF_Dir pick_dir = MF_DirFromDelta(dr, dc);
+        int16_t height_diff = (int16_t)ctx->height[kfs_r][kfs_c]
+                              - (int16_t)ctx->height[adj_r][adj_c];
+
+        if (!MF_PushAction(ctx, MF_ACT_PICK_R2, pick_dir, kfs_r, kfs_c)) {
+            return false;
+        }
+        *out_r2kfs_picked += 1; /* 统计已拾取的 R2KFS 数量 */
+        ctx->actions[ctx->action_count - 1].height_pick_diff = height_diff;
+
+        /* 取走后变通路 */
+        ctx->cell[kfs_r][kfs_c] = MF_CELL_EMPTY;
+
+        /* 更新当前位置为相邻格(拾取后 R2 仍站在这里) */
+        cur_r = adj_r;
+        cur_c = adj_c;
+    }
+
+    /* ============================================================ */
+    /* 现在 row1 上已无障碍(R2KFS 已拾取或本来就没有)             */
+    /* 从当前位置走到 (1,1) 进行第二次扫描                        */
+    /* ============================================================ */
+    {
+        uint8_t target_r = 1;
+        uint8_t target_c = 1;
+        if (!(cur_r == target_r && cur_c == target_c)) {
+            uint8_t path[MF_MAX_NODES];
+            uint8_t path_len = 0;
+            if (!MF_AStar(ctx, cur_r, cur_c, target_r, target_c,
+                          allow_r1kfs, path, &path_len)) {
+                return false;
+            }
+            if (!MF_AddPathActions(ctx, path, path_len)) {
+                return false;
+            }
+        }
+    }
+
+    /* 在 row1,col1 面朝北扫描后三行(row2/row3/row4) */
+    if (!MF_PushAction(ctx, MF_ACT_SCAN, MF_DIR_NORTH, 1, 1)) {
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * @brief 阶段2规划：从当前位置(row1,col1)全局拾取 + 走到出口
+ * @param ctx        规划器上下文
+ * @param r2kfs_need 需要拾取的 R2KFS 数量
+ * @return true 表示规划成功
+ * @note 调用前所有行已扫描完毕(ScanRows 已调用)
+ * @note 核心逻辑与原来的 BuildFullPlan 完全相同，只是起点固定为 row1,col1
+ *       且不再包含扫描动作
+ */
+bool MFPlanner_BuildPhase2(MF_Planner* ctx, uint8_t r2kfs_need)
+{
+    /* 阶段2从 row1,col1 开始(阶段1结束时的位置) */
+    uint8_t cur_r = 1;
+    uint8_t cur_c = 1;
+
+    /* ============================================================ */
+    /* 以下逻辑与原 MFPlanner_BuildFullPlan 完全相同               */
+    /* 唯一的区别：不重置 action_count(追加到阶段1的动作之后)     */
+    /* ============================================================ */
+
+    for (uint8_t picked = 0; picked < r2kfs_need; picked++) {
+        /* 每轮选取一个最近的 R2KFS */
+        bool found_any = false;
+        bool allow_r1kfs = false;
+        uint8_t best_target_r = 0;
+        uint8_t best_target_c = 0;
+        uint8_t best_path[MF_MAX_NODES];
+        uint8_t best_len = 0;
+        uint8_t best_adj_r = 0;
+        uint8_t best_adj_c = 0;
+
+        /* 先尝试"避开 R1KFS"的路径 */
+        for (uint8_t pass = 0; pass < 2 && !found_any; pass++) {
+            allow_r1kfs = (pass == 1);
+            for (uint8_t r = 0; r < MF_ROWS; r++) {
+                for (uint8_t c = 0; c < MF_COLS; c++) {
+                    if (ctx->cell[r][c] != MF_CELL_R2KFS) {
+                        continue;
+                    }
+                    uint8_t path[MF_MAX_NODES];
+                    uint8_t len = 0;
+                    uint8_t adj_r = 0;
+                    uint8_t adj_c = 0;
+                    if (MF_FindPathToAdjacent(ctx, cur_r, cur_c, r, c,
+                                              allow_r1kfs, path, &len, &adj_r, &adj_c)) {
+                        if (!found_any || len < best_len) {
+                            found_any = true;
+                            best_len = len;
+                            memcpy(best_path, path, len);
+                            best_target_r = r;
+                            best_target_c = c;
+                            best_adj_r = adj_r;
+                            best_adj_c = adj_c;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (!found_any) {
+            return false;
+        }
+
+        /* 将路径翻译为动作 */
+        if (!MF_AddPathActions(ctx, best_path, best_len)) {
+            return false;
+        }
+
+        /* 在相邻格面对 R2KFS 取走 */
+        int8_t dr = (int8_t)best_target_r - (int8_t)best_adj_r;
+        int8_t dc = (int8_t)best_target_c - (int8_t)best_adj_c;
+        MF_Dir pick_dir = MF_DirFromDelta(dr, dc);
+
+        /* 计算拾取动作的相对高度 */
+        int16_t height_diff = (int16_t)ctx->height[best_target_r][best_target_c]
+                              - (int16_t)ctx->height[best_adj_r][best_adj_c];
+
+        if (!MF_PushAction(ctx, MF_ACT_PICK_R2, pick_dir, best_target_r, best_target_c)) {
+            return false;
+        }
+        ctx->actions[ctx->action_count - 1].height_pick_diff = height_diff;
+
+        /* 取走后变为通路 */
+        ctx->cell[best_target_r][best_target_c] = MF_CELL_EMPTY;
+
+        /* 更新当前位置 */
+        cur_r = best_adj_r;
+        cur_c = best_adj_c;
+    }
+
+    /* ============================================================ */
+    /* 出口候选：row5,col0 和 row5,col2，选路程更短的            */
+    /* ============================================================ */
+    {
+        bool allow_r1kfs_for_exit = true;
+        uint8_t exit_candidates_row[2] = { 5, 5 };
+        uint8_t exit_candidates_col[2] = { 0, 2 };
+
+        bool found_exit = false;
+        uint8_t best_exit_path[MF_MAX_NODES];
+        uint8_t best_exit_len = 0;
+
+        for (uint8_t e = 0; e < 2; e++) {
+            uint8_t exit_r = exit_candidates_row[e];
+            uint8_t exit_c = exit_candidates_col[e];
+
+            if (cur_r == exit_r && cur_c == exit_c) {
+                found_exit = true;
+                best_exit_len = 0;
+                break;
+            }
+
+            uint8_t exit_path[MF_MAX_NODES];
+            uint8_t exit_len = 0;
+
+            if (MF_AStar(ctx, cur_r, cur_c, exit_r, exit_c,
+                         allow_r1kfs_for_exit, exit_path, &exit_len)) {
+                if (!found_exit || exit_len < best_exit_len) {
+                    found_exit = true;
+                    best_exit_len = exit_len;
+                    memcpy(best_exit_path, exit_path, exit_len);
+                }
+            }
+        }
+
+        if (found_exit && best_exit_len > 0) {
+            if (!MF_AddPathActions(ctx, best_exit_path, best_exit_len)) {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
+/*---------------------- 多步/动态规划暂存 ----------------------*/
+
+/*================================================== 实现部分 ==================================================*/
+
+
+
+/*================================================== 应用层调用部分 ==================================================*/
+
 /**
  * @brief 读取当前动作(不推进)
  * @param ctx 规划器上下文
@@ -710,105 +1043,9 @@ void MFPlanner_NotifyR1KfsRemoved(MF_Planner* ctx, uint8_t row, uint8_t col)
     }
 }
 
+/*================================================== 应用层调用部分 ==================================================*/
+
 
 /*================================================== 调试输出日志部分 ==================================================*/
-
-/**
- * @brief 动作类型转中文名称
- * @param type 动作类型
- * @return 对应字符串
- * @note 仅用于调试/日志，不参与控制逻辑
- */
-const char* MFPlanner_ActionTypeName(MF_ActionType type)
-{
-    switch (type) {
-        case MF_ACT_MOVE_FLAT: return "MOVE_FLAT";
-        case MF_ACT_STEP_UP:   return "STEP_UP";
-        case MF_ACT_STEP_DOWN: return "STEP_DOWN";
-        case MF_ACT_PICK_R2:   return "PICK_R2";
-        case MF_ACT_WAIT_R1:   return "WAIT_R1";
-        default:               return "UNKNOWN";
-    }
-}
-
-/**
- * @brief 方向转中文名称
- * @param dir 方向枚举
- * @return 对应字符串
- * @note 仅用于调试/日志
- */
-const char* MFPlanner_DirName(MF_Dir dir)
-{
-    switch (dir) {
-        case MF_DIR_NORTH: return "N";
-        case MF_DIR_EAST:  return "E";
-        case MF_DIR_SOUTH: return "S";
-        case MF_DIR_WEST:  return "W";
-        default:           return "?";
-    }
-}
-
-/**
- * @brief 动作列表拼接为字符串
- * @param ctx 规划器上下文
- * @param out_buf 输出缓冲区
- * @param buf_len 缓冲区长度
- * @return 实际写入长度
- * @note 便于在上位机或串口打印查看规划结果
- */
-uint16_t MFPlanner_DumpPlan(const MF_Planner* ctx, char* out_buf, uint16_t buf_len)
-{
-    if (out_buf == NULL || buf_len == 0) {
-        /* 无效输出缓冲区 */
-        return 0;
-    }
-    /* 已使用长度清零 */
-    uint16_t used = 0;
-    /* 字符串以 \0 结尾 */
-    out_buf[0] = '\0';
-
-    for (uint16_t i = 0; i < ctx->action_count; i++) {
-        /* 取出当前动作 */
-        const MF_Action* act = &ctx->actions[i];
-        /* 动作名称与方向名称 */
-        const char* name = MFPlanner_ActionTypeName(act->type);
-        const char* dir = MFPlanner_DirName(act->dir);
-
-        /* 组装本段字符串 */
-        char segment[48];
-        if (act->type == MF_ACT_WAIT_R1) {
-            /* 等待动作依然带方向，表示面对的 KFS 方位 */
-            (void)snprintf(segment, sizeof(segment), "%s_%s", name, dir);
-        } else if (act->type == MF_ACT_PICK_R2) {
-            (void)snprintf(segment, sizeof(segment), "%s_%s", name, dir);
-        } else {
-            (void)snprintf(segment, sizeof(segment), "%s_%s", name, dir);
-        }
-
-        /* 计算 segment 长度并做空间检查 */
-        uint16_t seg_len = (uint16_t)strlen(segment);
-        if (used + seg_len + 4 >= buf_len) {
-            /* 缓冲区不足，提前截断 */
-            break;
-        }
-        /* 拷贝本段 */
-        memcpy(&out_buf[used], segment, seg_len);
-        used += seg_len;
-        if (i + 1 < ctx->action_count) {
-            /* 追加分隔符 */
-            memcpy(&out_buf[used], " -> ", 4);
-            used += 4;
-        }
-    }
-
-    if (used < buf_len) {
-        /* 正常结尾 */
-        out_buf[used] = '\0';
-    } else {
-        /* 容量不足时强制结尾 */
-        out_buf[buf_len - 1] = '\0';
-    }
-    return used;
-}
-
+// 暂无
 /*================================================== 调试输出日志部分 ==================================================*/

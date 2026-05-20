@@ -173,9 +173,32 @@ void StartDefaultTask(void const * argument)
 {
   /* USER CODE BEGIN StartDefaultTask */
 
-  MFPlanner_Init(&mf_planner_ctx);
-  MFPlanner_LoadFixedDemoMap(&mf_planner_ctx);
-  MFPlanner_BuildFullPlan(&mf_planner_ctx, 0, 1, 3); // 从入口区地面(0,1)出发，规划拾取3个R2KFS的完整动作列表
+/*========== 旧版单次扫描单次规划部分 ==========*/ 
+  // MFPlanner_Init(&mf_planner_ctx);
+  // MFPlanner_LoadFixedDemoMap(&mf_planner_ctx);
+  // MFPlanner_BuildFullPlan(&mf_planner_ctx, 0, 1, 3); // 从入口区地面(0,1)出发，规划拾取3个R2KFS的完整动作列表
+/*========== 旧版单次扫描单次规划部分 ==========*/ 
+
+/*========== 新版二次扫描多次规划部分 ==========*/ 
+/* === 初始化 === */
+MFPlanner_Init(&mf_planner_ctx);
+MFPlanner_LoadFixedDemoMap(&mf_planner_ctx);
+/* 此时：row0/row5=EMPTY，height全部已知，row1~row4=UNKNOWN */
+/* === 一次扫描：在 row0,col1 面朝北，揭示 row1~row3 === */
+MFPlanner_ScanRows(&mf_planner_ctx, 1, 3);
+/* 此时：row1/row2/row3 变为真实 KFS 分布，row4 仍为 UNKNOWN */
+/* === 阶段1规划：从 row0,col1 走到 row1,col1 → 扫描 === */
+uint8_t picked_count_phase1 = 0; /* 一阶段已拾取的 R2KFS 数量统计 */
+MFPlanner_BuildPhase1(&mf_planner_ctx, 0, 1, &picked_count_phase1);
+/* --- 然后执行阶段1的所有动作: MOVE_FLAT_N -> STEP_UP_N -> SCAN_N --- */
+/* === 第二次扫描(在 SCAN 动作执行后触发)：揭示 row2~row4 === */
+MFPlanner_ScanRows(&mf_planner_ctx, 2, 4);
+/* 此时：row2/row3/row4 全部已知(如已揭示则保持不变) */
+/* === 阶段2规划：全局拾取所有 R2KFS + 走到出口 === */
+uint8_t r2kfs_all_need = 3; /* 预设需要拾取的 R2KFS 总数(实际比赛中应根据结构及战略动态调整) */
+MFPlanner_BuildPhase2(&mf_planner_ctx, r2kfs_all_need - picked_count_phase1);
+/* --- 然后执行阶段2的所有动作... --- */
+/*========== 新版二次扫描多次规划部分 ==========*/ 
 
   /* Infinite loop */
   for (;;)
