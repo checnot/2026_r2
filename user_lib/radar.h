@@ -12,6 +12,8 @@ typedef struct {
 		float radar_y;
 		float radar_z;
 		float radar_yaw;
+        float radar_vx;
+		float radar_vy;
 
 		float radar_x_filtered;
 		float radar_y_filtered;

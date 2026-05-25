@@ -21,15 +21,17 @@ void Data_process_String(char *str)
     
     if (header_ptr != NULL)
     {
-        float temp_a, temp_b, temp_c, temp_d;
+        float temp_a, temp_b, temp_c, temp_d,temp_e,temp_f  ;
         
         // 2. 尝试解析四个浮点数
-        if (sscanf(header_ptr + 3, "%f,%f,%f,%f", &temp_a, &temp_b, &temp_c, &temp_d) >= 4)
+        if (sscanf(header_ptr + 3, "%f,%f,%f,%f,%f,%f", &temp_a, &temp_b, &temp_c, &temp_d, &temp_e, &temp_f) >= 6)
         {
             Radar_Pos.radar_x = 1000.0f * temp_a;
             Radar_Pos.radar_y = 1000.0f * temp_b;
             Radar_Pos.radar_z = 1000.0f * temp_c;
             Radar_Pos.radar_yaw = temp_d;
+            Radar_Pos.radar_vx = temp_e;
+            Radar_Pos.radar_vy = temp_f;
           
         
 //            if(abs_float(chassis_r2.vx) <20.0f && abs_float(chassis_r2.vy)  <20.0f)
@@ -43,7 +45,7 @@ void Data_process_String(char *str)
 //            }
 //            // 解算底盘坐标
             Calculate_Chassis_Position();
-					x = Radar_Pos.radar_x;
+					
         }
     }
 }
@@ -58,8 +60,8 @@ void Data_process_String(char *str)
 void Calculate_Chassis_Position(void)
 {
     // 底盘中心相对于雷达的偏移（单位：mm）
-    const float OFFSET_X = -385.0f;  // 车体坐标系下，底盘中心相对雷达的x偏移
-    const float OFFSET_Y = 225.0f;   // 车体坐标系下，底盘中心相对雷达的y偏移
+    const float OFFSET_X = -120.0f;  // 车体坐标系下，底盘中心相对雷达的x偏移
+    const float OFFSET_Y = 305.0f;   // 车体坐标系下，底盘中心相对雷达的y偏移
 
     // 角度转弧度
     float yaw_rad = Radar_Pos.radar_yaw * 3.1415926f / 180.0f;

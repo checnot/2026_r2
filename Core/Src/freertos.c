@@ -316,10 +316,10 @@ void entry_chassis(void const *argument)
 {
   /* USER CODE BEGIN entry_chassis */
   // 3508参数初始化
-  m3508_parameter_init(&m3508_fdcan3[0], 8.0f, 1.0f, 0.0f, 0.0f);
-  m3508_parameter_init(&m3508_fdcan3[1], 8.0f, 1.0f, 0.0f, 0.0f);
-  m3508_parameter_init(&m3508_fdcan3[2], 8.0f, 1.0f, 0.0f, 0.0f);
-  m3508_parameter_init(&m3508_fdcan3[3], 8.0f, 1.0f, 0.0f, 0.0f);
+  m3508_parameter_init(&m3508_fdcan3[0], 10.0f, 1.0f, 0.0f, 0.0f);
+  m3508_parameter_init(&m3508_fdcan3[1], 10.0f, 1.0f, 0.0f, 0.0f);
+  m3508_parameter_init(&m3508_fdcan3[2], 10.0f, 1.0f, 0.0f, 0.0f);
+  m3508_parameter_init(&m3508_fdcan3[3], 10.0f, 1.0f, 0.0f, 0.0f);
   // 底盘升降初始化为收回状态
   chassis_r2.lift_front = 0;
   chassis_r2.lift_back = 0;

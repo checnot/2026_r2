@@ -14,9 +14,9 @@
 
 #define DISTANCE_WHEEL_CENTER 0.25f //轮子到中心的距离，单位m
 #define CHASSIS_V_MAX 2000.0f //底盘最大速度
-#define CHASSIS_A_MAX 1500.0f //底盘最大加速度
+#define CHASSIS_A_MAX 2000.0f //底盘最大加速度
 #define CHASSIS_TRACKING_POSITION_ERROR_THRESHOLD 200.0f //底盘跟踪位置误差阈值，单位mm
-#define CHASSIS_TRACKING_ANGLE_ERROR_THRESHOLD 10.0f //底盘跟踪角度误差阈值，单位rad
+#define CHASSIS_TRACKING_ANGLE_ERROR_THRESHOLD 6.0f //底盘跟踪角度误差阈值，单位rad
 #define CHASSIS_ROUTE_ARRIVAL_THRESHOLD 10.0f //底盘路径到达判定阈值，单位mm    
 #define CHASSIS_ANGLE_ARRIVAL_THRESHOLD 1.0f //底盘路径到达判定阈值，单位度
 #define CHASSIS_ROUTE_FINAL_APPROACH_THRESHOLD 300.0f //底盘路径最终接近目标判定阈值，单位mm        
@@ -33,7 +33,6 @@ typedef struct {
     uint8_t lift_front, lift_back; // 前后升降状态，0代表收回，1代表推出
     int16_t wheel_speed[4]; // 四轮速度，直接对应轮部3508电机的目标速度
 } chassis_stu;
-
 /* 底盘轨迹控制相关结构体定义 */
 typedef struct{
     Traj_Single_struct traj_vx; //底盘前向速度单轨迹

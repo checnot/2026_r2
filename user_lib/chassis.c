@@ -2,6 +2,17 @@
 
 chassis_stu chassis_r2;//r2底盘结构体
 chassis_route_traj_stu chassis_route_traj;
+
+/**
+ * @brief 轨迹控制中的符号函数，返回输入值的符号
+ * @param val: 输入值
+ * @return: 符号 (1.0f, -1.0f, 或 0.0f)
+ */
+static inline float traj_sign2(float val) {
+    if (val > 0.0f) return 1.0f;
+    if (val < 0.0f) return -1.0f;
+    return 0.0f;
+}
 /**
  * @brief 底盘世界坐标系速度转换函数，根据输入的世界坐标系速度计算底盘坐标系速度
  * @param chassis 底盘结构体指针
@@ -30,6 +41,7 @@ void chassis_world_to_robot_velocity(chassis_stu *chassis, float vx_world, float
 */
 void omni_chassis_calculate(chassis_stu *chassis, float vx, float vy, float vw)
 {
+   
     chassis->vx = vx;
     chassis->vy = vy;
     chassis->vw = vw;
@@ -107,16 +119,7 @@ void chassis_lift_control(uint8_t lift_mode, uint8_t lift_front_flag, uint8_t li
     }
 }
 
-/**
- * @brief 轨迹控制中的符号函数，返回输入值的符号
- * @param val: 输入值
- * @return: 符号 (1.0f, -1.0f, 或 0.0f)
- */
-static inline float traj_sign2(float val) {
-    if (val > 0.0f) return 1.0f;
-    if (val < 0.0f) return -1.0f;
-    return 0.0f;
-}
+
 /**
  * @brief 底盘路径轨迹实例初始化
  * 
@@ -128,9 +131,9 @@ void chassis_route_traj_init(void)
     Traj_Adaptive_Init(&chassis_route_traj.traj_vw, Radar_Pos.radar_yaw , 0.0f, CHASSIS_V_MAX, CHASSIS_A_MAX, CHASSIS_TRACKING_ANGLE_ERROR_THRESHOLD);
     
     // PID参数初始化，针对最终接近目标时的微调，输出限制在较小范围内    
-    PID_Set(&chassis_route_traj.pid_final_vx,9.0f, 0.0f, 3.0f);      
-    PID_Set(&chassis_route_traj.pid_final_vy,9.0f, 0.0f, 3.0f);
-    PID_Set(&chassis_route_traj.pid_final_vw, 50.0f, 0.0f, 5.0f);
+    PID_Set(&chassis_route_traj.pid_final_vx,14.0f, 0.0f, 4.0f);      
+    PID_Set(&chassis_route_traj.pid_final_vy,14.0f, 0.0f, 4.0f);
+    PID_Set(&chassis_route_traj.pid_final_vw, 110.0f, 0.0f, 5.0f);
 }
 /*
  *@brief 角度控制边界保护函数，确保在角度接近±180度时，误差计算能够正确处理环绕问题
