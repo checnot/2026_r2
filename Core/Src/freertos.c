@@ -43,6 +43,8 @@
 #include "trajectory.h"
 #include "BT_customized.h"
 #include "radar.h"
+#include "MF_planner.h"
+#include "go_m8010.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -175,22 +177,41 @@ void StartDefaultTask(void const * argument)
 {
   /* USER CODE BEGIN StartDefaultTask */
 
+/*========== 旧版单次扫描单次规划部分 ==========*/ 
+  // MFPlanner_Init(&mf_planner_ctx);
+  // MFPlanner_LoadFixedDemoMap(&mf_planner_ctx);
+  // MFPlanner_BuildFullPlan(&mf_planner_ctx, 0, 1, 3); // 从入口区地面(0,1)出发，规划拾取3个R2KFS的完整动作列表
+/*========== 旧版单次扫描单次规划部分 ==========*/ 
+
+/*========== 新版二次扫描多次规划部分 ==========*/ 
+/* === 初始化 === */
+MFPlanner_Init(&mf_planner_ctx);
+MFPlanner_LoadFixedDemoMap(&mf_planner_ctx);
+/* 此时：row0/row5=EMPTY，height全部已知，row1~row4=UNKNOWN */
+/* === 一次扫描：在 row0,col1 面朝北，揭示 row1~row3 === */
+MFPlanner_ScanRows(&mf_planner_ctx, 1, 3);
+/* 此时：row1/row2/row3 变为真实 KFS 分布，row4 仍为 UNKNOWN */
+/* === 阶段1规划：从 row0,col1 走到 row1,col1 → 扫描 === */
+uint8_t picked_count_phase1 = 0; /* 一阶段已拾取的 R2KFS 数量统计 */
+MFPlanner_BuildPhase1(&mf_planner_ctx, 0, 1, &picked_count_phase1);
+/* --- 然后执行阶段1的所有动作: MOVE_FLAT_N -> STEP_UP_N -> SCAN_N --- */
+/* === 第二次扫描(在 SCAN 动作执行后触发)：揭示 row2~row4 === */
+MFPlanner_ScanRows(&mf_planner_ctx, 2, 4);
+/* 此时：row2/row3/row4 全部已知(如已揭示则保持不变) */
+/* === 阶段2规划：全局拾取所有 R2KFS + 走到出口 === */
+uint8_t r2kfs_all_need = 3; /* 预设需要拾取的 R2KFS 总数(实际比赛中应根据结构及战略动态调整) */
+MFPlanner_BuildPhase2(&mf_planner_ctx, r2kfs_all_need - picked_count_phase1);
+/* --- 然后执行阶段2的所有动作... --- */
+/*========== 新版二次扫描多次规划部分 ==========*/ 
+
   /* Infinite loop */
   for (;;)
   {
 
-//=======================================================================
-  //vofa显示调试信息
+    
 
-    // data_send_vofa[0] = A1_debug_485_1[1].measure.Pos;
-    // data_send_vofa[1] = debug_traj_a1.out_pos;
-    // if(debug_traj_queue_a1.tail > 0) {
-    //     // 由于Traj_Path_Queue_Update的特性，需要-1才能显示当前正在前往的目标
-    //     data_send_vofa[2] = debug_traj_queue_a1.points[debug_traj_queue_a1.tail - 1];
-    // } else {
-    //     data_send_vofa[2] = 0.0f;// 默认输出0
-    // }
-    // data_send_vofa[3] = (float)debug_count;
+  //=======================================================================
+  // vofa显示调试信息
 
     // data_send_vofa[0] = arm.x0_now;
     // data_send_vofa[1] = arm_traj.traj_x.out_pos;
@@ -203,10 +224,15 @@ void StartDefaultTask(void const * argument)
 
     data_send_vofa[1] = chassis_route_traj.traj_vw.target_pos;
 		data_send_vofa[2] = Radar_Pos.reliable_x;
-    vofa_send_to_show_justfloat(&huart10, data_send_vofa);
+    // vofa_send_to_show_justfloat(&huart10, data_send_vofa);
 
-    // vofa显示调试信息
-    //=======================================================================
+  // vofa显示调试信息
+  //=======================================================================
+
+    m8010_bus_poll(&m8010_bus_1);
+    // if(m8010_bus_1.motors[0].measure.Pos_init_flag == 200){
+    //   m8010_position_control(&m8010_bus_1.motors[0], debug_position, 0.2f, 0.02f);
+    // }
     debug_test_time += 0.001f;
     osDelay(1);
   }

@@ -97,16 +97,17 @@ void A1_Motor_Send_Data(A1_Motor_Struct *p_send_data, UART_HandleTypeDef *huart)
     GPIO_TypeDef *gpio = GPIOH;
     uint16_t gpio_pin = GPIO_PIN_3;
     
-    if(huart == &huart1)
-    {
-        gpio = GPIOD;
-        gpio_pin = GPIO_PIN_8;
-    }
-    if(huart == &huart9)
-    {
-        gpio = GPIOC;
-        gpio_pin = GPIO_PIN_8;
-    }
+/* ========================== 此处复用需要更改 ========================== */
+    // if(huart == &huart1)
+    // {
+    //     gpio = GPIOD;
+    //     gpio_pin = GPIO_PIN_8;
+    // }
+    // if(huart == &huart9)
+    // {
+    //     gpio = GPIOC;
+    //     gpio_pin = GPIO_PIN_8;
+    // }
     
     HAL_GPIO_WritePin(gpio, gpio_pin, GPIO_PIN_SET);
 	HAL_UART_Transmit(huart, (uint8_t *)&a1_motor_send, 34, 0xFFF);
