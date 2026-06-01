@@ -70,8 +70,11 @@ uint8_t point_add = 0; // 测试用：是否添加路径点的标志位
 uint8_t point_add1 = 0; // 测试用：是否添加路径点的标志位 
 uint8_t kalman_update_times = 0; // 卡尔曼滤波更新次数统计
 uint8_t kalman_init_flag = 0; // 卡尔曼滤波初始化flag
-
-
+float vx, vy, vw = 0.0f; // 用于测试的底盘速度变量
+float speed = 0.0f; // 用于测试的速度变量 
+uint8_t catch_flag = 0; // 测试用：夹爪开合标志位 
+int32_t rotate_target_angle = 0; // 测试用：夹爪旋转目标角度  
+uint8_t task_flag = 0; // 测试用：总开关，控制是否执行BT_Combined_Task_Tree_Root函数  
 /* USER CODE END Variables */
 osThreadId defaultTaskHandle;
 osThreadId roboticarm_taskHandle;
@@ -84,16 +87,16 @@ osThreadId cmd_taskHandle;
 
 /* USER CODE END FunctionPrototypes */
 
-void StartDefaultTask(void const *argument);
-void entry_robotic_arm(void const *argument);
-void entry_chassis(void const *argument);
-void entry_clamp(void const *argument);
-void entry_cmd_task(void const *argument);
+void StartDefaultTask(void const * argument);
+void entry_robotic_arm(void const * argument);
+void entry_chassis(void const * argument);
+void entry_clamp(void const * argument);
+void entry_cmd_task(void const * argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
 /* GetIdleTaskMemory prototype (linked to static allocation support) */
-void vApplicationGetIdleTaskMemory(StaticTask_t **ppxIdleTaskTCBBuffer, StackType_t **ppxIdleTaskStackBuffer, uint32_t *pulIdleTaskStackSize);
+void vApplicationGetIdleTaskMemory( StaticTask_t **ppxIdleTaskTCBBuffer, StackType_t **ppxIdleTaskStackBuffer, uint32_t *pulIdleTaskStackSize );
 
 /* USER CODE BEGIN GET_IDLE_TASK_MEMORY */
 static StaticTask_t xIdleTaskTCBBuffer;
@@ -109,12 +112,11 @@ void vApplicationGetIdleTaskMemory(StaticTask_t **ppxIdleTaskTCBBuffer, StackTyp
 /* USER CODE END GET_IDLE_TASK_MEMORY */
 
 /**
- * @brief  FreeRTOS initialization
- * @param  None
- * @retval None
- */
-void MX_FREERTOS_Init(void)
-{
+  * @brief  FreeRTOS initialization
+  * @param  None
+  * @retval None
+  */
+void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN Init */
 
   /* USER CODE END Init */
@@ -159,6 +161,7 @@ void MX_FREERTOS_Init(void)
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
   /* USER CODE END RTOS_THREADS */
+
 }
 
 /* USER CODE BEGIN Header_StartDefaultTask */
@@ -168,7 +171,7 @@ void MX_FREERTOS_Init(void)
  * @retval None
  */
 /* USER CODE END Header_StartDefaultTask */
-void StartDefaultTask(void const *argument)
+void StartDefaultTask(void const * argument)
 {
   /* USER CODE BEGIN StartDefaultTask */
 
@@ -217,7 +220,7 @@ void StartDefaultTask(void const *argument)
  * @retval None
  */
 /* USER CODE END Header_entry_robotic_arm */
-void entry_robotic_arm(void const *argument)
+void entry_robotic_arm(void const * argument)
 {
   /* USER CODE BEGIN entry_robotic_arm */
   // 机械臂dh参数初始化
@@ -312,7 +315,7 @@ void entry_robotic_arm(void const *argument)
  * @retval None
  */
 /* USER CODE END Header_entry_chassis */
-void entry_chassis(void const *argument)
+void entry_chassis(void const * argument)
 {
   /* USER CODE BEGIN entry_chassis */
   // 3508参数初始化
@@ -336,14 +339,14 @@ void entry_chassis(void const *argument)
       if(point_add == 1)
       {
         //      chassis_route_point_add(&chassis_route_traj,55.0f,66.0f,0.0f);
-        chassis_route_point_add(&chassis_route_traj, 1250.0f, 560.0f, 0.0f,0);
+        chassis_route_point_add(&chassis_route_traj, 789.0f, 580.0f, -180.0f,0);
         // chassis_route_point_add(&chassis_route_traj, 2200.0f, 3000.0f, 180.0f);
         // chassis_route_point_add(&chassis_route_traj, 1200.0f, 3000.0f, -45.0f);
         point_add = 0;
       }
       if(point_add1 ==1)
       {
-        chassis_route_point_add(&chassis_route_traj, 1200.0f,2000.0f, 180.0f,0);
+        chassis_route_point_add(&chassis_route_traj, 11600.0f,5650.0f, 0.0f,0);
         point_add1 = 0;
       }
 // 测试用添加路径点
@@ -426,7 +429,7 @@ void entry_chassis(void const *argument)
  * @retval None
  */
 /* USER CODE END Header_entry_clamp */
-void entry_clamp(void const *argument)
+void entry_clamp(void const * argument)
 {
   /* USER CODE BEGIN entry_clamp */
 
@@ -444,16 +447,17 @@ void entry_clamp(void const *argument)
   /* Infinite loop */
   for (;;)
   {
-    if (m3508_fdcan2[1].Initial_flag == 200 && m3508_fdcan2[2].Initial_flag == 200 && m3508_fdcan2[3].Initial_flag == 200)
+    if (m3508_fdcan2[0].Initial_flag == 200 && m3508_fdcan2[1].Initial_flag == 200 && m3508_fdcan2[2].Initial_flag == 200)
     {
+        
         // 气缸驱动夹爪部分
         clamp_open_control(clamp.catch_flag);
         // 夹爪旋转部分
-        clamp_rotate_control(clamp.rotate_flag * CLAMP_ROTATE_MAX_POSITION, &m3508_fdcan2[3]);
+       clamp_rotate_control(clamp.rotate_flag * CLAMP_ROTATE_MAX_POSITION, &m3508_fdcan2[2]);
         // 夹爪伸缩部分
-        clamp_extend_control(clamp.retractable_flag * CLAMP_EXTEND_MAX_POSITION, &m3508_fdcan2[2]);
-        // 夹爪升降部分
-        clamp_lift_control(clamp.lift_flag, &m3508_fdcan2[1]);
+        clamp_extend_control(clamp.retractable_flag * CLAMP_EXTEND_MAX_POSITION, &m3508_fdcan2[1]);
+        // // 夹爪升降部分
+        // clamp_lift_control(clamp.lift_flag, &m3508_fdcan2[0]);
     
     }
     osDelay(1);
@@ -468,7 +472,7 @@ void entry_clamp(void const *argument)
  * @retval None
  */
 /* USER CODE END Header_entry_cmd_task */
-void entry_cmd_task(void const *argument)
+void entry_cmd_task(void const * argument)
 {
   /* USER CODE BEGIN entry_cmd_task */
 
@@ -487,7 +491,10 @@ void entry_cmd_task(void const *argument)
 
     // 调用 BT_Customized_Tick1ms_Combined（内部做 10ms 降频）
     BT_Customized_Tick1ms_Combined();
-
+  if(task_flag == 1)
+  {
+     BT_Start_Combined_Task();
+  }
     HT10A_last = HT10A;
     osDelay(1);
   }

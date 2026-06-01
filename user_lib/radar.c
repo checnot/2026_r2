@@ -60,8 +60,8 @@ void Data_process_String(char *str)
 void Calculate_Chassis_Position(void)
 {
     // 底盘中心相对于雷达的偏移（单位：mm）
-    const float OFFSET_X = -120.0f;  // 车体坐标系下，底盘中心相对雷达的x偏移
-    const float OFFSET_Y = 305.0f;   // 车体坐标系下，底盘中心相对雷达的y偏移
+    const float OFFSET_X = -350.0f;  // 车体坐标系下，底盘中心相对雷达的x偏移
+    const float OFFSET_Y = 62.5f;   // 车体坐标系下，底盘中心相对雷达的y偏移
 
     // 角度转弧度
     float yaw_rad = Radar_Pos.radar_yaw * 3.1415926f / 180.0f;

@@ -468,7 +468,7 @@ static BT_Status Act_Chassis_Move_FSM_MC(void)
             /* 刚进入本节点，下发前往HOME的指令 */
             taskENTER_CRITICAL(); // 下发轨迹队列涉及到共享资源，最好进入临界区保护
             chassis_route_point_add(&chassis_route_traj, CHASSIS_HOME_MC_X, CHASSIS_HOME_MC_Y, CHASSIS_HOME_MC_W, 0);
-            clamp.lift_flag = 1; // 同时发出夹爪抬起指令，准备直接抓取
+         
             taskEXIT_CRITICAL();
 
             task_chassis_state = CHASSIS_TO_RACK;
@@ -481,7 +481,7 @@ static BT_Status Act_Chassis_Move_FSM_MC(void)
             {
                 /* HOME点到了，立马前往RACK点 */
                 taskENTER_CRITICAL();
-                chassis_route_point_add(&chassis_route_traj, CHASSIS_RACK_5_X, CHASSIS_RACK_Y, CHASSIS_RACK_W, 0); 
+                chassis_route_point_add(&chassis_route_traj, CHASSIS_RACK_2_X, CHASSIS_RACK_Y, CHASSIS_RACK_W, 0); 
                 taskEXIT_CRITICAL();
                 
                 task_chassis_state = CHASSIS_TO_DOCKING;
@@ -495,18 +495,18 @@ static BT_Status Act_Chassis_Move_FSM_MC(void)
 
         case CHASSIS_TO_DOCKING:
                 /* 检查是否到达RACK点 */
-            if (chassis_if_arrived(CHASSIS_RACK_5_X, CHASSIS_RACK_Y, CHASSIS_RACK_W)) {
+            if (chassis_if_arrived(CHASSIS_RACK_2_X, CHASSIS_RACK_Y, CHASSIS_RACK_W)) {
                 /* 检查是否完成取矛头 */
                 rack_Pos_times++;
-                if(abs_int32(m3508_fdcan2[1].Angle_Sum-CLAMP_LIFT_SPECIAL_POSITION1)<1000 && rack_finished_flag == 0 && rack_Pos_times > 175)
+                if( rack_finished_flag == 0 && rack_Pos_times > 100) //保证稳定检测到矛头位置，避免误触发   
                 {
                     clamp.retractable_flag = 1; // 同时发出夹爪伸出指令
-                    if(abs_int32(m3508_fdcan2[2].Angle_Sum-CLAMP_EXTEND_MAX_POSITION)<1000) //保证夹爪伸出到位且位置稳定后才发出抓取指令，避免误触发
+                    if(abs_int32(m3508_fdcan2[1].Angle_Sum-CLAMP_EXTEND_MAX_POSITION)<500) //保证夹爪伸出到位且位置稳定后才发出抓取指令，避免误触发
                     {
                         clamp.catch_flag = 1; // 同时发出夹爪抓取指令
                          osDelay(1000);
-                        clamp.lift_flag = 2;
-						 osDelay(500);
+                        clamp.rotate_flag = 1;
+						            osDelay(200);
                         rack_finished_flag = 1; 
                     }
                 }
@@ -535,9 +535,7 @@ static BT_Status Act_Chassis_Move_FSM_MC(void)
 
             if (chassis_if_arrived(CHASSIS_DOCKING_X, CHASSIS_DOCKING_Y, CHASSIS_DOCKING_W)) {
                 /* 检查是否完成对接 */
-                clamp.lift_flag = 3;    // 转移到对接高度
-                clamp.retractable_flag = 0; // 转移到对接状态，夹爪收回
-                clamp.rotate_flag = 1; // 转移到对接状态，夹爪旋转
+            
 
                 /* 暂定对接瞬间成功，直接前往扫描点 */
                 if(docking_finished_flag == 1)
@@ -546,6 +544,8 @@ static BT_Status Act_Chassis_Move_FSM_MC(void)
                 // if(docking_finished_flag == 1)
                 // {
                     clamp.catch_flag = 0; // 对接完成后放开夹爪，准备扫描
+                    clamp.retractable_flag = 0; // 同时发出夹爪收回指令 
+                    
                     chassis_route_point_add(&chassis_route_traj, CHASSIS_SCANNING_X, CHASSIS_SCANNING_Y, CHASSIS_SCANNING_W, 5000); 
                 // }
                 taskEXIT_CRITICAL();

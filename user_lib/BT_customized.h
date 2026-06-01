@@ -46,18 +46,19 @@
 #define CHASSIS_HOME_MC_W 0.0f    /* 武馆区域 底盘 HOME 位置 W (deg) */
 
 // 矛头位置：最靠近坐标系原点的第一个矛头为1，依次递增
-#define CHASSIS_RACK_1_X 435.0f  /* 武馆区域 第一个矛头位置 X (mm) */
-#define CHASSIS_RACK_2_X 635.0f  /* 武馆区域 第二个矛头位置 X (mm) */
-#define CHASSIS_RACK_3_X 835.0f  /* 武馆区域 第三个矛头位置 X (mm) */
-#define CHASSIS_RACK_4_X 1035.0f /* 武馆区域 第四个矛头位置 X (mm) */
-#define CHASSIS_RACK_5_X 1235.0f /* 武馆区域 第五个矛头位置 X (mm) */
-#define CHASSIS_RACK_6_X 1435.0f /* 武馆区域 第六个矛头位置 X (mm) */
-#define CHASSIS_RACK_Y 550.0f    /* 武馆区域 取矛头位置 Y (mm) */
-#define CHASSIS_RACK_W 0.0f      /* 武馆区域 取矛头位置 W (deg) */
+#define CLAMP_TO_CHASSIS_CENTER_DIST 139.0f /* 夹爪中心到底盘中心的X方向距离 (mm) */
+#define CHASSIS_RACK_1_X 590.0f  /* 武馆区域 第一个矛头位置 X (mm) */
+#define CHASSIS_RACK_2_X 790.0f  /* 武馆区域 第二个矛头位置 X (mm) */
+#define CHASSIS_RACK_3_X 990.0f  /* 武馆区域 第三个矛头位置 X (mm) */
+#define CHASSIS_RACK_4_X 1190.0f /* 武馆区域 第四个矛头位置 X (mm) */
+#define CHASSIS_RACK_5_X 1390.0f /* 武馆区域 第五个矛头位置 X (mm) */
+#define CHASSIS_RACK_6_X 1590.0f /* 武馆区域 第六个矛头位置 X (mm) */
+#define CHASSIS_RACK_Y 570.0f    /* 武馆区域 取矛头位置 Y (mm) */
+#define CHASSIS_RACK_W -180.0f      /* 武馆区域 取矛头位置 W (deg) */
 // 与R1的对接位置（暂定该位置，后续可重设）
 #define CHASSIS_DOCKING_X 1200.0f /* 武馆区域 对接位置 X (mm) */
 #define CHASSIS_DOCKING_Y 1400.0f /* 武馆区域 对接位置 Y (mm) */
-#define CHASSIS_DOCKING_W 179.0f  /* 武馆区域 对接位置 W (deg) */
+#define CHASSIS_DOCKING_W 0.0f  /* 武馆区域 对接位置 W (deg) */
 // 使用相机扫描梅林位置（暂定该位置，后续可重设）
 #define CHASSIS_SCANNING_X 2000.0f /* 武馆区域 扫描位置 X (mm) */
 #define CHASSIS_SCANNING_Y 3000.0f /* 武馆区域 扫描位置 Y (mm) */

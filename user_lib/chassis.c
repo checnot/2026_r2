@@ -46,10 +46,10 @@ void omni_chassis_calculate(chassis_stu *chassis, float vx, float vy, float vw)
     chassis->vy = vy;
     chassis->vw = vw;
     //根据全向轮运动学模型计算各轮速度
-    chassis->wheel_speed[0] = (int16_t)(-vx - vy - vw);
-    chassis->wheel_speed[1] = (int16_t)(-vx + vy - vw);
-    chassis->wheel_speed[2] = (int16_t)( vx + vy - vw);
-    chassis->wheel_speed[3] = (int16_t)( vx - vy - vw);
+    chassis->wheel_speed[0] = (int16_t)(vx - vy - vw);
+    chassis->wheel_speed[1] = (int16_t)(-vx - vy - vw);
+    chassis->wheel_speed[2] = (int16_t)( -vx + vy - vw);
+    chassis->wheel_speed[3] = (int16_t)( vx + vy - vw);
     m3508_speed_control(&m3508_fdcan3[0], chassis->wheel_speed[0], 8192);
     m3508_speed_control(&m3508_fdcan3[1], chassis->wheel_speed[1], 8192);
     m3508_speed_control(&m3508_fdcan3[2], chassis->wheel_speed[2], 8192);

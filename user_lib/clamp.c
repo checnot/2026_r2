@@ -49,7 +49,7 @@ void clamp_rotate_control(int32_t target_angle, M3508_Motor_Struct *motor)
     }
     else // 角度误差较大时，先快速接近目标角度
     {
-        int16_t speed = (angle_error > 0) ? 5000 : -5000; // 大幅度控制
+        int16_t speed = (angle_error > 0) ? 4000 : -4000; // 大幅度控制
         m3508_speed_control(motor, speed, 8192);          // 使用速度PID控制
     }
 }
@@ -78,11 +78,11 @@ void clamp_open_control(int8_t open_flag)
 {
     if (open_flag)
     {
-        HAL_GPIO_WritePin(GPIOE, GPIO_PIN_4, GPIO_PIN_SET); // 打开夹爪
+        HAL_GPIO_WritePin(GPIOD, GPIO_PIN_6, GPIO_PIN_SET); // 打开夹爪
     }
     else
     {
-        HAL_GPIO_WritePin(GPIOE, GPIO_PIN_4, GPIO_PIN_RESET); // 关闭夹爪
+        HAL_GPIO_WritePin(GPIOD, GPIO_PIN_6, GPIO_PIN_RESET); // 关闭夹爪
     }
    
 }
