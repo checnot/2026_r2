@@ -58,12 +58,24 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define ARM_AIR_PUMP_Pin GPIO_PIN_6
-#define ARM_AIR_PUMP_GPIO_Port GPIOE
-#define RE_2_1_Pin GPIO_PIN_8
-#define RE_2_1_GPIO_Port GPIOD
-#define RE_2_2_Pin GPIO_PIN_8
-#define RE_2_2_GPIO_Port GPIOC
+#define RS485_1_TX_Pin GPIO_PIN_8
+#define RS485_1_TX_GPIO_Port GPIOD
+#define RS485_1_RX_Pin GPIO_PIN_9
+#define RS485_1_RX_GPIO_Port GPIOD
+#define RS485_1_RE_Pin GPIO_PIN_10
+#define RS485_1_RE_GPIO_Port GPIOD
+#define RS485_2_TX_Pin GPIO_PIN_6
+#define RS485_2_TX_GPIO_Port GPIOC
+#define RS485_2_RX_Pin GPIO_PIN_7
+#define RS485_2_RX_GPIO_Port GPIOC
+#define RS485_2_RE_Pin GPIO_PIN_8
+#define RS485_2_RE_GPIO_Port GPIOC
+#define RS485_3_TX_Pin GPIO_PIN_10
+#define RS485_3_TX_GPIO_Port GPIOC
+#define RS485_3_RX_Pin GPIO_PIN_11
+#define RS485_3_RX_GPIO_Port GPIOC
+#define RS485_3_RE_Pin GPIO_PIN_0
+#define RS485_3_RE_GPIO_Port GPIOD
 
 /* USER CODE BEGIN Private defines */
 

@@ -44,6 +44,7 @@
 #include "BT_customized.h"
 #include "radar.h"
 #include "MF_planner.h"
+#include "go_m8010.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -220,10 +221,15 @@ MFPlanner_BuildPhase2(&mf_planner_ctx, r2kfs_all_need - picked_count_phase1);
 
     data_send_vofa[1] = chassis_route_traj.traj_vw.target_pos;
 		data_send_vofa[2] = Radar_Pos.reliable_x;
-    vofa_send_to_show_justfloat(&huart10, data_send_vofa);
+    // vofa_send_to_show_justfloat(&huart10, data_send_vofa);
 
   // vofa显示调试信息
   //=======================================================================
+
+    m8010_bus_poll(&m8010_bus_1);
+    // if(m8010_bus_1.motors[0].measure.Pos_init_flag == 200){
+    //   m8010_position_control(&m8010_bus_1.motors[0], debug_position, 0.2f, 0.02f);
+    // }
     debug_test_time += 0.001f;
     osDelay(1);
   }

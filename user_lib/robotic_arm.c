@@ -238,10 +238,10 @@ void arm_linear_interpolation_update(robotic_arm_stu *arm, robotic_arm_traj_stu 
         // 新增气泵逻辑
         uint8_t next_pump_action = arm_traj->pump_queue[arm_traj->traj_queue_x.tail];
         if (next_pump_action == 1) {
-            HAL_GPIO_WritePin(ARM_AIR_PUMP_GPIO_Port, ARM_AIR_PUMP_Pin, GPIO_PIN_SET);   // 吸货
+            // HAL_GPIO_WritePin(ARM_AIR_PUMP_GPIO_Port, ARM_AIR_PUMP_Pin, GPIO_PIN_SET);   // 吸货
         } 
         else if (next_pump_action == 0) {
-            HAL_GPIO_WritePin(ARM_AIR_PUMP_GPIO_Port, ARM_AIR_PUMP_Pin, GPIO_PIN_RESET); // 松货
+            // HAL_GPIO_WritePin(ARM_AIR_PUMP_GPIO_Port, ARM_AIR_PUMP_Pin, GPIO_PIN_RESET); // 松货
         }
 
         float next_x = arm_traj->traj_queue_x.points[arm_traj->traj_queue_x.tail];
@@ -482,7 +482,7 @@ void arm_remote_control(void)
     if(HT10A.switch_b == 1 )
     {
         //吸块，关节力矩需调大
-        HAL_GPIO_WritePin(ARM_AIR_PUMP_GPIO_Port, ARM_AIR_PUMP_Pin, GPIO_PIN_SET);
+        // HAL_GPIO_WritePin(ARM_AIR_PUMP_GPIO_Port, ARM_AIR_PUMP_Pin, GPIO_PIN_SET);
         if(arm_route_reachable_check(&arm) == IK_REACHABLE)
         {
         arm_route_execute(&arm, 12.0f, 0.037f);
@@ -491,7 +491,7 @@ void arm_remote_control(void)
     else
     {
         //不吸，关节力矩需偏小
-        HAL_GPIO_WritePin(ARM_AIR_PUMP_GPIO_Port, ARM_AIR_PUMP_Pin, GPIO_PIN_RESET);
+        // HAL_GPIO_WritePin(ARM_AIR_PUMP_GPIO_Port, ARM_AIR_PUMP_Pin, GPIO_PIN_RESET);
         if(arm_route_reachable_check(&arm) == IK_REACHABLE)
         {
         arm_route_execute(&arm, 12.0f, 0.030f);

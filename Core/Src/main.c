@@ -38,6 +38,7 @@
 #include "ht10a.h"
 #include "hi14.h"
 #include "clamp.h"
+#include "go_m8010.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -115,44 +116,45 @@ int main(void)
   MX_FDCAN1_Init();
   MX_TIM6_Init();
   MX_TIM7_Init();
-  MX_UART9_Init();
-  MX_USART1_UART_Init();
-  MX_USART6_UART_Init();
   MX_FDCAN2_Init();
   MX_FDCAN3_Init();
-  MX_USART10_UART_Init();
-  MX_UART8_Init();
   MX_TIM2_Init();
   MX_UART5_Init();
+  MX_UART4_Init();
+  MX_USART3_UART_Init();
+  MX_USART6_UART_Init();
   /* USER CODE BEGIN 2 */
   
 //FDCAN初始化，配置过滤器并开启CAN
   FDCan_Start(&FDCAN_Default_FilterConfig_1);
 
 //uart1-a1
-  memset(a1_usart1_raw_recv.RX_pData, 0, sizeof(a1_usart1_raw_recv.RX_pData));
-  HAL_UARTEx_ReceiveToIdle_DMA(&huart1, a1_usart1_raw_recv.RX_pData, RX_LEN1);
-  __HAL_DMA_DISABLE_IT(&hdma_usart1_rx, DMA_IT_HT);
+  // memset(a1_usart1_raw_recv.RX_pData, 0, sizeof(a1_usart1_raw_recv.RX_pData));
+  // HAL_UARTEx_ReceiveToIdle_DMA(&huart1, a1_usart1_raw_recv.RX_pData, RX_LEN1);
+  // __HAL_DMA_DISABLE_IT(&hdma_usart1_rx, DMA_IT_HT);
 //uart9-a1
-  memset(a1_usart9_raw_recv.RX_pData, 0, sizeof(a1_usart9_raw_recv.RX_pData));
-  HAL_UARTEx_ReceiveToIdle_DMA(&huart9, a1_usart9_raw_recv.RX_pData, RX_LEN1);
-  __HAL_DMA_DISABLE_IT(&hdma_uart9_rx, DMA_IT_HT);
+  // memset(a1_usart9_raw_recv.RX_pData, 0, sizeof(a1_usart9_raw_recv.RX_pData));
+  // HAL_UARTEx_ReceiveToIdle_DMA(&huart9, a1_usart9_raw_recv.RX_pData, RX_LEN1);
+  // __HAL_DMA_DISABLE_IT(&hdma_uart9_rx, DMA_IT_HT);
 //uart8-ht10a
-  memset(ht10a_buffer, 0, sizeof(ht10a_buffer));
-  HAL_UARTEx_ReceiveToIdle_DMA(&huart8, ht10a_buffer, sizeof(ht10a_buffer));
-  __HAL_DMA_DISABLE_IT(&hdma_uart8_rx, DMA_IT_HT);
+  // memset(ht10a_buffer, 0, sizeof(ht10a_buffer));
+  // HAL_UARTEx_ReceiveToIdle_DMA(&huart8, ht10a_buffer, sizeof(ht10a_buffer));
+  // __HAL_DMA_DISABLE_IT(&hdma_uart8_rx, DMA_IT_HT);
 //uart6-ht10a-仅调试用，实际不适用
   // memset(ht10a_buffer, 0, sizeof(ht10a_buffer));
   // HAL_UARTEx_ReceiveToIdle_DMA(&huart6, ht10a_buffer, sizeof(ht10a_buffer));
   // __HAL_DMA_DISABLE_IT(&hdma_usart6_rx, DMA_IT_HT);
 //uart6-hi14
-  memset(dma_rx_buf, 0, sizeof(dma_rx_buf));
-  HAL_UARTEx_ReceiveToIdle_DMA(&huart6, dma_rx_buf, sizeof(dma_rx_buf));
-  __HAL_DMA_DISABLE_IT(&hdma_usart6_rx, DMA_IT_HT);
+  // memset(dma_rx_buf, 0, sizeof(dma_rx_buf));
+  // HAL_UARTEx_ReceiveToIdle_DMA(&huart6, dma_rx_buf, sizeof(dma_rx_buf));
+  // __HAL_DMA_DISABLE_IT(&hdma_usart6_rx, DMA_IT_HT);
+
 //uart5-radar
-memset(Rec_Data, 0, sizeof(Rec_Data));
-HAL_UARTEx_ReceiveToIdle_DMA(&huart5, Rec_Data, sizeof(Rec_Data));
-__HAL_DMA_DISABLE_IT(&hdma_uart5_rx, DMA_IT_HT);
+  memset(Rec_Data, 0, sizeof(Rec_Data));
+  HAL_UARTEx_ReceiveToIdle_DMA(&huart5, Rec_Data, sizeof(Rec_Data));
+  __HAL_DMA_DISABLE_IT(&hdma_uart5_rx, DMA_IT_HT);
+
+
 //start tim2
   TIM2->CNT = 0;
   HAL_TIM_Base_Start_IT(&htim2);
@@ -162,14 +164,29 @@ __HAL_DMA_DISABLE_IT(&hdma_uart5_rx, DMA_IT_HT);
 //start tim7
 	TIM7->CNT = 0;
 	HAL_TIM_Base_Start_IT(&htim7);
-//雷达卡尔曼滤波器初始化
 
-Kalman_Init(&Radar_Kalman_X, 0.0001f, 100.0f, 0.0f, 400.0f);
-Kalman_Init(&Radar_Kalman_Y, 0.0001f, 100.0f, 0.0f, 1400.0f);
-Kalman_Init(&Radar_Kalman_Z, 0.0001f, 100.0f, 0.0f, 140.0f);
-Kalman_Init(&Radar_Kalman_Yaw, 0.0001f, 100.0f, 0.0f, 0.0f); 
-  A1_Motor_Parameter_Init(&A1_debug_485_2[0], 0, 0, 0, 0);
-  A1_Motor_Parameter_Init(&A1_debug_485_2[1], 1, 0, 0, 0);
+// 雷达卡尔曼滤波器初始化
+  Kalman_Init(&Radar_Kalman_X, 0.0001f, 100.0f, 0.0f, 400.0f);
+  Kalman_Init(&Radar_Kalman_Y, 0.0001f, 100.0f, 0.0f, 1400.0f);
+  Kalman_Init(&Radar_Kalman_Z, 0.0001f, 100.0f, 0.0f, 140.0f);
+  Kalman_Init(&Radar_Kalman_Yaw, 0.0001f, 100.0f, 0.0f, 0.0f); 
+
+// go_m8010电机总线初始化
+  m8010_bus_init(&m8010_bus_1, &huart3, &htim6);
+  m8010_bus_1.motors[0].target.id = 1;
+  m8010_bus_1.motors[0].target.mode = 1;
+  m8010_bus_1.motors[1].target.id = 2;
+  m8010_bus_1.motors[1].target.mode = 1;
+  m8010_bus_1.motors[2].target.id = 3;
+  m8010_bus_1.motors[2].target.mode = 1;
+  // m8010_bus_init(&m8010_bus_2, &huart6, &htim2);
+  // m8010_bus_init(&m8010_bus_3, &huart4, &htim2);
+
+
+  // A1_Motor_Parameter_Init(&A1_debug_485_2[0], 0, 0, 0, 0);
+  // A1_Motor_Parameter_Init(&A1_debug_485_2[1], 1, 0, 0, 0);
+
+
 
 //clamp_position_init(&m3508_fdcan2[1],&m3508_fdcan2[3],&m3508_fdcan2[2]);
   /* USER CODE END 2 */
@@ -305,6 +322,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     HAL_IncTick();
   }
   /* USER CODE BEGIN Callback 1 */
+
 //TIM2定时累加时间，每1ms累加一次，单位为ms
   if(htim->Instance == TIM2)
   {
@@ -314,15 +332,18 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 //TIM6定时发送数据控制A1电机，0.5ms会发送一次，每次发送一个电机的数据，依次循环4个电机
 	if(htim->Instance == TIM6)
 	{
-		 switch(timer_a1_flag)
-		 {
-		 	case 0:{A1_Motor_Send_Data(&A1_debug_485_1[0], &huart1); break;}
-		 	case 1:{A1_Motor_Send_Data(&A1_debug_485_1[1], &huart1); break;}
-		  case 2:{A1_Motor_Send_Data(&A1_debug_485_2[0], &huart9); break;}
-		 	case 3:{A1_Motor_Send_Data(&A1_debug_485_2[1], &huart9); break;}
-		 }
-		 timer_a1_flag++;
-		 if (timer_a1_flag > 3)	timer_a1_flag = 0;
+		//  switch(timer_a1_flag)
+		//  {
+		//  	// case 0:{A1_Motor_Send_Data(&A1_debug_485_1[0], &huart1); break;}
+		//  	// case 1:{A1_Motor_Send_Data(&A1_debug_485_1[1], &huart1); break;}
+		//   // case 2:{A1_Motor_Send_Data(&A1_debug_485_2[0], &huart9); break;}
+		//  	// case 3:{A1_Motor_Send_Data(&A1_debug_485_2[1], &huart9); break;}
+		//  }
+		//  timer_a1_flag++;
+		//  if (timer_a1_flag > 3)	timer_a1_flag = 0;
+
+    m8010_485_timer_trigger(htim);
+
 	}
 //TIM7定时发送数据控制m3508电机，1ms会发送一次
   if(htim->Instance == TIM7)

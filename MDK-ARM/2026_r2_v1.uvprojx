@@ -649,6 +649,11 @@
               <FileType>1</FileType>
               <FilePath>..\user_lib\radar.c</FilePath>
             </File>
+            <File>
+              <FileName>go_m8010.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\user_lib\go_m8010.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
