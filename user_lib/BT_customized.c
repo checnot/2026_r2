@@ -745,7 +745,7 @@ void BT_Init_Combined_Task(void)
 }
 
 /**
- * @brief BT 挂置于 FreeRTOS 任务调度器的主 Tick 执行入口 (放假设定的 1ms 任务中周期调用)
+ * @brief BT 挂置于 FreeRTOS 任务调度器的主 Tick 执行入口 (设定 1ms 任务中周期调用)
  */
 void BT_Customized_Tick1ms_Combined(void)
 {

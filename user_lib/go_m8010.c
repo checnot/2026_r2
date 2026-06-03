@@ -223,16 +223,29 @@ void m8010_485_idle_callback(UART_HandleTypeDef *huart)
     }
 }
 
+/**
+ * @brief 此函数应在定时器中断回调中被调用，以触发m8010发送完成事件
+*/
 void m8010_485_timer_trigger(TIM_HandleTypeDef *htim)
 {
-    Gom485Bus_t *b = m8010_find_by_htim(htim);
-    if (b) b->internal.tx_done_flag = 1;
+    // Gom485Bus_t *b = m8010_find_by_htim(htim);
+    // if (b) b->internal.tx_done_flag = 1;
+    for (uint8_t i = 0; i < g_bus_count; i++)
+    {
+        if (g_bus_table[i] && g_bus_table[i]->p_htim == htim)
+        {
+            g_bus_table[i]->internal.tx_done_flag = 1;
+        }
+    }
 }
 
 /* ======================================================================== */
 /*  公开 API                                                                */
 /* ======================================================================== */
 
+/**
+ * @brief 初始化 m8010 电机总线实例，绑定 UART 和定时器，并注册到全局总线表
+*/
 void m8010_bus_init(Gom485Bus_t *bus, UART_HandleTypeDef *huart, TIM_HandleTypeDef *htim)
 {
     bus->p_huart = huart;

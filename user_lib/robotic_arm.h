@@ -12,6 +12,7 @@
 #include "a1_motor.h"
 #include "m3508.h"
 #include "trajectory.h"
+#include "go_m8010.h"
 
 // 人为设定的“机械臂末端合成上限”
 #define GLOBAL_V_MAX 0.5f  // 合成最大速度(m/s)
@@ -84,10 +85,10 @@ extern robotic_arm_traj_stu arm_traj; //机械臂轨迹实例
 
 void arm_joint_parameter_init(robotic_arm_stu *arm);
 void arm_joint_state_update(robotic_arm_stu *arm);
-void arm_joint_state_init(robotic_arm_stu *arm);
+// void arm_joint_state_init(robotic_arm_stu *arm);
 IK_Reach_Status_enum arm_route_reachable_check(robotic_arm_stu *arm);
 void arm_route_point_calculate(robotic_arm_stu *arm);
-void arm_route_execute(robotic_arm_stu *arm, float a1_kw, float a1_kp);
+void arm_route_execute(robotic_arm_stu *arm, float kw, float kp);
 void arm_actuator_stable_control(robotic_arm_stu *arm, float target_pitch, float theta4);
 void arm_remote_control(void);
 

@@ -59,12 +59,15 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+
+extern osSemaphoreId bisem_m8010Handle;   // ← 新增（v1 中类型名可能是 osSemaphoreId）
+
+
 uint8_t timer_a1_flag = 0;//用于使定时器中对A1电机依次发送的标志位，0-3分别对应4个电机
 
 uint32_t timer_ms = 0;//定时器计时变量，单位ms
 
-uint8_t timer_flag = 0;//用于使定时器中对A1电机依次发送的标志位，0-3分别对应4个电机
-uint8_t m3508_send_flag = 0;//用于使定时器中对M3508电机依次发送的标志位，0-3分别对应4个电机
+uint8_t m3508_send_flag = 0;//用于使定时器中对M3508电机依次发送的标志位
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -155,16 +158,6 @@ int main(void)
   __HAL_DMA_DISABLE_IT(&hdma_uart5_rx, DMA_IT_HT);
 
 
-//start tim2
-  TIM2->CNT = 0;
-  HAL_TIM_Base_Start_IT(&htim2);
-//start tim6
-	TIM6->CNT = 0;
-	HAL_TIM_Base_Start_IT(&htim6);
-//start tim7
-	TIM7->CNT = 0;
-	HAL_TIM_Base_Start_IT(&htim7);
-
 // 雷达卡尔曼滤波器初始化
   Kalman_Init(&Radar_Kalman_X, 0.0001f, 100.0f, 0.0f, 400.0f);
   Kalman_Init(&Radar_Kalman_Y, 0.0001f, 100.0f, 0.0f, 1400.0f);
@@ -173,16 +166,22 @@ int main(void)
 
 // go_m8010电机总线初始化
   m8010_bus_init(&m8010_bus_1, &huart3, &htim6);
+  m8010_bus_init(&m8010_bus_2, &huart6, &htim6);
+  m8010_bus_init(&m8010_bus_3, &huart4, &htim6);
+
   m8010_bus_1.motors[0].target.id = 1;
   m8010_bus_1.motors[0].target.mode = 1;
   m8010_bus_1.motors[1].target.id = 2;
   m8010_bus_1.motors[1].target.mode = 1;
   m8010_bus_1.motors[2].target.id = 3;
   m8010_bus_1.motors[2].target.mode = 1;
-  // m8010_bus_init(&m8010_bus_2, &huart6, &htim2);
-  // m8010_bus_init(&m8010_bus_3, &huart4, &htim2);
 
-
+  m8010_bus_3.motors[0].target.id = 1;
+  m8010_bus_3.motors[0].target.mode = 1;
+  m8010_bus_3.motors[1].target.id = 2;
+  m8010_bus_3.motors[1].target.mode = 1;
+  m8010_bus_3.motors[2].target.id = 3;
+  m8010_bus_3.motors[2].target.mode = 1;
   // A1_Motor_Parameter_Init(&A1_debug_485_2[0], 0, 0, 0, 0);
   // A1_Motor_Parameter_Init(&A1_debug_485_2[1], 1, 0, 0, 0);
 
@@ -344,6 +343,14 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
     m8010_485_timer_trigger(htim);
 
+    // 必须要等 RTOS 初始化完毕，信号量句柄不为空才能 Give 信号量
+    if (bisem_m8010Handle != NULL)
+    {
+        // 去掉 static，并确保每次进中断时初始化为 pdFALSE
+        BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+        xSemaphoreGiveFromISR(bisem_m8010Handle, &xHigherPriorityTaskWoken);
+        portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+    }
 	}
 //TIM7定时发送数据控制m3508电机，1ms会发送一次
   if(htim->Instance == TIM7)

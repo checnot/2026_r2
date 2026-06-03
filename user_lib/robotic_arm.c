@@ -36,44 +36,39 @@ void arm_joint_parameter_init(robotic_arm_stu *arm)
 */
 void arm_joint_state_update(robotic_arm_stu *arm)
 {  
-    float rate = 2666.0f; //实验测得3508电机的转子和机械臂角度的转化比
+//     float rate = 2666.0f; //实验测得3508电机的转子和机械臂角度的转化比
+// //云台朝向角    
+//     arm->joint_parameters[0].theta = A1_debug_485_2[0].measure.Pos;        
+// //根据各关节处电机的测量位置更新机械臂的关节角状态，对二连杆末端位置进行正解算
+//     arm->joint_parameters[1].theta = -A1_debug_485_2[1].measure.Pos + PI *11.0f/12.0f;  //大臂与云台平面的夹角
+//     arm->joint_parameters[2].theta = m3508_fdcan1[0].Angle_Sum/100000.0f*PI/2.0f + PI/12.0f;
+//     arm->joint_pitch[0] = arm->joint_parameters[1].theta;
+//     arm->joint_pitch[1] = -PI + arm->joint_pitch[0] + arm->joint_parameters[2].theta;
+//     arm->x0_now = 0.55f*arm_cos_f32(arm->joint_pitch[0]) + 0.45f*arm_cos_f32(arm->joint_pitch[1]);
+//     arm->y0_now = 0.55f*arm_sin_f32(arm->joint_pitch[0]) + 0.45f*arm_sin_f32(arm->joint_pitch[1]);
+// //末端机构解算
+//     arm->joint_parameters[3].theta = PI*7.0f/12.0f + (float)(m3508_fdcan1[1].Angle_Sum - m3508_fdcan1[2].Angle_Sum)/2.0f/rate/180.0f*PI;
+//     //joint_parameters[4].theta实际上是前部吸盘自转角度，对着吸盘逆时针为正
+//     arm->joint_parameters[4].theta = -1.0f*(float)(m3508_fdcan1[1].Angle_Sum + m3508_fdcan1[2].Angle_Sum)/2.0f/rate/180.0f*PI;
+//     arm->joint_pitch[2] = arm->joint_pitch[1] + arm->joint_parameters[3].theta;
 
-//云台朝向角    
-    arm->joint_parameters[0].theta = A1_debug_485_2[0].measure.Pos;        
-//根据各关节处电机的测量位置更新机械臂的关节角状态，对二连杆末端位置进行正解算
-    arm->joint_parameters[1].theta = -A1_debug_485_2[1].measure.Pos + PI *11.0f/12.0f;  //大臂与云台平面的夹角
-    arm->joint_parameters[2].theta = m3508_fdcan1[0].Angle_Sum/100000.0f*PI/2.0f + PI/12.0f;
+ 
+// 云台朝向角    
+    arm->joint_parameters[0].theta = m8010_bus_1.motors[0].measure.Pos;        
+// 根据各关节处电机的测量位置更新机械臂的关节角状态，对二连杆末端位置进行正解算
+    arm->joint_parameters[1].theta = -m8010_bus_1.motors[1].measure.Pos + PI*3.0f/4.0f;  //大臂与云台平面的夹角
+    arm->joint_parameters[2].theta = m8010_bus_1.motors[2].measure.Pos + PI/6.0f;
     arm->joint_pitch[0] = arm->joint_parameters[1].theta;
     arm->joint_pitch[1] = -PI + arm->joint_pitch[0] + arm->joint_parameters[2].theta;
-
     arm->x0_now = 0.55f*arm_cos_f32(arm->joint_pitch[0]) + 0.45f*arm_cos_f32(arm->joint_pitch[1]);
     arm->y0_now = 0.55f*arm_sin_f32(arm->joint_pitch[0]) + 0.45f*arm_sin_f32(arm->joint_pitch[1]);
-
-//末端机构解算
-    arm->joint_parameters[3].theta = PI*7.0f/12.0f + (float)(m3508_fdcan1[1].Angle_Sum - m3508_fdcan1[2].Angle_Sum)/2.0f/rate/180.0f*PI;
-    //joint_parameters[4].theta实际上是前部吸盘自转角度，对着吸盘逆时针为正
-    arm->joint_parameters[4].theta = -1.0f*(float)(m3508_fdcan1[1].Angle_Sum + m3508_fdcan1[2].Angle_Sum)/2.0f/rate/180.0f*PI;
-    
+// 末端机构解算
+// !!!!!!!!!! 尚未实机测量角度映射关系
+    float rate = 2666.0f;
+    arm->joint_parameters[3].theta = m3508_fdcan1[0].Angle_Sum/rate;
     arm->joint_pitch[2] = arm->joint_pitch[1] + arm->joint_parameters[3].theta;
 }
 
-/**
- * @brief 机械臂复位函数，在机械臂任务开始时调用，进行机械臂的复位操作，并对各电机的参数也同时设置
- * @warning 在使用之前要手动将A1结构体中的Change_Start_Position置1，以便进行初始位置的更新
-*/
-void arm_joint_state_init(robotic_arm_stu *arm)
-{
-    // arm_joint_state_update(arm);
-    // if(A1_debug_485_2[1].target.Change_Start_Position == 1)
-    // {  
-    //     A1_debug_485_2[1].target.Change_Start_Position = 0;
-    //     A1_debug_485_2[1].target.Start_Position = A1_debug_485_2[1].measure.Pos;
-    // }
-    // A1_Motor_Position_Improved_Control(&A1_debug_485_2[1], 3.0f, (PI-A1_debug_485_2[1].measure.Pos), A1_debug_485_2[1].target.Start_Position, PI/2.0f, 3.0f);
-
-    A1_Motor_Position_Control(&A1_debug_485_2[1], PI*5.0f/12.0f, 20.0f, 0.015f);
-    // m3508_anglesum_control(&m3508_fdcan1[0], (int32_t)(0.0f/(PI/2.0f)*100000.0f), 8192);
-}
 
 /**
  * @brief 用于检测目标路径点是否可到达，推荐在目标点解算前以及完毕后调用
@@ -126,13 +121,16 @@ void arm_route_point_calculate(robotic_arm_stu *arm)
 
 /**
  * @brief 将关节夹角控制至指定位置，利用arm_route_point_calculate计算的关节夹角来执行各关节电机的位置环控制，输入关节夹角(rad)，经过内置单位转换后输出到电机
- * @warning A1位置环参数需要根据测试进行调整
+ * @warning m8010位置环参数需要根据测试进行调整
 */
-void arm_route_execute(robotic_arm_stu *arm, float a1_kw, float a1_kp)
+void arm_route_execute(robotic_arm_stu *arm, float kw, float kp)
 {
-    A1_Motor_Position_Control(&A1_debug_485_2[0], arm->theta_target[0], a1_kw/3.0f, a1_kp/3.0f);                    //云台(由于云台旋转负载小，所以参数调小一些)
-    A1_Motor_Position_Control(&A1_debug_485_2[1], PI*11.0f/12.0f - arm->theta_target[1], a1_kw, a1_kp);             //大臂
-    m3508_anglesum_control(&m3508_fdcan1[0], (int32_t)((arm->theta_target[2]-PI/12.0f)/(PI/2.0f)*100000.0f), 12000);//小臂
+    // A1_Motor_Position_Control(&A1_debug_485_2[0], arm->theta_target[0], a1_kw/3.0f, a1_kp/3.0f);                    //云台(由于云台旋转负载小，所以参数调小一些)
+    // A1_Motor_Position_Control(&A1_debug_485_2[1], PI*11.0f/12.0f - arm->theta_target[1], a1_kw, a1_kp);             //大臂
+    // m3508_anglesum_control(&m3508_fdcan1[0], (int32_t)((arm->theta_target[2]-PI/12.0f)/(PI/2.0f)*100000.0f), 12000);//小臂
+    m8010_position_control(&m8010_bus_1.motors[0], arm->theta_target[0], kw/3.0f, kp/3.0f);                    //云台(由于云台旋转负载小，所以参数调小一些)
+    m8010_position_control(&m8010_bus_1.motors[1], (PI*3.0f/4.0f - arm->theta_target[1]), kw, kp);             //大臂
+    m8010_position_control(&m8010_bus_1.motors[2], (arm->theta_target[2] - PI/6.0f), kw, kp);             //小臂
 }
 
 
@@ -143,20 +141,30 @@ void arm_route_execute(robotic_arm_stu *arm, float a1_kw, float a1_kp)
 */
 void arm_actuator_stable_control(robotic_arm_stu *arm, float target_pitch, float theta4)
 {
+// //该值为实验测得的电机与机构之间的角度比例
+//     float rate = 2666.0f; 
+// // 计算为了让 pitch[2] 达到 PI/2 所需的 joint_parameters[3].theta (即 theta3)
+//     arm->theta_target[3] = target_pitch - arm->joint_pitch[1];
+//     // 差速控制电机 1 和 2 达到该 theta3 
+//     arm->theta_target[3] = limit_float(arm->theta_target[3], -PI*7.0f/12.0f, PI*7.0f/12.0f);
+//     float target_delta_m = (arm->theta_target[3] - PI*7.0f/12.0f) / PI * 180.0f * rate * 2.0f;
+//     // 结合 debug_theta4 (翻转/自转角) 给出绝对目标
+//     m3508_anglesum_control(&m3508_fdcan1[1], (-target_delta_m / 2.0f) + (-1.0f * theta4 / PI * 180.0f * rate), 10000);
+//     m3508_anglesum_control(&m3508_fdcan1[2], (target_delta_m / 2.0f) + (-1.0f * theta4 / PI * 180.0f * rate), 10000);
+
+
 //该值为实验测得的电机与机构之间的角度比例
     float rate = 2666.0f; 
-
 // 计算为了让 pitch[2] 达到 PI/2 所需的 joint_parameters[3].theta (即 theta3)
     arm->theta_target[3] = target_pitch - arm->joint_pitch[1];
-    // 差速控制电机 1 和 2 达到该 theta3 
+// 末端执行器的自转角控制
     arm->theta_target[3] = limit_float(arm->theta_target[3], -PI*7.0f/12.0f, PI*7.0f/12.0f);
-    float target_delta_m = (arm->theta_target[3] - PI*7.0f/12.0f) / PI * 180.0f * rate * 2.0f;
-    // 结合 debug_theta4 (翻转/自转角) 给出绝对目标
-    m3508_anglesum_control(&m3508_fdcan1[1], (-target_delta_m / 2.0f) + (-1.0f * theta4 / PI * 180.0f * rate), 10000);
-    m3508_anglesum_control(&m3508_fdcan1[2], (target_delta_m / 2.0f) + (-1.0f * theta4 / PI * 180.0f * rate), 10000);
+    m3508_anglesum_control(&m3508_fdcan1[2], (arm->theta_target[3] - PI*7.0f/12.0f) * rate, 10000);
 }
 
 
+// ============================================ 以下为轨迹规划部分 ============================================
+// ============================================ 以下为轨迹规划部分 ============================================
 // ============================================ 以下为轨迹规划部分 ============================================
 
 
@@ -437,7 +445,6 @@ void arm_load_test_waypoints_custom(void)
 
 
 //================================ 遥控器手动控制 ======================================================
-
 /**
  * @brief 使用ht10a遥控器进行机械臂控制的函数，内含判断逻辑，仅用于精简代码
 */
@@ -498,9 +505,10 @@ void arm_remote_control(void)
         }
     }
 }
-
 //================================ 遥控器手动控制 ======================================================
 
+//-------------------------------------------以下为暂时弃用的重力补偿函数--------------------------------------------
+//-------------------------------------------以下为暂时弃用的重力补偿函数--------------------------------------------
 //-------------------------------------------以下为暂时弃用的重力补偿函数--------------------------------------------
 
 //example:

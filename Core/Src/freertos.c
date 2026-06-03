@@ -25,6 +25,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "tim.h"
 #include "own_lib.h"
 #include "mycan.h"
 #include "myuart.h"
@@ -83,6 +84,8 @@ osThreadId roboticarm_taskHandle;
 osThreadId chassis_taskHandle;
 osThreadId clamp_taskHandle;
 osThreadId cmd_taskHandle;
+osThreadId m8010_taskHandle;
+osSemaphoreId bisem_m8010Handle;
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -94,6 +97,7 @@ void entry_robotic_arm(void const * argument);
 void entry_chassis(void const * argument);
 void entry_clamp(void const * argument);
 void entry_cmd_task(void const * argument);
+void entry_m8010_task(void const * argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -127,7 +131,16 @@ void MX_FREERTOS_Init(void) {
   /* add mutexes, ... */
   /* USER CODE END RTOS_MUTEX */
 
+  /* Create the semaphores(s) */
+  /* definition and creation of bisem_m8010 */
+  osSemaphoreDef(bisem_m8010);
+  bisem_m8010Handle = osSemaphoreCreate(osSemaphore(bisem_m8010), 1);
+
   /* USER CODE BEGIN RTOS_SEMAPHORES */
+
+  // CubeMX 创建的信号量默认计数为 1，需要先 take 掉让它变为 0
+  osSemaphoreWait(bisem_m8010Handle, 0);  // 非阻塞地取走初始的 1，使计数变为 0
+
   /* add semaphores, ... */
   /* USER CODE END RTOS_SEMAPHORES */
 
@@ -149,16 +162,20 @@ void MX_FREERTOS_Init(void) {
   roboticarm_taskHandle = osThreadCreate(osThread(roboticarm_task), NULL);
 
   /* definition and creation of chassis_task */
-  osThreadDef(chassis_task, entry_chassis, osPriorityBelowNormal, 0, 128);
+  osThreadDef(chassis_task, entry_chassis, osPriorityBelowNormal, 0, 256);
   chassis_taskHandle = osThreadCreate(osThread(chassis_task), NULL);
 
   /* definition and creation of clamp_task */
-  osThreadDef(clamp_task, entry_clamp, osPriorityBelowNormal, 0, 128);
+  osThreadDef(clamp_task, entry_clamp, osPriorityBelowNormal, 0, 256);
   clamp_taskHandle = osThreadCreate(osThread(clamp_task), NULL);
 
   /* definition and creation of cmd_task */
-  osThreadDef(cmd_task, entry_cmd_task, osPriorityNormal, 0, 128);
+  osThreadDef(cmd_task, entry_cmd_task, osPriorityNormal, 0, 512);
   cmd_taskHandle = osThreadCreate(osThread(cmd_task), NULL);
+
+  /* definition and creation of m8010_task */
+  osThreadDef(m8010_task, entry_m8010_task, osPriorityNormal, 0, 256);
+  m8010_taskHandle = osThreadCreate(osThread(m8010_task), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -177,39 +194,20 @@ void StartDefaultTask(void const * argument)
 {
   /* USER CODE BEGIN StartDefaultTask */
 
-/*========== 旧版单次扫描单次规划部分 ==========*/ 
-  // MFPlanner_Init(&mf_planner_ctx);
-  // MFPlanner_LoadFixedDemoMap(&mf_planner_ctx);
-  // MFPlanner_BuildFullPlan(&mf_planner_ctx, 0, 1, 3); // 从入口区地面(0,1)出发，规划拾取3个R2KFS的完整动作列表
-/*========== 旧版单次扫描单次规划部分 ==========*/ 
-
-/*========== 新版二次扫描多次规划部分 ==========*/ 
-/* === 初始化 === */
-MFPlanner_Init(&mf_planner_ctx);
-MFPlanner_LoadFixedDemoMap(&mf_planner_ctx);
-/* 此时：row0/row5=EMPTY，height全部已知，row1~row4=UNKNOWN */
-/* === 一次扫描：在 row0,col1 面朝北，揭示 row1~row3 === */
-MFPlanner_ScanRows(&mf_planner_ctx, 1, 3);
-/* 此时：row1/row2/row3 变为真实 KFS 分布，row4 仍为 UNKNOWN */
-/* === 阶段1规划：从 row0,col1 走到 row1,col1 → 扫描 === */
-uint8_t picked_count_phase1 = 0; /* 一阶段已拾取的 R2KFS 数量统计 */
-MFPlanner_BuildPhase1(&mf_planner_ctx, 0, 1, &picked_count_phase1);
-/* --- 然后执行阶段1的所有动作: MOVE_FLAT_N -> STEP_UP_N -> SCAN_N --- */
-/* === 第二次扫描(在 SCAN 动作执行后触发)：揭示 row2~row4 === */
-MFPlanner_ScanRows(&mf_planner_ctx, 2, 4);
-/* 此时：row2/row3/row4 全部已知(如已揭示则保持不变) */
-/* === 阶段2规划：全局拾取所有 R2KFS + 走到出口 === */
-uint8_t r2kfs_all_need = 3; /* 预设需要拾取的 R2KFS 总数(实际比赛中应根据结构及战略动态调整) */
-MFPlanner_BuildPhase2(&mf_planner_ctx, r2kfs_all_need - picked_count_phase1);
-/* --- 然后执行阶段2的所有动作... --- */
-/*========== 新版二次扫描多次规划部分 ==========*/ 
-
+//start tim2
+  TIM2->CNT = 0;
+  HAL_TIM_Base_Start_IT(&htim2);
+//start tim6
+	TIM6->CNT = 0;
+	HAL_TIM_Base_Start_IT(&htim6);
+//start tim7
+	TIM7->CNT = 0;
+	HAL_TIM_Base_Start_IT(&htim7);
+	
+	
   /* Infinite loop */
   for (;;)
   {
-
-    
-
   //=======================================================================
   // vofa显示调试信息
 
@@ -229,7 +227,8 @@ MFPlanner_BuildPhase2(&mf_planner_ctx, r2kfs_all_need - picked_count_phase1);
   // vofa显示调试信息
   //=======================================================================
 
-    m8010_bus_poll(&m8010_bus_1);
+    // m8010_bus_poll(&m8010_bus_1);
+    // m8010_bus_poll(&m8010_bus_3);
     // if(m8010_bus_1.motors[0].measure.Pos_init_flag == 200){
     //   m8010_position_control(&m8010_bus_1.motors[0], debug_position, 0.2f, 0.02f);
     // }
@@ -249,12 +248,12 @@ MFPlanner_BuildPhase2(&mf_planner_ctx, r2kfs_all_need - picked_count_phase1);
 void entry_robotic_arm(void const * argument)
 {
   /* USER CODE BEGIN entry_robotic_arm */
-  // 机械臂dh参数初始化
+
+// 机械臂dh参数初始化
   arm_joint_parameter_init(&arm);
+  
 // 机械臂上的3508参数初始化
-  m3508_parameter_init(&m3508_fdcan1[0], 2.2f, 15.0f, 2.2f, 6.0f);
-  m3508_parameter_init(&m3508_fdcan1[1], 1.8f, 3.5f, 1.5f, 1.0f);
-  m3508_parameter_init(&m3508_fdcan1[2], 1.8f, 3.5f, 1.5f, 1.0f);
+  m3508_parameter_init(&m3508_fdcan1[0], 0.0f, 0.0f, 0.0f, 0.0f);
 
 // 末端执行器默认目标姿态
   arm.effector_pitch_target = -PI/2.0f;
@@ -271,58 +270,55 @@ void entry_robotic_arm(void const * argument)
     arm_route_point_calculate(&arm);
 
     //等待初始化完成
-    if(m3508_fdcan1[0].Initial_flag == 200 && A1_debug_485_2[1].Pos_init_flag == 200)
+    if(m8010_bus_1.motors[0].measure.Pos_init_flag == 200 &&
+        m8010_bus_1.motors[1].measure.Pos_init_flag == 200 &&
+        m8010_bus_1.motors[2].measure.Pos_init_flag == 200)
     {
     //保持执行器水平
-      if(m3508_fdcan1[1].Initial_flag == 200 && m3508_fdcan1[2].Initial_flag == 200)
-      {arm_actuator_stable_control(&arm, arm.effector_pitch_target, arm.theta_target[4]);}
+      if(m3508_fdcan1[0].Initial_flag == 200)
+      {
+        arm_actuator_stable_control(&arm, arm.effector_pitch_target, arm.theta_target[4]);
+      }
 
+      // 1. 调用多段直线插补协调器 (它会从队列中成组提取路点)
+      arm_linear_interpolation_update(&arm, &arm_traj, 0.03f); 
 
-    //启动机械臂
-      // if(HT10A.switch_d == 1)
-      // {
+      // 2. 分别推演 X 和 Y 的单段物理影子 (0.001f 代表 1ms)
+      Traj_Adaptive_Update(&arm_traj.traj_x, arm.x0_now, 0.001f);
+      Traj_Adaptive_Update(&arm_traj.traj_y, arm.y0_now, 0.001f);
+      Traj_Adaptive_Update(&arm_traj.traj_w, m8010_bus_1.motors[0].measure.Pos, 0.001f);
 
-        // 1. 调用多段直线插补协调器 (它会从队列中成组提取路点)
-        arm_linear_interpolation_update(&arm, &arm_traj, 0.03f); 
-
-        // 2. 分别推演 X 和 Y 的单段物理影子 (0.001f 代表 1ms)
-        Traj_Adaptive_Update(&arm_traj.traj_x, arm.x0_now, 0.001f);
-        Traj_Adaptive_Update(&arm_traj.traj_y, arm.y0_now, 0.001f);
-        Traj_Adaptive_Update(&arm_traj.traj_w, A1_debug_485_2[0].measure.Pos, 0.001f);
-
-        // 3. 将影子坐标交接给逆解器
+      // 3. 将影子坐标交接给逆解器
 // ==============4月28日更新：去除遥控模式=====================
 
-        arm.x0_target = arm_traj.traj_x.out_pos;
-        arm.y0_target = arm_traj.traj_y.out_pos;
-        arm.theta_target[0] = arm_traj.traj_w.out_pos;
+      arm.x0_target = arm_traj.traj_x.out_pos;
+      arm.y0_target = arm_traj.traj_y.out_pos;
+      arm.theta_target[0] = arm_traj.traj_w.out_pos;
 
-        // 4. 开始逆向解算出各个 theta_target，并转换成电机位置环
-        arm_route_point_calculate(&arm);
-        // 兜底：检测将要下发的位姿是否合法，若包含死点、反折点、越界：
-        if(arm_route_reachable_check(&arm) != IK_REACHABLE)
-        {
-            // 清空非法轨迹残留
-            arm_traj.traj_queue_x.count = 0;
-            arm_traj.traj_queue_y.count = 0;
-            arm_traj.traj_queue_w.count = 0;
-            // 将“影子进度”拽回到当前物理世界真正的坐标身上去！
-            arm_trajectory_init(&arm_traj, &arm); 
-            // 下发真实位置重新解算：机械臂进入阻尼缓下落模式
-            arm.x0_target = arm.x0_now;
-            arm.y0_target = arm.y0_now;
-            arm.theta_target[0] = A1_debug_485_2[0].measure.Pos;
-            arm_route_point_calculate(&arm);
-        }
-        arm_route_execute(&arm, 8.0f, 0.20f);
-      // }
-      
+      // 4. 开始逆向解算出各个 theta_target，并转换成电机位置环
+      arm_route_point_calculate(&arm);
+      // 兜底：检测将要下发的位姿是否合法，若包含死点、反折点、越界：
+      if(arm_route_reachable_check(&arm) != IK_REACHABLE)
+      {
+          // 清空非法轨迹残留
+          arm_traj.traj_queue_x.count = 0;
+          arm_traj.traj_queue_y.count = 0;
+          arm_traj.traj_queue_w.count = 0;
+          // 将“影子进度”拽回到当前物理世界真正的坐标身上去！
+          arm_trajectory_init(&arm_traj, &arm); 
+          // 下发真实位置重新解算：机械臂进入阻尼缓下落模式
+          arm.x0_target = arm.x0_now;
+          arm.y0_target = arm.y0_now;
+          arm.theta_target[0] = m8010_bus_1.motors[0].measure.Pos;
+          arm_route_point_calculate(&arm);
+      }
+      arm_route_execute(&arm, 0.0f, 0.0f); // 位置环控制，参数预设为0，等待测试调整
+    
     //在不操纵机械臂的情况下默认举起到竖直位置，并时刻记录当前机械臂位姿，准备随时做路径切入
       // else if(HT10A.switch_d == 0 || HT10A.switch_d == -1)
       // {
       //   // 将机械臂抬起到竖直位置
       //   arm_joint_state_init(&arm);
-
       //   // 时刻初始化机械臂路径规划器的当前点为机械臂当前实际位姿，准备随时切入
       //   arm_trajectory_init(&arm_traj, &arm);
       // }
@@ -505,15 +501,43 @@ void entry_cmd_task(void const * argument)
   // 行为树相关初始化
   BT_Init_Combined_Task(); // 初始化行为树模块（黑板、状态机等）
 
+  /*========== 旧版单次扫描单次规划部分 ==========*/ 
+    // MFPlanner_Init(&mf_planner_ctx);
+    // MFPlanner_LoadFixedDemoMap(&mf_planner_ctx);
+    // MFPlanner_BuildFullPlan(&mf_planner_ctx, 0, 1, 3); // 从入口区地面(0,1)出发，规划拾取3个R2KFS的完整动作列表
+  /*========== 旧版单次扫描单次规划部分 ==========*/ 
+
+  /*========== 新版二次扫描多次规划部分 ==========*/ 
+  /* === 初始化 === */
+  MFPlanner_Init(&mf_planner_ctx);
+  MFPlanner_LoadFixedDemoMap(&mf_planner_ctx);
+  /* 此时：row0/row5=EMPTY，height全部已知，row1~row4=UNKNOWN */
+  /* === 一次扫描：在 row0,col1 面朝北，揭示 row1~row3 === */
+  MFPlanner_ScanRows(&mf_planner_ctx, 1, 3);
+  /* 此时：row1/row2/row3 变为真实 KFS 分布，row4 仍为 UNKNOWN */
+  /* === 阶段1规划：从 row0,col1 走到 row1,col1 → 扫描 === */
+  uint8_t picked_count_phase1 = 0; /* 一阶段已拾取的 R2KFS 数量统计 */
+  MFPlanner_BuildPhase1(&mf_planner_ctx, 0, 1, &picked_count_phase1);
+  /* --- 然后执行阶段1的所有动作: MOVE_FLAT_N -> STEP_UP_N -> SCAN_N --- */
+  /* === 第二次扫描(在 SCAN 动作执行后触发)：揭示 row2~row4 === */
+  MFPlanner_ScanRows(&mf_planner_ctx, 2, 4);
+  /* 此时：row2/row3/row4 全部已知(如已揭示则保持不变) */
+  /* === 阶段2规划：全局拾取所有 R2KFS + 走到出口 === */
+  uint8_t r2kfs_all_need = 3; /* 预设需要拾取的 R2KFS 总数(实际比赛中应根据结构及战略动态调整) */
+  MFPlanner_BuildPhase2(&mf_planner_ctx, r2kfs_all_need - picked_count_phase1);
+  /* --- 然后执行阶段2的所有动作... --- */
+  /*========== 新版二次扫描多次规划部分 ==========*/ 
+
+
   /* Infinite loop */
   for (;;)
   {
 
     // switch_d为 1 并且 switch_a 从 0 变为 1 时，发起一次自动组合任务请求
-    if (HT10A.switch_d == 1 &&(HT10A_last.switch_a == 0 && HT10A.switch_a == 1)) 
-    {
-      BT_Start_Combined_Task();
-    }
+    // if (HT10A.switch_d == 1 &&(HT10A_last.switch_a == 0 && HT10A.switch_a == 1)) 
+    // {
+    //   BT_Start_Combined_Task();
+    // }
 
     // 调用 BT_Customized_Tick1ms_Combined（内部做 10ms 降频）
     BT_Customized_Tick1ms_Combined();
@@ -525,6 +549,28 @@ void entry_cmd_task(void const * argument)
     osDelay(1);
   }
   /* USER CODE END entry_cmd_task */
+}
+
+/* USER CODE BEGIN Header_entry_m8010_task */
+/**
+* @brief Function implementing the m8010_task thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_entry_m8010_task */
+void entry_m8010_task(void const * argument)
+{
+  /* USER CODE BEGIN entry_m8010_task */
+  /* Infinite loop */
+  for(;;)
+  {
+    osSemaphoreWait(bisem_m8010Handle, osWaitForever); // 等待信号量，确保在主循环中被正确触发
+
+    m8010_bus_poll(&m8010_bus_1);
+    // m8010_bus_poll(&m8010_bus_2);
+    m8010_bus_poll(&m8010_bus_3);
+  }
+  /* USER CODE END entry_m8010_task */
 }
 
 /* Private application code --------------------------------------------------*/
