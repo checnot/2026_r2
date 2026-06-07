@@ -462,14 +462,14 @@ void MFPlanner_Init(MF_Planner* ctx)
 }
 
 /**
- * @brief 载入固定演示矩阵，替代视觉识别输入
+ * @brief 载入固定地图与高度
  * @param ctx 规划器上下文
  * @note 行号定义：row0 是入口区地面，row5 是出口区地面
  */
 void MFPlanner_LoadFixedDemoMap(MF_Planner* ctx)
 {
     /* 高度矩阵：row0 为入口区地面，row5 为出口区地面 */
-    uint16_t demo_height[MF_ROWS][MF_COLS] = {
+    uint16_t fixed_height_blue[MF_ROWS][MF_COLS] = {
         { 0,   0,   0   }, /* row0: 入口区地面 */
         { 400, 200, 400 }, /* row1: 最下方绿色方块 */
         { 200, 400, 600 }, /* row2 */
@@ -478,39 +478,49 @@ void MFPlanner_LoadFixedDemoMap(MF_Planner* ctx)
         { 0,   0,   0   }  /* row5: 出口区地面 */
     };
 
-    /* KFS 分布：固定演示矩阵 (可替换为视觉识别输入) */
-    MF_CellType demo_cell[MF_ROWS][MF_COLS] = {
-        { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_EMPTY },
-        { MF_CELL_R1KFS,  MF_CELL_EMPTY,  MF_CELL_R2KFS },
-        { MF_CELL_R2KFS,  MF_CELL_EMPTY,  MF_CELL_R1KFS },
-        { MF_CELL_EMPTY,  MF_CELL_FAKEKFS, MF_CELL_R2KFS },
-        { MF_CELL_R1KFS,  MF_CELL_R2KFS,  MF_CELL_EMPTY },
-        { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_EMPTY }
-    };
+    // /* KFS 分布：固定演示矩阵 (可替换为视觉识别输入) */
+    // MF_CellType demo_cell1[MF_ROWS][MF_COLS] = {
+    //     { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_EMPTY },
+    //     { MF_CELL_R1KFS,  MF_CELL_EMPTY,  MF_CELL_R2KFS },
+    //     { MF_CELL_R2KFS,  MF_CELL_EMPTY,  MF_CELL_R1KFS },
+    //     { MF_CELL_EMPTY,  MF_CELL_FAKEKFS, MF_CELL_R2KFS },
+    //     { MF_CELL_R1KFS,  MF_CELL_R2KFS,  MF_CELL_EMPTY },
+    //     { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_EMPTY }
+    // };
 
-    /* 另一个 预设KFS 分布：用于测试 */
-    MF_CellType demo_cell2[MF_ROWS][MF_COLS] = {
-        { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_EMPTY },
-        { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_R2KFS },
-        { MF_CELL_EMPTY,  MF_CELL_R2KFS,  MF_CELL_R1KFS },
-        { MF_CELL_R1KFS,  MF_CELL_FAKEKFS, MF_CELL_R1KFS },
-        { MF_CELL_EMPTY,  MF_CELL_R2KFS,  MF_CELL_R2KFS },
-        { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_EMPTY }
-    };
+    // /* 另一个 预设KFS 分布：用于测试 */
+    // MF_CellType demo_cell2[MF_ROWS][MF_COLS] = {
+    //     { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_EMPTY },
+    //     { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_R2KFS },
+    //     { MF_CELL_EMPTY,  MF_CELL_R2KFS,  MF_CELL_R1KFS },
+    //     { MF_CELL_R1KFS,  MF_CELL_FAKEKFS, MF_CELL_R1KFS },
+    //     { MF_CELL_EMPTY,  MF_CELL_R2KFS,  MF_CELL_R2KFS },
+    //     { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_EMPTY }
+    // };
 
-    /* 另一个 预设KFS 分布：用于测试 */
-    MF_CellType demo_cell3[MF_ROWS][MF_COLS] = {
+    // /* 另一个 预设KFS 分布：用于测试 */
+    // MF_CellType demo_cell3[MF_ROWS][MF_COLS] = {
+    //     { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_EMPTY },
+    //     { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_R2KFS },
+    //     { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_R1KFS },
+    //     { MF_CELL_R1KFS,  MF_CELL_FAKEKFS, MF_CELL_R1KFS },
+    //     { MF_CELL_R2KFS,  MF_CELL_R2KFS,  MF_CELL_R2KFS },
+    //     { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_EMPTY }
+    // };
+
+    /* 固定分布地图，树林位置全部设为unknown */
+    MF_CellType fixed_cell[MF_ROWS][MF_COLS] = {
         { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_EMPTY },
-        { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_R2KFS },
-        { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_R1KFS },
-        { MF_CELL_R1KFS,  MF_CELL_FAKEKFS, MF_CELL_R1KFS },
-        { MF_CELL_R2KFS,  MF_CELL_R2KFS,  MF_CELL_R2KFS },
+        { MF_CELL_UNKNOWN,  MF_CELL_UNKNOWN,  MF_CELL_UNKNOWN },
+        { MF_CELL_UNKNOWN,  MF_CELL_UNKNOWN,  MF_CELL_UNKNOWN },
+        { MF_CELL_UNKNOWN,  MF_CELL_UNKNOWN,  MF_CELL_UNKNOWN },
+        { MF_CELL_UNKNOWN,  MF_CELL_UNKNOWN,  MF_CELL_UNKNOWN },
         { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_EMPTY }
     };
 
     /* 拷贝到上下文中 */
-    memcpy(ctx->height, demo_height, sizeof(demo_height));
-    memcpy(ctx->cell, demo_cell3, sizeof(demo_cell3));
+    memcpy(ctx->height, fixed_height_blue, sizeof(fixed_height_blue));
+    memcpy(ctx->cell, fixed_cell, sizeof(fixed_cell));
 
     /* 将 row1~row4 标记为 UNKNOWN(模拟相机尚未扫描) */
     /* row0 和 row5 是地面，始终已知为 EMPTY */
@@ -677,7 +687,7 @@ bool MFPlanner_BuildFullPlan(MF_Planner* ctx,
     return true;
 }
 
-/*---------------------- 多步/动态规划暂存 ----------------------*/
+/* ========================================== 多步/动态规划 ========================================== */
 
 /**
  * @brief 对指定行范围进行扫描，将 UNKNOWN 格更新为真实地图数据
@@ -693,15 +703,6 @@ bool MFPlanner_BuildFullPlan(MF_Planner* ctx,
  */
 void MFPlanner_ScanRows(MF_Planner* ctx, uint8_t start_row, uint8_t end_row)
 {
-    /* 注意：当前实现中真实数据在 LoadFixedDemoMap 时已拷贝到 ctx->cell，
-     *       但随后 row1~row4 被覆盖为 UNKNOWN。
-     *       所以需要额外存储一份真实地图备份用于揭示。
-     *       方案：在 MF_Planner 结构体中新增 real_cell[][] 备份，或在
-     *       LoadFixedDemoMap 中把 demo_cell2 存为静态变量。
-     *
-     *       更简洁方案：ScanRows 不依赖备份，而是直接在函数内维护
-     *       真实地图(与 LoadFixedDemoMap 中的 demo_cellx 保持一致)
-     */
     /* 真实 KFS 分布(与 LoadFixedDemoMap 中的 demo_cellx 一致) */
     static const MF_CellType real_cell[MF_ROWS][MF_COLS] = {
         { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_EMPTY },
@@ -730,7 +731,7 @@ void MFPlanner_ScanRows(MF_Planner* ctx, uint8_t start_row, uint8_t end_row)
  * @param start_col  R2 初始列
  * @return true 表示规划成功
  * @note 动作序列：
- *   1) 扫描前：在 row0,col1 面朝北扫描 row1~row3(调用前已完成)
+ *   1) 扫描前：在 row0,col1 面朝北扫描 row1-row3(调用前已完成)
  *   2) 从 start 走到 row1,col1(仅基于已知格，未知格不可通过)
  *   3) 在 row1,col1 面朝北扫描 row2~row4
  * @note 调用此函数前应先调用 ScanRows 完成第一次扫描
@@ -761,9 +762,12 @@ bool MFPlanner_BuildPhase1(MF_Planner* ctx,
     /* 才能登上 row1                                                */
     /* ============================================================ */
 
-    /* 在 row0,col0 面朝北扫描前三行(row1/row2/row3) */
-    if (!MF_PushAction(ctx, MF_ACT_SCAN, MF_DIR_NORTH, 0, 0)) {
-        return false;
+    /* 在 row0,col1 面朝北扫描前三行(row1/row2/row3) */
+    if (MF_PushAction(ctx, MF_ACT_SCAN, MF_DIR_NORTH, 0, 1)) 
+    {
+        /* === 一次扫描：在 row0,col1 面朝北，揭示 row1~row3 === */
+        MFPlanner_ScanRows(&mf_planner_ctx, 1, 3);
+        /* 此时：row1/row2/row3 变为真实 KFS 分布，row4 仍为 UNKNOWN */
     }
 
     /* 扫描 row1 上是否有 R2KFS */
@@ -837,8 +841,11 @@ bool MFPlanner_BuildPhase1(MF_Planner* ctx,
     }
 
     /* 在 row1,col1 面朝北扫描后三行(row2/row3/row4) */
-    if (!MF_PushAction(ctx, MF_ACT_SCAN, MF_DIR_NORTH, 1, 1)) {
-        return false;
+    if (MF_PushAction(ctx, MF_ACT_SCAN, MF_DIR_NORTH, 1, 1)) 
+    {
+        /* === 第二次扫描(在 SCAN 动作执行后触发)：揭示 row2~row4 === */
+        MFPlanner_ScanRows(&mf_planner_ctx, 2, 4);
+        /* 此时：row2/row3/row4 全部已知(如已揭示则保持不变) */
     }
 
     return true;
@@ -979,13 +986,16 @@ bool MFPlanner_BuildPhase2(MF_Planner* ctx, uint8_t r2kfs_need)
     return true;
 }
 
-/*---------------------- 多步/动态规划暂存 ----------------------*/
-
-/*================================================== 实现部分 ==================================================*/
+/* ========================================== 多步/动态规划 ========================================== */
 
 
+/* ================================================== 实现部分 ================================================== */
+// 暂无
+/* ================================================== 实现部分 ================================================== */
 
-/*================================================== 应用层调用部分 ==================================================*/
+
+
+/* ================================================== 应用层调用部分 ================================================== */
 
 /**
  * @brief 读取当前动作(不推进)
@@ -1043,9 +1053,9 @@ void MFPlanner_NotifyR1KfsRemoved(MF_Planner* ctx, uint8_t row, uint8_t col)
     }
 }
 
-/*================================================== 应用层调用部分 ==================================================*/
+/* ================================================== 应用层调用部分 ================================================== */
 
 
-/*================================================== 调试输出日志部分 ==================================================*/
+/* ================================================== 调试输出日志部分 ================================================== */
 // 暂无
-/*================================================== 调试输出日志部分 ==================================================*/
+/* ================================================== 调试输出日志部分 ================================================== */

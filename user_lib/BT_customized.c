@@ -512,15 +512,15 @@ static BT_Status Act_Chassis_Move_FSM_MC(void)
                 }
                 if(rack_finished_flag == 1)
                 {
-                /* 暂定取矛头瞬间成功，直接前往对接点 */
-                taskENTER_CRITICAL();
-                // if(rack_finished_flag == 1)
-                // {
-                    chassis_route_point_add(&chassis_route_traj, CHASSIS_DOCKING_X, CHASSIS_DOCKING_Y, CHASSIS_DOCKING_W, 0);
-                // }
-                taskEXIT_CRITICAL();
+                    /* 暂定取矛头瞬间成功，直接前往对接点 */
+                    taskENTER_CRITICAL();
+                    // if(rack_finished_flag == 1)
+                    // {
+                        chassis_route_point_add(&chassis_route_traj, CHASSIS_DOCKING_X, CHASSIS_DOCKING_Y, CHASSIS_DOCKING_W, 0);
+                    // }
+                    taskEXIT_CRITICAL();
 
-                task_chassis_state = CHASSIS_TO_SCANNING; // 状态推进，防止下次误入
+                    task_chassis_state = CHASSIS_TO_SCANNING; // 状态推进，防止下次误入
                 }
                 chassis_timer_ms = 0;
             
@@ -769,3 +769,543 @@ void BT_Customized_Tick1ms_Combined(void)
         seq_mem_idx_combined = 0; 
     }
 }
+
+/* ================================================ MF 规划行为树 ============================================= */
+/* ================================================ MF 规划行为树 ============================================= */
+/* ================================================ MF 规划行为树 ============================================= */
+
+/*
+ * 【架构说明】
+ * 1. MF 规划器(mf_planner_ctx)一次性生成完整动作列表
+ * 2. 行为树节点 Act_MF_Execute_Action 内部用 FSM 逐个消费动作
+ * 3. 每个 MF_Action 映射到对应的底层 task 动作标志位/动作调用
+ * 4. 与 MC 组合任务一样，用 Memory Sequence 保持进度
+ */
+
+/* ================= 1. MF 任务专属状态区 ================= */
+
+MF_ExecState mf_exec_state = MF_EXEC_IDLE;  /* MF 动作执行状态机 */
+uint32_t mf_exec_timer_ms = 0;              /* MF 执行计时器 */
+uint8_t mf_task_request_flag = 0;           /* MF 任务请求标志 (1=有请求) */
+uint8_t mf_phase_flag = 0;                  /* 规划阶段标记: 0=未规划, 1=Phase1完成, 2=全部规划完成 */
+uint8_t mf_picked_phase1 = 0;               /* Phase1 已拾取 R2KFS 数量 */
+
+/*
+ * 🟡【需实测】将 MF 中的方向枚举转换为底盘的世界坐标朝向角
+ */
+static float mf_dir_to_yaw(MF_Dir dir)
+{
+    switch (dir) {
+        case MF_DIR_NORTH: return MF_YAW_NORTH;  /* 🟡 需实测确认角度值 */
+        case MF_DIR_EAST:  return MF_YAW_EAST;
+        case MF_DIR_SOUTH: return MF_YAW_SOUTH;
+        case MF_DIR_WEST:  return MF_YAW_WEST;
+        default:           return 0.0f;
+    }
+}
+
+/*
+ * 🟡【需实测】将 MF 栅格坐标 (row, col) 转换为世界坐标系 (x, y)
+ * @note 坐标原点 MF_ORIGIN_WORLD_X/Y 对应 row0,col0
+ * @note row 向北递增, col 向东递增
+ */
+static void mf_cell_to_world(uint8_t row, uint8_t col, float* out_x, float* out_y)
+{
+    /* 🟡 需实测确认：row 增加对应 Y 增加还是减少 */
+    *out_x = MF_ORIGIN_WORLD_X + (float)col * MF_CELL_SIZE_MM;
+    *out_y = MF_ORIGIN_WORLD_Y + (float)row * MF_CELL_SIZE_MM;
+}
+
+/*
+ * 🟡【需实测】获取当前 R2 所在格的理论高度 (mm)
+ * @note 用于底盘升降控制——知道目标格的高度才能决定升/降多少
+ */
+static uint16_t mf_get_current_height(void)
+{
+    /*
+     * 🟡【需实测】这里需要返回 R2 当前的底盘高度。
+     * 方案1：从 MF 规划器内部追踪（需要在 MF_Planner 中加一个 current_row/col 字段）
+     * 方案2：用底盘升降的实际编码器位置反算
+     * 方案3（推荐）：在 MF_Planner 中新增 MFPlanner_GetCurrentHeight() 函数
+     *
+     * 当前返回 0 作为占位，需替换为实际实现。
+     */
+    return 0;  /* 🟡 占位，需实测替换 */
+}
+
+/* ================= 2. 条件节点 ================= */
+
+/**
+ * @brief [条件节点] 检查是否有 MF 任务请求
+ */
+static BT_Status Cond_Has_MF_Request(void)
+{
+    return mf_task_request_flag ? BT_SUCCESS : BT_FAILURE;
+}
+
+/* ================= 3. 动作节点 ================= */
+
+/**
+ * @brief [动作节点] 阶段一：初始化 + 扫描 + 规划
+ * @note 一次性完成所有规划，生成完整的动作列表
+ * @note 内部调用 ScanRows 来模拟相机扫描（调试阶段使用硬编码地图）
+ * @warning 🟡【需替换】实际比赛时 ScanRows 应改为接收视觉模块的实时数据
+ */
+static BT_Status Act_MF_Init_And_Plan(void)
+{
+    if (mf_phase_flag >= 2) {
+        /* 已经规划完成，直接返回成功 */
+        return BT_SUCCESS;
+    }
+
+    /* --- 初始化规划器 --- */
+    MFPlanner_Init(&mf_planner_ctx);
+    MFPlanner_LoadFixedDemoMap(&mf_planner_ctx);
+    /* 此时：row0/row5=EMPTY，height 全部已知，row1~row4=UNKNOWN */
+
+    /* --- 阶段1：第一次扫描 + 局部规划 --- */
+    /*
+     * 🟡【需替换】BuildPhase1 内部会调用 ScanRows 模拟扫描。
+     * 实际比赛时应由相机回调填充 cell 数据，再调用 BuildPhase1。
+     * 当前调试阶段 BuildPhase1 内部硬编码了 real_cell。
+     */
+    MFPlanner_BuildPhase1(&mf_planner_ctx, 0, 1, &mf_picked_phase1);
+    mf_phase_flag = 1;
+
+    /* --- 阶段2：全局拾取 + 走到出口 --- */
+    /*
+     * 🟡【需确认】r2kfs_all_need 的值应根据实际视觉识别结果动态确定。
+     * 当前硬编码为 4（与 ScanRows 中 real_cell 的 R2KFS 总数一致）。
+     */
+    uint8_t r2kfs_all_need = 4;
+    MFPlanner_BuildPhase2(&mf_planner_ctx, r2kfs_all_need - mf_picked_phase1);
+    mf_phase_flag = 2;
+
+    /* 初始化执行状态 */
+    mf_exec_state = MF_EXEC_IDLE;
+    mf_exec_timer_ms = 0;
+
+    return BT_SUCCESS;
+}
+
+/**
+ * @brief [动作节点] 阶段二：逐个执行 MF 动作列表
+ * @note 这是核心节点。内部用 FSM 消费 mf_planner_ctx.actions[]
+ * @note 每次 Tick 推进一步，返回 BT_RUNNING 直到全部完成
+ *
+ * 🟡🟡🟡【重要】以下每个 case 中标注了 🟡【需实测】的地方，
+ *     需要你根据实际硬件（底盘、机械臂、传感器）填入真实的底层调用。
+ */
+static BT_Status Act_MF_Execute_Action(void)
+{
+    MF_Action act;
+    if (!MFPlanner_PeekAction(&mf_planner_ctx, &act)) {
+        /* 没有更多动作了 */
+        return BT_SUCCESS;
+    }
+
+    switch (mf_exec_state) {
+
+    /* ============================================================ */
+    /* IDLE 状态：读取当前动作，下发对应的底层指令                  */
+    /* ============================================================ */
+    case MF_EXEC_IDLE:
+        switch (act.type) {
+
+        /* ---------- 平移 ---------- */
+        case MF_ACT_MOVE_FLAT: {
+            /*
+             * 🟡【需实测】将 (row,col) + 方向 转为世界坐标，下发给底盘
+             * 你需要做的事：
+             *   1. 调用 mf_cell_to_world(act.row, act.col, &tx, &ty) 得到目标坐标
+             *   2. 调用 mf_dir_to_yaw(act.dir) 得到目标朝向
+             *   3. 调用 chassis_route_point_add(&chassis_route_traj, tx, ty, yaw, 0)
+             *      下发给底盘轨迹队列
+             *
+             * 下层 task 的标志位/动作：
+             *   - 底盘 task (entry_chassis) 会轮询 chassis_route_traj 队列自动执行
+             *   - 无需额外的标志位，chassis_route_point_add 即可触发
+             */
+            float tx, ty;
+            mf_cell_to_world(act.row, act.col, &tx, &ty);
+            float yaw = mf_dir_to_yaw(act.dir);
+
+            taskENTER_CRITICAL();
+            chassis_route_point_add(&chassis_route_traj, tx, ty, yaw, 0);
+            taskEXIT_CRITICAL();
+
+            mf_exec_state = MF_EXEC_MOVE_FLAT;
+            mf_exec_timer_ms = 0;
+            break;
+        }
+
+        /* ---------- 上台阶 ---------- */
+        case MF_ACT_STEP_UP: {
+            /*
+             * 🟡【需实测】底盘上台阶动作序列
+             * 你需要做的事（示例流程，需根据实际机构调整）：
+             *   1. 升前腿 → chassis_r2.lift_front = 1
+             *   2. 底盘前进一格（同 MOVE_FLAT）
+             *   3. 升后腿 → chassis_r2.lift_back = 1
+             *
+             * 下层 task 的标志位/动作：
+             *   - chassis_r2.lift_front / chassis_r2.lift_back
+             *     在 entry_chassis 中由 chassis_lift_front_control / chassis_lift_back_control 消费
+             *   - 可能需要一个 step_up_state 子状态机来管理台阶时序
+             *
+             * 🟡【建议】新建一个独立的台阶 FSM，类似 Act_Chassis_Route_FSM
+             *    这里先用占位代码
+             */
+            float tx, ty;
+            mf_cell_to_world(act.row, act.col, &tx, &ty);
+            float yaw = mf_dir_to_yaw(act.dir);
+
+            /* 🟡 占位：先只做平移，台阶升降逻辑需要你实测后填充 */
+            taskENTER_CRITICAL();
+            chassis_route_point_add(&chassis_route_traj, tx, ty, yaw, 0);
+            taskEXIT_CRITICAL();
+
+            /*
+             * 🟡 如果你有现成的台阶动作函数，替换上面的占位代码：
+             * mf_step_up_start(act.dir);  // 启动上台阶序列
+             */
+
+            mf_exec_state = MF_EXEC_STEP_UP;
+            mf_exec_timer_ms = 0;
+            break;
+        }
+
+        /* ---------- 下台阶 ---------- */
+        case MF_ACT_STEP_DOWN: {
+            /*
+             * 🟡【需实测】底盘下台阶动作序列
+             * 与 STEP_UP 类似但顺序相反（先降前腿→前进→降后腿）
+             */
+            float tx, ty;
+            mf_cell_to_world(act.row, act.col, &tx, &ty);
+            float yaw = mf_dir_to_yaw(act.dir);
+
+            /* 🟡 占位：先只做平移 */
+            taskENTER_CRITICAL();
+            chassis_route_point_add(&chassis_route_traj, tx, ty, yaw, 0);
+            taskEXIT_CRITICAL();
+
+            mf_exec_state = MF_EXEC_STEP_DOWN;
+            mf_exec_timer_ms = 0;
+            break;
+        }
+
+        /* ---------- 拾取 R2KFS ---------- */
+        case MF_ACT_PICK_R2: {
+            /*
+             * 🟡【需实测】机械臂拾取动作
+             * 你需要做的事：
+             *   1. 根据 act.row/act.col 确定 KFS 的世界坐标
+             *   2. 根据 act.height_pick_diff 确定机械臂的拾取高度
+             *      - height_pick_diff = +200: KFS 在 R2 上方 200mm
+             *      - height_pick_diff = 0:   KFS 与 R2 同高
+             *      - height_pick_diff = -200: KFS 在 R2 下方 200mm
+             *   3. 根据 act.dir 确定 R2 面朝方向（机械臂从哪个方向伸过去）
+             *   4. 调用 arm_queue_add_point 向机械臂轨迹队列添加拾取路径点
+             *
+             * 下层 task 的标志位/动作：
+             *   - arm_queue_add_point(&arm_traj, x, y, theta, time, suck)
+             *     在 entry_robotic_arm 中自动消费
+             *   - ARM_SUCK_ON 开启吸盘
+             *   - ARM_SUCK_OFF 关闭吸盘
+             *
+             * 🟡 你需要预先测试好不同高度差下机械臂的拾取坐标，
+             *    然后在此处根据 height_pick_diff 查表或计算。
+             */
+            float kfs_x, kfs_y;
+            mf_cell_to_world(act.row, act.col, &kfs_x, &kfs_y);
+
+            /*
+             * 🟡 占位：需要你根据实际机械臂工作空间填入正确的坐标
+             * 下面只是示意结构，坐标值是随意写的
+             */
+            int16_t hd = act.height_pick_diff;
+            (void)hd;  /* 🟡 占位：用 hd 来决定机械臂的 Z 轴目标 */
+
+            taskENTER_CRITICAL();
+            /* 🟡 示意：向机械臂添加拾取路径点（坐标需实测替换！） */
+            arm_queue_add_point(&arm_traj,
+                                kfs_x * 0.001f,   /* 🟡 假设需要米制单位 */
+                                kfs_y * 0.001f,
+                                arm.theta_target[0],
+                                1000,              /* 🟡 停留时间需实测 */
+                                ARM_SUCK_ON);
+            /* 拾取后存储 */
+            arm_queue_add_point(&arm_traj,
+                                ARM_STORE_X, ARM_STORE_Y,
+                                arm.theta_target[0],
+                                0,
+                                ARM_SUCK_ON);
+            taskEXIT_CRITICAL();
+
+            mf_exec_state = MF_EXEC_PICK_R2;
+            mf_exec_timer_ms = 0;
+            break;
+        }
+
+        /* ---------- 等待 R1 清除 R1KFS ---------- */
+        case MF_ACT_WAIT_R1: {
+            /*
+             * 🟡【需实测/需通信】等待 R1 机器人取走 R1KFS
+             * 你需要做的事：
+             *   1. 通过通信模块（如裁判系统/自定义无线）接收 R1 的完成信号
+             *   2. 收到信号后调用 MFPlanner_NotifyR1KfsRemoved 更新地图
+             *   3. 如果超时，可以强行通过（假设 R1 已完成但通信丢失）
+             *
+             * 当前实现：轮询 cell 状态（由外部 NotifyR1KfsRemoved 更新）
+             * 调试阶段：超时后自动跳过
+             *
+             * 下层 task 的标志位/动作：
+             *   - 需要一个全局标志位，如 r1_clear_signal
+             *   - 由通信 task 在收到 R1 信号后置位
+             *   - 本节点检查该标志位
+             */
+            mf_exec_state = MF_EXEC_WAIT_R1;
+            mf_exec_timer_ms = 0;
+            break;
+        }
+
+        /* ---------- 扫描 ---------- */
+        case MF_ACT_SCAN: {
+            /*
+             * 🟡【需替换】触发相机扫描
+             * 调试阶段：直接调用 ScanRows 用硬编码地图填充
+             * 实际比赛：
+             *   1. 触发相机拍照
+             *   2. 等待视觉模块返回识别结果
+             *   3. 调用 MFPlanner_ScanRows 或逐个 cell 更新
+             */
+            if (act.row == 0 && act.col == 1) {
+                /* 第一次扫描：在 row0,col1 面朝北，揭示 row1~row3 */
+                MFPlanner_ScanRows(&mf_planner_ctx, 1, 3);
+            } else if (act.row == 1 && act.col == 1) {
+                /* 第二次扫描：在 row1,col1 面朝北，揭示 row2~row4 */
+                MFPlanner_ScanRows(&mf_planner_ctx, 2, 4);
+            }
+            /* 
+             * 🟡 如果视觉模块是异步的（需要等待），这里需要改为：
+             *   1. 触发扫描 → 进入 MF_EXEC_SCAN 状态
+             *   2. 轮询视觉完成标志
+             *   3. 完成后读取数据 → 更新 cell
+             * 当前为调试简化：扫描瞬间完成
+             */
+
+            /* 扫描完成，推进到下一个动作 */
+            MFPlanner_AdvanceAction(&mf_planner_ctx);
+            mf_exec_state = MF_EXEC_IDLE;
+            break;
+        }
+
+        default:
+            return BT_FAILURE;
+        }
+        return BT_RUNNING;
+
+    /* ============================================================ */
+    /* MOVE_FLAT 状态：等待底盘平移到位                              */
+    /* ============================================================ */
+    case MF_EXEC_MOVE_FLAT:
+        /*
+         * 🟡【需实测】底盘到达判断条件
+         * 使用 chassis_if_arrived 或 chassis_route_traj 的 is_finished 标志
+         * 需要与你的底盘路径执行逻辑（entry_chassis）对齐
+         */
+        if (chassis_route_traj.traj_vx.is_finished &&
+            chassis_route_traj.traj_vy.is_finished &&
+            chassis_route_traj.traj_vw.is_finished) {
+            /* 平移到位，推进到下一个动作 */
+            MFPlanner_AdvanceAction(&mf_planner_ctx);
+            mf_exec_state = MF_EXEC_IDLE;
+        } else if (++mf_exec_timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS) {
+            mf_exec_state = MF_EXEC_FAILED;
+        }
+        return BT_RUNNING;
+
+    /* ============================================================ */
+    /* STEP_UP 状态：等待上台阶完成                                  */
+    /* ============================================================ */
+    case MF_EXEC_STEP_UP:
+        /*
+         * 🟡【需实测】台阶完成判断
+         * 如果你有独立的台阶 FSM，检查其完成标志
+         * 如果台阶用底盘路径模拟，则与 MOVE_FLAT 一样检查 is_finished
+         */
+        if (chassis_route_traj.traj_vx.is_finished &&
+            chassis_route_traj.traj_vy.is_finished &&
+            chassis_route_traj.traj_vw.is_finished) {
+            MFPlanner_AdvanceAction(&mf_planner_ctx);
+            mf_exec_state = MF_EXEC_IDLE;
+        } else if (++mf_exec_timer_ms * 10 >= MF_STEP_TIMEOUT_MS) {
+            mf_exec_state = MF_EXEC_FAILED;
+        }
+        return BT_RUNNING;
+
+    /* ============================================================ */
+    /* STEP_DOWN 状态：等待下台阶完成                                */
+    /* ============================================================ */
+    case MF_EXEC_STEP_DOWN:
+        /*
+         * 🟡【需实测】同 STEP_UP
+         */
+        if (chassis_route_traj.traj_vx.is_finished &&
+            chassis_route_traj.traj_vy.is_finished &&
+            chassis_route_traj.traj_vw.is_finished) {
+            MFPlanner_AdvanceAction(&mf_planner_ctx);
+            mf_exec_state = MF_EXEC_IDLE;
+        } else if (++mf_exec_timer_ms * 10 >= MF_STEP_TIMEOUT_MS) {
+            mf_exec_state = MF_EXEC_FAILED;
+        }
+        return BT_RUNNING;
+
+    /* ============================================================ */
+    /* PICK_R2 状态：等待机械臂拾取完成                              */
+    /* ============================================================ */
+    case MF_EXEC_PICK_R2:
+        /*
+         * 🟡【需实测】机械臂拾取完成判断
+         * 使用 arm_if_arrived_xy 或检查 arm_traj 队列为空
+         * 当前用存储点 (ARM_STORE_X, ARM_STORE_Y) 作为完成标志
+         */
+        if (arm_if_arrived_xy(ARM_STORE_X, ARM_STORE_Y)) {
+            /* 拾取完成，关闭吸盘 */
+            taskENTER_CRITICAL();
+            arm_queue_add_point(&arm_traj,
+                                ARM_HOME_X, ARM_HOME_Y,
+                                arm.theta_target[0], 0, ARM_SUCK_OFF);
+            taskEXIT_CRITICAL();
+
+            MFPlanner_AdvanceAction(&mf_planner_ctx);
+            mf_exec_state = MF_EXEC_IDLE;
+        } else if (++mf_exec_timer_ms * 10 >= MF_PICK_TIMEOUT_MS) {
+            mf_exec_state = MF_EXEC_FAILED;
+        }
+        return BT_RUNNING;
+
+    /* ============================================================ */
+    /* WAIT_R1 状态：等待 R1 清除 R1KFS                             */
+    /* ============================================================ */
+    case MF_EXEC_WAIT_R1:
+        /*
+         * 🟡【需实测/需通信】R1 完成信号判断
+         * 方案1（当前）：检查 cell 是否已被 NotifyR1KfsRemoved 置为 EMPTY
+         * 方案2（推荐）：检查通信模块的 r1_clear_signal 标志位
+         *
+         * 下层 task 的标志位/动作：
+         *   - 🟡【需新增】一个全局变量：uint8_t r1_clear_signal = 0;
+         *   - 由通信 task（如裁判系统回调）在收到 R1 清除信号后置 1
+         *   - 此处检查该标志位
+         */
+        if (mf_planner_ctx.cell[act.row][act.col] == MF_CELL_EMPTY) {
+            /* R1 已清除该格 */
+            MFPlanner_AdvanceAction(&mf_planner_ctx);
+            mf_exec_state = MF_EXEC_IDLE;
+        } else if (++mf_exec_timer_ms * 10 >= MF_WAIT_R1_TIMEOUT_MS) {
+            /* 超时：强行通过（假设通信丢失但 R1 已完成） */
+            MFPlanner_NotifyR1KfsRemoved(&mf_planner_ctx, act.row, act.col);
+            MFPlanner_AdvanceAction(&mf_planner_ctx);
+            mf_exec_state = MF_EXEC_IDLE;
+        }
+        return BT_RUNNING;
+
+    /* ============================================================ */
+    /* 失败处理                                                      */
+    /* ============================================================ */
+    case MF_EXEC_FAILED:
+    default:
+        return BT_FAILURE;
+    }
+}
+
+/**
+ * @brief [动作节点] 阶段三：MF 任务收尾清理
+ */
+static BT_Status Act_MF_Finish_Cleanup(void)
+{
+    mf_exec_state = MF_EXEC_IDLE;
+    mf_exec_timer_ms = 0;
+    mf_task_request_flag = 0;
+    mf_phase_flag = 0;
+    mf_picked_phase1 = 0;
+    return BT_SUCCESS;
+}
+
+/* ================= 4. 顶层行为树 ================= */
+
+/** MF 行为树的 Memory Sequence 索引 */
+static uint8_t seq_mem_idx_mf = 0;
+
+/**
+ * @brief MF 任务行为树 Root 根节点
+ * @note 流程：
+ *   1. 等待 MF 任务请求
+ *   2. 初始化 + 扫描 + 规划（一次性）
+ *   3. 逐个执行动作列表（内部 FSM，多 Tick 返回 RUNNING）
+ *   4. 清理
+ */
+static BT_Status BT_MF_Task_Tree_Root(void)
+{
+    static const BT_NodeFunc seq[] = {
+        Cond_Has_MF_Request,       /* 1. 有 MF 任务请求？ */
+        Act_MF_Init_And_Plan,      /* 2. 初始化 + 规划 */
+        Act_MF_Execute_Action,     /* 3. 执行动作列表（内部 FSM） */
+        Act_MF_Finish_Cleanup      /* 4. 清理 */
+    };
+
+    return BT_Sequence_Memory(seq,
+                              (uint8_t)(sizeof(seq) / sizeof(seq[0])),
+                              &seq_mem_idx_mf);
+}
+
+/* ================= 5. 外部接口 ================= */
+
+/**
+ * @brief 发起 MF 任务请求（由按键/遥控/通信等触发）
+ */
+void BT_MF_Start_Task(void)
+{
+    mf_task_request_flag = 1;
+    mf_phase_flag = 0;
+    mf_exec_state = MF_EXEC_IDLE;
+}
+
+/**
+ * @brief 初始化/重置 MF 任务状态（紧急停止或上电时调用）
+ */
+void BT_MF_Init_Task(void)
+{
+    mf_task_request_flag = 0;
+    mf_phase_flag = 0;
+    mf_exec_state = MF_EXEC_IDLE;
+    mf_exec_timer_ms = 0;
+    mf_picked_phase1 = 0;
+    seq_mem_idx_mf = 0;
+}
+
+/**
+ * @brief MF 行为树 Tick 入口（在 cmd_task 的 for(;;) 中 1ms 周期调用）
+ * @note 内部降频到 10ms
+ */
+void BT_Customized_Tick1ms_MF(void)
+{
+    static uint8_t div10 = 0;
+    div10++;
+    if (div10 < 10) return;
+    div10 = 0;
+
+    BT_Status status = BT_MF_Task_Tree_Root();
+
+    /* 异常自愈：BT 树崩溃时自动清理 */
+    if (status == BT_FAILURE) {
+        Act_MF_Finish_Cleanup();
+        seq_mem_idx_mf = 0;
+    }
+}
+
+/* ================================================ MF 规划行为树 ============================================= */
+/* ================================================ MF 规划行为树 ============================================= */
+/* ================================================ MF 规划行为树 ============================================= */

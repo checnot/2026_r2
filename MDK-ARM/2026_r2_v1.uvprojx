@@ -699,11 +699,6 @@
               <FileType>1</FileType>
               <FilePath>..\user_lib\trajectory.c</FilePath>
             </File>
-            <File>
-              <FileName>MF_planner.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\user_lib\MF_planner.c</FilePath>
-            </File>
           </Files>
         </Group>
         <Group>
@@ -713,6 +708,11 @@
               <FileName>observer.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\user_lib\observer.c</FilePath>
+            </File>
+            <File>
+              <FileName>chassis.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\user_lib\chassis.c</FilePath>
             </File>
             <File>
               <FileName>robotic_arm.c</FileName>
@@ -725,9 +725,19 @@
               <FilePath>..\user_lib\clamp.c</FilePath>
             </File>
             <File>
-              <FileName>chassis.c</FileName>
+              <FileName>BT_core.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\user_lib\chassis.c</FilePath>
+              <FilePath>..\user_lib\BT_core.c</FilePath>
+            </File>
+            <File>
+              <FileName>BT_customized.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\user_lib\BT_customized.c</FilePath>
+            </File>
+            <File>
+              <FileName>MF_planner.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\user_lib\MF_planner.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -738,16 +748,6 @@
               <FileName>own_lib.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\user_lib\own_lib.c</FilePath>
-            </File>
-            <File>
-              <FileName>BT_core.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\user_lib\BT_core.c</FilePath>
-            </File>
-            <File>
-              <FileName>BT_customized.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\user_lib\BT_customized.c</FilePath>
             </File>
           </Files>
         </Group>

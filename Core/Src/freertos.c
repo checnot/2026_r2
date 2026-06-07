@@ -67,7 +67,7 @@
 /* USER CODE BEGIN Variables */
 float debug_test_time; // 用于测试的万能小变量
 
-int32_t debug_flag;
+int32_t debug_flag; // 万能小变量
 float debug_position;
 uint8_t point_add = 0; // 测试用：是否添加路径点的标志位
 uint8_t point_add1 = 0; // 测试用：是否添加路径点的标志位 
@@ -78,6 +78,9 @@ float speed = 0.0f; // 用于测试的速度变量
 uint8_t catch_flag = 0; // 测试用：夹爪开合标志位 
 int32_t rotate_target_angle = 0; // 测试用：夹爪旋转目标角度  
 uint8_t task_flag = 0; // 测试用：总开关，控制是否执行BT_Combined_Task_Tree_Root函数  
+
+uint8_t traj_init_flag_arm = 0;   // 机械臂轨迹初始化标志位
+uint8_t traj_init_flag_lift = 0;  // 抬升轨迹初始化标志位
 /* USER CODE END Variables */
 osThreadId defaultTaskHandle;
 osThreadId roboticarm_taskHandle;
@@ -218,20 +221,28 @@ void StartDefaultTask(void const * argument)
     // data_send_vofa[4] = arm_traj.traj_y.out_pos;
     // data_send_vofa[5] = arm_traj.traj_queue_y.points[arm_traj.traj_queue_y.tail > 0 ? arm_traj.traj_queue_y.tail - 1 : 0];
 
-    data_send_vofa[0] = Radar_Pos.reliable_yaw;
+    // data_send_vofa[0] = Radar_Pos.reliable_yaw;
+    // data_send_vofa[1] = chassis_route_traj.traj_vw.target_pos;
+		// data_send_vofa[2] = Radar_Pos.reliable_x;
 
-    data_send_vofa[1] = chassis_route_traj.traj_vw.target_pos;
-		data_send_vofa[2] = Radar_Pos.reliable_x;
-    // vofa_send_to_show_justfloat(&huart10, data_send_vofa);
+    // 此处measure.Pos是实际转子位置减去初始位置（即电机上电时的位置），加上初始位置的目的是为了显示实际的机械位置（相对于上电时的零点）
+    // 因此此处将measure.pos加上init_pos显示的数值是电机的实际位置，更直观地和发给电机的位置环目标进行对比
+    data_send_vofa[0] = m8010_bus_3.motors[0].measure.Pos + m8010_bus_3.motors[0].measure.init_Pos;
+    data_send_vofa[1] = m8010_bus_3.motors[0].target.Pos;
+    data_send_vofa[2] = chassis_lift_traj.traj_queue_front.points[chassis_lift_traj.traj_queue_front.tail > 0 ? chassis_lift_traj.traj_queue_front.tail - 1 : 0];
+    data_send_vofa[3] = m8010_bus_3.motors[1].measure.Pos + m8010_bus_3.motors[1].measure.init_Pos;
+    data_send_vofa[4] = m8010_bus_3.motors[1].target.Pos;
+    data_send_vofa[5] = chassis_lift_traj.traj_queue_back.points[chassis_lift_traj.traj_queue_back.tail > 0 ? chassis_lift_traj.traj_queue_back.tail - 1 : 0];
+    // data_send_vofa[6] = m8010_bus_3.motors[1].measure.T;
+    // data_send_vofa[7] = m8010_bus_3.motors[0].measure.T;
+    data_send_vofa[6] = m3508_fdcan1[1].Angle_Sum;
+    data_send_vofa[7] = m3508_fdcan1[2].Angle_Sum;
+
+    vofa_send_to_show_justfloat(&huart7, data_send_vofa);
 
   // vofa显示调试信息
   //=======================================================================
 
-    // m8010_bus_poll(&m8010_bus_1);
-    // m8010_bus_poll(&m8010_bus_3);
-    // if(m8010_bus_1.motors[0].measure.Pos_init_flag == 200){
-    //   m8010_position_control(&m8010_bus_1.motors[0], debug_position, 0.2f, 0.02f);
-    // }
     debug_test_time += 0.001f;
     osDelay(1);
   }
@@ -253,21 +264,30 @@ void entry_robotic_arm(void const * argument)
   arm_joint_parameter_init(&arm);
   
 // 机械臂上的3508参数初始化
+//  m3508_parameter_init(&m3508_fdcan1[0], 1.0f, 1.0f, 1.5f, 12.5f);
   m3508_parameter_init(&m3508_fdcan1[0], 0.0f, 0.0f, 0.0f, 0.0f);
 
 // 末端执行器默认目标姿态
-  arm.effector_pitch_target = -PI/2.0f;
-  arm.theta_target[4] = 0.0f;
+  arm.effector_pitch_target = 0.0f;
+  // arm.theta_target[4] = 0.0f;
+
 
 // 向机械臂添加默认路径点，替代之前的单位置环上电复位
-  arm_queue_add_point(&arm_traj, 0.0f, 0.40f, 0.0f, 500, 0);
-  arm_queue_add_point(&arm_traj, 0.15f, 0.15f, 0.0f, 0, 0);
 
   /* Infinite loop */
   for (;;)
   {
     arm_joint_state_update(&arm);
     arm_route_point_calculate(&arm);
+
+    if(traj_init_flag_arm == 0)
+    {
+      arm_trajectory_init(&arm_traj, &arm);   // 以当前位置初始化轨迹系统
+      arm_queue_add_point(&arm_traj, 0.8f, 0.2f, 0.0f, 500, 0);
+//      arm_queue_add_point(&arm_traj, 0.4f, 0.4f, 0.0f, 0, 0);
+
+      traj_init_flag_arm = 1;
+    }
 
     //等待初始化完成
     if(m8010_bus_1.motors[0].measure.Pos_init_flag == 200 &&
@@ -298,22 +318,25 @@ void entry_robotic_arm(void const * argument)
       // 4. 开始逆向解算出各个 theta_target，并转换成电机位置环
       arm_route_point_calculate(&arm);
       // 兜底：检测将要下发的位姿是否合法，若包含死点、反折点、越界：
-      if(arm_route_reachable_check(&arm) != IK_REACHABLE)
-      {
-          // 清空非法轨迹残留
-          arm_traj.traj_queue_x.count = 0;
-          arm_traj.traj_queue_y.count = 0;
-          arm_traj.traj_queue_w.count = 0;
-          // 将“影子进度”拽回到当前物理世界真正的坐标身上去！
-          arm_trajectory_init(&arm_traj, &arm); 
-          // 下发真实位置重新解算：机械臂进入阻尼缓下落模式
-          arm.x0_target = arm.x0_now;
-          arm.y0_target = arm.y0_now;
-          arm.theta_target[0] = m8010_bus_1.motors[0].measure.Pos;
-          arm_route_point_calculate(&arm);
-      }
-      arm_route_execute(&arm, 0.0f, 0.0f); // 位置环控制，参数预设为0，等待测试调整
-    
+      // if(arm_route_reachable_check(&arm) != IK_REACHABLE)
+      // {
+      //     // 清空非法轨迹残留
+      //     arm_traj.traj_queue_x.count = 0;
+      //     arm_traj.traj_queue_y.count = 0;
+      //     arm_traj.traj_queue_w.count = 0;
+      //     // 将“影子进度”拽回到当前物理世界真正的坐标身上去！
+      //     arm_trajectory_init(&arm_traj, &arm); 
+      //     // 下发真实位置重新解算：机械臂进入阻尼缓下落模式
+      //     arm.x0_target = arm.x0_now;
+      //     arm.y0_target = arm.y0_now;
+      //     arm.theta_target[0] = m8010_bus_1.motors[0].measure.Pos;
+      //     arm_route_point_calculate(&arm);
+      // }
+
+      arm_route_execute(&arm, 3.5f, 0.25f); // 位置环控制
+      // arm_route_execute(&arm, 0.0f, 0.0f);  // 不控制
+      // arm_gravity_comp(); // 重力补偿
+
     //在不操纵机械臂的情况下默认举起到竖直位置，并时刻记录当前机械臂位姿，准备随时做路径切入
       // else if(HT10A.switch_d == 0 || HT10A.switch_d == -1)
       // {
@@ -341,23 +364,27 @@ void entry_chassis(void const * argument)
 {
   /* USER CODE BEGIN entry_chassis */
   // 3508参数初始化
-  m3508_parameter_init(&m3508_fdcan3[0], 10.0f, 1.0f, 0.0f, 0.0f);
-  m3508_parameter_init(&m3508_fdcan3[1], 10.0f, 1.0f, 0.0f, 0.0f);
-  m3508_parameter_init(&m3508_fdcan3[2], 10.0f, 1.0f, 0.0f, 0.0f);
-  m3508_parameter_init(&m3508_fdcan3[3], 10.0f, 1.0f, 0.0f, 0.0f);
+  m3508_parameter_init(&m3508_fdcan3[0], 0.0f, 0.0f, 0.0f, 0.0f);
+  m3508_parameter_init(&m3508_fdcan3[1], 0.0f, 0.0f, 0.0f, 0.0f);
+  m3508_parameter_init(&m3508_fdcan3[2], 0.0f, 0.0f, 0.0f, 0.0f);
+  m3508_parameter_init(&m3508_fdcan3[3], 0.0f, 0.0f, 0.0f, 0.0f);
+  // m3508_parameter_init(&m3508_fdcan3[0], 10.0f, 1.0f, 0.0f, 0.0f);
+  // m3508_parameter_init(&m3508_fdcan3[1], 10.0f, 1.0f, 0.0f, 0.0f);
+  // m3508_parameter_init(&m3508_fdcan3[2], 10.0f, 1.0f, 0.0f, 0.0f);
+  // m3508_parameter_init(&m3508_fdcan3[3], 10.0f, 1.0f, 0.0f, 0.0f);
   // 底盘升降初始化为收回状态
-  chassis_r2.lift_front = 0;
-  chassis_r2.lift_back = 0;
-  chassis_lift_front_control(chassis_r2.lift_front);
-  chassis_lift_back_control(chassis_r2.lift_back);
+  // chassis_r2.lift_front = 0;
+  // chassis_r2.lift_back = 0;
+  // chassis_lift_front_control(chassis_r2.lift_front);
+  // chassis_lift_back_control(chassis_r2.lift_back);
   chassis_route_traj_init();
   /* Infinite loop */
   for (;;)
   {
-// 测试用添加路径点
     if(m3508_fdcan3[0].Initial_flag == 200 && m3508_fdcan3[1].Initial_flag == 200
       && m3508_fdcan3[2].Initial_flag == 200 && m3508_fdcan3[3].Initial_flag == 200)
     {
+// 测试用添加路径点
       if(point_add == 1)
       {
         //      chassis_route_point_add(&chassis_route_traj,55.0f,66.0f,0.0f);
@@ -424,7 +451,7 @@ void entry_chassis(void const * argument)
     //     // else if(HT10A.switch_b == -1) {chassis_r2.lift_front = 0;}
     //     // if(HT10A.switch_c == 1)       {chassis_r2.lift_back = 1;}
     //     // else if(HT10A.switch_c == -1) {chassis_r2.lift_back = 0;}
-    //     chassis_lift_front_control(chassis_r2.lift_front);
+    //     // chassis_lift_front_control(chassis_r2.lift_front);
     //     chassis_lift_back_control(chassis_r2.lift_back);
     //     omni_chassis_calculate(&chassis_r2, chassis_r2.vx, chassis_r2.vy, chassis_r2.vw);
     //   }
@@ -439,6 +466,47 @@ void entry_chassis(void const * argument)
     //     omni_chassis_calculate(&chassis_r2, chassis_r2.vx, chassis_r2.vy, chassis_r2.vw);
     //   }
     // }
+    
+
+/* ========================= 抬升部分 ========================= */
+
+
+    if(m8010_bus_3.motors[0].measure.Pos_init_flag == 200 && m8010_bus_3.motors[1].measure.Pos_init_flag == 200)
+    {
+      // 1. 正向运动学更新当前升降高度
+      chassis_lift_fk_update(&chassis_r2);
+      if(traj_init_flag_lift == 0)
+      {
+        // 以当前升降高度初始化升降轨迹系统
+        chassis_lift_traj_init();
+        // 添加一个默认的升降目标点，作为上电复位
+        chassis_lift_queue_add_point(&chassis_lift_traj, 0.25f, 0.05f, 0);
+        traj_init_flag_lift = 1;
+      }
+      if(debug_flag == 1)
+      {
+        chassis_lift_queue_add_point(&chassis_lift_traj, -0.029f, -0.229f, 0);
+        debug_flag = 0;
+      }
+      if(debug_flag == 2)
+      {
+        chassis_lift_queue_add_point(&chassis_lift_traj, 0.25f, 0.05f, 0);
+        debug_flag = 0;
+      }
+      // 2. 多段路径调度器：当前段完成→从队列出队下一个目标
+      chassis_lift_linear_interpolation_update(&chassis_r2, &chassis_lift_traj,CHASSIS_LIFT_QUEUE_BLEND_RADIUS);
+      // 3. 单段轨迹推演（影子位置 + 速度 + 自动判敛）
+      Traj_Adaptive_Update(&chassis_lift_traj.traj_front,chassis_r2.lift_front_current, 0.001f);
+      Traj_Adaptive_Update(&chassis_lift_traj.traj_back,chassis_r2.lift_back_current, 0.001f);
+      // 4. 影子位置 → 目标高度
+      chassis_r2.lift_front_target = chassis_lift_traj.traj_front.out_pos;
+      chassis_r2.lift_back_target  = chassis_lift_traj.traj_back.out_pos;
+      // 5. 逆运动学：目标高度 → 电机位置
+      chassis_lift_ik_update(&chassis_r2);
+      // 6. 位置环执行（怀疑和机械臂参数相似，待调试）
+      chassis_lift_excute(&chassis_r2, 2.0f, 0.2f);
+    }
+
     osDelay(1);
   }
   /* USER CODE END entry_chassis */
@@ -475,7 +543,7 @@ void entry_clamp(void const * argument)
         // 气缸驱动夹爪部分
         clamp_open_control(clamp.catch_flag);
         // 夹爪旋转部分
-       clamp_rotate_control(clamp.rotate_flag * CLAMP_ROTATE_MAX_POSITION, &m3508_fdcan2[2]);
+        clamp_rotate_control(clamp.rotate_flag * CLAMP_ROTATE_MAX_POSITION, &m3508_fdcan2[2]);
         // 夹爪伸缩部分
         clamp_extend_control(clamp.retractable_flag * CLAMP_EXTEND_MAX_POSITION, &m3508_fdcan2[1]);
         // // 夹爪升降部分
@@ -501,27 +569,26 @@ void entry_cmd_task(void const * argument)
   // 行为树相关初始化
   BT_Init_Combined_Task(); // 初始化行为树模块（黑板、状态机等）
 
-  /*========== 旧版单次扫描单次规划部分 ==========*/ 
-    // MFPlanner_Init(&mf_planner_ctx);
-    // MFPlanner_LoadFixedDemoMap(&mf_planner_ctx);
-    // MFPlanner_BuildFullPlan(&mf_planner_ctx, 0, 1, 3); // 从入口区地面(0,1)出发，规划拾取3个R2KFS的完整动作列表
-  /*========== 旧版单次扫描单次规划部分 ==========*/ 
-
+  
   /*========== 新版二次扫描多次规划部分 ==========*/ 
   /* === 初始化 === */
   MFPlanner_Init(&mf_planner_ctx);
   MFPlanner_LoadFixedDemoMap(&mf_planner_ctx);
   /* 此时：row0/row5=EMPTY，height全部已知，row1~row4=UNKNOWN */
-  /* === 一次扫描：在 row0,col1 面朝北，揭示 row1~row3 === */
-  MFPlanner_ScanRows(&mf_planner_ctx, 1, 3);
-  /* 此时：row1/row2/row3 变为真实 KFS 分布，row4 仍为 UNKNOWN */
+
+  // /* === 一次扫描：在 row0,col1 面朝北，揭示 row1~row3 === */
+  // MFPlanner_ScanRows(&mf_planner_ctx, 1, 3);
+  // /* 此时：row1/row2/row3 变为真实 KFS 分布，row4 仍为 UNKNOWN */
+
   /* === 阶段1规划：从 row0,col1 走到 row1,col1 → 扫描 === */
   uint8_t picked_count_phase1 = 0; /* 一阶段已拾取的 R2KFS 数量统计 */
   MFPlanner_BuildPhase1(&mf_planner_ctx, 0, 1, &picked_count_phase1);
   /* --- 然后执行阶段1的所有动作: MOVE_FLAT_N -> STEP_UP_N -> SCAN_N --- */
-  /* === 第二次扫描(在 SCAN 动作执行后触发)：揭示 row2~row4 === */
-  MFPlanner_ScanRows(&mf_planner_ctx, 2, 4);
-  /* 此时：row2/row3/row4 全部已知(如已揭示则保持不变) */
+
+  // /* === 第二次扫描(在 SCAN 动作执行后触发)：揭示 row2~row4 === */
+  // MFPlanner_ScanRows(&mf_planner_ctx, 2, 4);
+  // /* 此时：row2/row3/row4 全部已知(如已揭示则保持不变) */
+
   /* === 阶段2规划：全局拾取所有 R2KFS + 走到出口 === */
   uint8_t r2kfs_all_need = 3; /* 预设需要拾取的 R2KFS 总数(实际比赛中应根据结构及战略动态调整) */
   MFPlanner_BuildPhase2(&mf_planner_ctx, r2kfs_all_need - picked_count_phase1);
@@ -545,7 +612,7 @@ void entry_cmd_task(void const * argument)
   {
      BT_Start_Combined_Task();
   }
-    HT10A_last = HT10A;
+    // HT10A_last = HT10A;
     osDelay(1);
   }
   /* USER CODE END entry_cmd_task */
@@ -561,6 +628,21 @@ void entry_cmd_task(void const * argument)
 void entry_m8010_task(void const * argument)
 {
   /* USER CODE BEGIN entry_m8010_task */
+
+  m8010_bus_1.motors[0].target.id = 1;
+  m8010_bus_1.motors[0].target.mode = 1;
+  m8010_bus_1.motors[1].target.id = 2;
+  m8010_bus_1.motors[1].target.mode = 1;
+  m8010_bus_1.motors[2].target.id = 3;
+  m8010_bus_1.motors[2].target.mode = 1;
+
+  m8010_bus_3.motors[0].target.id = 1;
+  m8010_bus_3.motors[0].target.mode = 1;
+  m8010_bus_3.motors[1].target.id = 2;
+  m8010_bus_3.motors[1].target.mode = 1;
+  // m8010_bus_3.motors[2].target.id = 3;
+  // m8010_bus_3.motors[2].target.mode = 1;
+
   /* Infinite loop */
   for(;;)
   {

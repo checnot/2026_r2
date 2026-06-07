@@ -67,7 +67,7 @@ uint8_t timer_a1_flag = 0;//用于使定时器中对A1电机依次发送的标�
 
 uint32_t timer_ms = 0;//定时器计时变量，单位ms
 
-uint8_t m3508_send_flag = 0;//用于使定时器中对M3508电机依次发送的标志位
+// uint8_t m3508_send_flag = 0;//用于使定时器中对M3508电机依次发送的标志位
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -126,6 +126,7 @@ int main(void)
   MX_UART4_Init();
   MX_USART3_UART_Init();
   MX_USART6_UART_Init();
+  MX_UART7_Init();
   /* USER CODE BEGIN 2 */
   
 //FDCAN初始化，配置过滤器并开启CAN
@@ -169,19 +170,6 @@ int main(void)
   m8010_bus_init(&m8010_bus_2, &huart6, &htim6);
   m8010_bus_init(&m8010_bus_3, &huart4, &htim6);
 
-  m8010_bus_1.motors[0].target.id = 1;
-  m8010_bus_1.motors[0].target.mode = 1;
-  m8010_bus_1.motors[1].target.id = 2;
-  m8010_bus_1.motors[1].target.mode = 1;
-  m8010_bus_1.motors[2].target.id = 3;
-  m8010_bus_1.motors[2].target.mode = 1;
-
-  m8010_bus_3.motors[0].target.id = 1;
-  m8010_bus_3.motors[0].target.mode = 1;
-  m8010_bus_3.motors[1].target.id = 2;
-  m8010_bus_3.motors[1].target.mode = 1;
-  m8010_bus_3.motors[2].target.id = 3;
-  m8010_bus_3.motors[2].target.mode = 1;
   // A1_Motor_Parameter_Init(&A1_debug_485_2[0], 0, 0, 0, 0);
   // A1_Motor_Parameter_Init(&A1_debug_485_2[1], 1, 0, 0, 0);
 
@@ -328,7 +316,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     timer_ms++;
   }
 
-//TIM6定时发送数据控制A1电机，0.5ms会发送一次，每次发送一个电机的数据，依次循环4个电机
+//TIM6定时发送数据控制m8010电机，0.5ms会发送一次，每次发送一个电机的数据，依次循环4个电机
 	if(htim->Instance == TIM6)
 	{
 		//  switch(timer_a1_flag)
@@ -355,12 +343,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 //TIM7定时发送数据控制m3508电机，1ms会发送一次
   if(htim->Instance == TIM7)
   {
-    if(m3508_send_flag == 1 )
-    {
+
       FDCAN_Send_M3508(&hfdcan1, m3508_fdcan1);
       FDCAN_Send_M3508(&hfdcan2, m3508_fdcan2);
       FDCAN_Send_M3508(&hfdcan3, m3508_fdcan3);
-    }
+
   }
 	taskEXIT_CRITICAL_FROM_ISR(status_value);// 退出临界段
 

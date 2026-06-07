@@ -88,7 +88,7 @@ void arm_joint_state_update(robotic_arm_stu *arm);
 // void arm_joint_state_init(robotic_arm_stu *arm);
 IK_Reach_Status_enum arm_route_reachable_check(robotic_arm_stu *arm);
 void arm_route_point_calculate(robotic_arm_stu *arm);
-void arm_route_execute(robotic_arm_stu *arm, float kw, float kp);
+void arm_route_execute(robotic_arm_stu *arm, float kp, float kw);
 void arm_actuator_stable_control(robotic_arm_stu *arm, float target_pitch, float theta4);
 void arm_remote_control(void);
 
@@ -102,6 +102,6 @@ void arm_load_test_waypoints_counterclockwise(void);
 void arm_load_test_waypoints_rotate(void);
 void arm_load_test_waypoints_custom(void);
 
-void arm_gravity_comp(robotic_arm_stu *arm, float torque_preset0, float torque_preset1);
+void arm_gravity_comp(void);
 
 #endif /* __ROBOTIC_ARM_H */

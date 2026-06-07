@@ -55,6 +55,9 @@ typedef struct {
 	int16_t height_pick_diff; /* 取方块时的高度差(相对于当前格) */
 } MF_Action;
 
+/**
+ * @brief MF 规划器上下文，包含地图状态和规划输出
+*/
 typedef struct {
 	uint16_t height[MF_ROWS][MF_COLS]; /* 高度矩阵(mm) */
 	MF_CellType cell[MF_ROWS][MF_COLS]; /* KFS/空格状态 */
