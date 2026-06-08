@@ -83,57 +83,57 @@ void omni_chassis_inverse_calculate(chassis_stu *chassis, M3508_Motor_Struct * m
     chassis->real_vy = (-m3508_fdcan3[0].Now_Speed + m3508_fdcan3[1].Now_Speed + m3508_fdcan3[2].Now_Speed - m3508_fdcan3[3].Now_Speed) / 4.0f;
     chassis->real_vw = -(m3508_fdcan3[0].Now_Speed + m3508_fdcan3[1].Now_Speed + m3508_fdcan3[2].Now_Speed + m3508_fdcan3[3].Now_Speed) / 4.0f;
 }
-/**
- * @brief 底盘前端升降控制函数，根据输入的升降状态控制底盘前端气缸的开合
- * @param lift_front 前端升降状态，0代表收回，1代表推出
- */
-void chassis_lift_front_control(uint8_t lift_front)
-{
-    if (lift_front)
-    {
-        HAL_GPIO_WritePin(GPIOE, GPIO_PIN_5, GPIO_PIN_SET); // 打开前端气缸
-    }
-    else
-    {
-        HAL_GPIO_WritePin(GPIOE, GPIO_PIN_5, GPIO_PIN_RESET); // 关闭前端气缸
-    }
-   
-}
-/**
- * @brief 底盘后端升降控制函数，根据输入的升降状态控制底盘后端气缸的开合
- * @param lift_back 后端升降状态，0代表收回，1代表推出
- */
-void chassis_lift_back_control(uint8_t lift_back)
-{
-    if (lift_back)
-    {
-        HAL_GPIO_WritePin(GPIOD, GPIO_PIN_4, GPIO_PIN_SET); // 打开后端气缸
-    }
-    else
-    {
-        HAL_GPIO_WritePin(GPIOD, GPIO_PIN_4, GPIO_PIN_RESET); // 关闭后端气缸
-    }
-}   
-/**
- * @brief 底盘升降控制函数，根据输入的升降状态控制底盘前后端气缸的开合
- * @param lift_mode 同时升降与前后分开升降两种模式,0代表同时升降，1代表前后分开升降
- * @param lift_front_flag 前端升降状态，0代表收回，1代表推出
- * @param lift_back_flag 后端升降状态，0代表收回，1代表推出
- * @param lift_whole_flag 同时升降模式下的升降状态，0代表收回，1代表推出
- */
-void chassis_lift_control(uint8_t lift_mode, uint8_t lift_front_flag, uint8_t lift_back_flag, uint8_t lift_whole_flag)
-{
-    if (lift_mode == 0) // 同时升降模式
-    {
-        chassis_lift_front_control(lift_whole_flag);
-        chassis_lift_back_control(lift_whole_flag);
-    }
-    else // 前后分开升降模式
-    {
-        chassis_lift_front_control(lift_front_flag);
-        chassis_lift_back_control(lift_back_flag);
-    }
-}
+
+// /**
+//  * @brief 底盘前端升降控制函数，根据输入的升降状态控制底盘前端气缸的开合
+//  * @param lift_front 前端升降状态，0代表收回，1代表推出
+//  */
+// void chassis_lift_front_control(uint8_t lift_front)
+// {
+//     if (lift_front)
+//     {
+//         HAL_GPIO_WritePin(GPIOE, GPIO_PIN_5, GPIO_PIN_SET); // 打开前端气缸
+//     }
+//     else
+//     {
+//         HAL_GPIO_WritePin(GPIOE, GPIO_PIN_5, GPIO_PIN_RESET); // 关闭前端气缸
+//     }
+// }
+// /**
+//  * @brief 底盘后端升降控制函数，根据输入的升降状态控制底盘后端气缸的开合
+//  * @param lift_back 后端升降状态，0代表收回，1代表推出
+//  */
+// void chassis_lift_back_control(uint8_t lift_back)
+// {
+//     if (lift_back)
+//     {
+//         HAL_GPIO_WritePin(GPIOD, GPIO_PIN_4, GPIO_PIN_SET); // 打开后端气缸
+//     }
+//     else
+//     {
+//         HAL_GPIO_WritePin(GPIOD, GPIO_PIN_4, GPIO_PIN_RESET); // 关闭后端气缸
+//     }
+// }   
+// /**
+//  * @brief 底盘升降控制函数，根据输入的升降状态控制底盘前后端气缸的开合
+//  * @param lift_mode 同时升降与前后分开升降两种模式,0代表同时升降，1代表前后分开升降
+//  * @param lift_front_flag 前端升降状态，0代表收回，1代表推出
+//  * @param lift_back_flag 后端升降状态，0代表收回，1代表推出
+//  * @param lift_whole_flag 同时升降模式下的升降状态，0代表收回，1代表推出
+//  */
+// void chassis_lift_control(uint8_t lift_mode, uint8_t lift_front_flag, uint8_t lift_back_flag, uint8_t lift_whole_flag)
+// {
+//     if (lift_mode == 0) // 同时升降模式
+//     {
+//         chassis_lift_front_control(lift_whole_flag);
+//         chassis_lift_back_control(lift_whole_flag);
+//     }
+//     else // 前后分开升降模式
+//     {
+//         chassis_lift_front_control(lift_front_flag);
+//         chassis_lift_back_control(lift_back_flag);
+//     }
+// }
 
 
 /**
@@ -479,4 +479,167 @@ float dis_total =  sqrtf(dist_to_actual_vx * dist_to_actual_vx + dist_to_actual_
       chassis_route_traj->traj_vx.out_pos = chassis_route_traj->traj_vx.out_pos + chassis_route_traj->traj_vx.out_vel * 0.001f;       
      chassis_route_traj->traj_vy.out_pos = chassis_route_traj->traj_vy.out_pos + chassis_route_traj->traj_vy.out_vel * 0.001f;
     // if(w_integral_flag) chassis_route_traj->traj_vw.out_pos = chassis_route_traj->traj_vw.out_pos + chassis_route_traj->traj_vw.out_vel / DISTANCE_WHEEL_CENTER * 0.001f;   
+}
+
+
+/* ========================================== 以下为底盘抬升部分 ========================================== */
+/* ========================================== 以下为底盘抬升部分 ========================================== */
+/* ========================================== 以下为底盘抬升部分 ========================================== */
+
+// 底盘升降轨迹实例
+chassis_lift_traj_stu chassis_lift_traj;
+
+/**
+ * @brief 底盘升降正运动学更新函数，根据电机位置计算当前升降位置
+ * @param chassis 底盘结构体指针，包含升降位置变量
+*/
+void chassis_lift_fk_update(chassis_stu *chassis)
+{
+    // 这里的正负号和机械结构有关，可能需要根据实际情况调整
+    chassis->lift_front_current = -m8010_bus_3.motors[0].measure.Pos*CHASSIS_LIFT_RATE;
+    chassis->lift_back_current = m8010_bus_3.motors[1].measure.Pos*CHASSIS_LIFT_RATE;
+}
+
+/**
+ * @brief 底盘升降逆运动学更新函数，根据目标升降位置计算需要下发的电机位置
+ * @param chassis 底盘结构体指针，包含当前升降位置和目标升降位置变量
+*/
+void chassis_lift_ik_update(chassis_stu *chassis)
+{
+    m8010_bus_3.motors[0].target.Pos = -chassis->lift_front_target/CHASSIS_LIFT_RATE;
+    m8010_bus_3.motors[1].target.Pos = chassis->lift_back_target/CHASSIS_LIFT_RATE;
+}
+
+/**
+ * @brief 底盘升降轨迹初始化（入口处调用一次）
+ * @note 调用前需要确保电机编码器已初始化，chassis->lift_front_current/lift_back_current 已从电机读取
+ */
+void chassis_lift_traj_init(void)
+{
+    // 假设 lift_xxx_current 已经在状态更新中赋值
+    Traj_Adaptive_Init(&chassis_lift_traj.traj_front, 
+        chassis_r2.lift_front_current, chassis_r2.lift_front_current,
+        CHASSIS_LIFT_V_MAX, CHASSIS_LIFT_A_MAX, CHASSIS_LIFT_TRACKING_ERROR_THRESHOLD);
+    Traj_Path_Queue_Init(&chassis_lift_traj.traj_queue_front, CHASSIS_LIFT_QUEUE_BLEND_RADIUS);
+
+    Traj_Adaptive_Init(&chassis_lift_traj.traj_back, 
+        chassis_r2.lift_back_current, chassis_r2.lift_back_current,
+        CHASSIS_LIFT_V_MAX, CHASSIS_LIFT_A_MAX, CHASSIS_LIFT_TRACKING_ERROR_THRESHOLD);
+    Traj_Path_Queue_Init(&chassis_lift_traj.traj_queue_back, CHASSIS_LIFT_QUEUE_BLEND_RADIUS);
+
+    chassis_lift_traj.target_delay_ms = 0;
+    chassis_lift_traj.wait_counter = 0;
+}
+
+/**
+ * @brief 底盘升降直线插补多段路径调度器（核心）
+ * @note 放在 Traj_Adaptive_Update 之前调用，和 arm_linear_interpolation_update 逻辑一致
+ * @note 1ms 周期调用
+ */
+void chassis_lift_linear_interpolation_update(chassis_stu *chassis, chassis_lift_traj_stu *lift_traj, float blend_radius)
+{
+    if (blend_radius < 0.001f) blend_radius = 0.001f;
+
+    // 队列为空则不处理
+    if (lift_traj->traj_queue_front.count == 0 || lift_traj->traj_queue_back.count == 0) return;
+
+    // === 延时倒计时 ===
+    if (lift_traj->wait_counter > 0) {
+        lift_traj->wait_counter--;
+        return;
+    }
+
+    // === 两轴判敛 ===
+    float dist_act_f = fabsf(lift_traj->traj_front.target_pos - chassis->lift_front_current);
+    float dist_out_f = fabsf(lift_traj->traj_front.target_pos - lift_traj->traj_front.out_pos);
+    uint8_t ready_f = lift_traj->traj_front.is_finished || 
+        (blend_radius > 0.001f && dist_act_f <= blend_radius && dist_out_f <= blend_radius);
+
+    float dist_act_b = fabsf(lift_traj->traj_back.target_pos - chassis->lift_back_current);
+    float dist_out_b = fabsf(lift_traj->traj_back.target_pos - lift_traj->traj_back.out_pos);
+    uint8_t ready_b = lift_traj->traj_back.is_finished || 
+        (blend_radius > 0.001f && dist_act_b <= blend_radius && dist_out_b <= blend_radius);
+
+    // === 联合抛点 ===
+    if (ready_f && ready_b) {
+        float next_f = lift_traj->traj_queue_front.points[lift_traj->traj_queue_front.tail];
+        float next_b = lift_traj->traj_queue_back.points[lift_traj->traj_queue_back.tail];
+
+        uint16_t next_delay = lift_traj->delay_queue[lift_traj->traj_queue_front.tail];
+        lift_traj->target_delay_ms = next_delay;
+        lift_traj->wait_counter = next_delay;
+
+        // 出队
+        lift_traj->traj_queue_front.tail = (lift_traj->traj_queue_front.tail + 1) % TRAJ_MAX_WAYPOINTS;
+        lift_traj->traj_queue_front.count--;
+        lift_traj->traj_queue_back.tail = (lift_traj->traj_queue_back.tail + 1) % TRAJ_MAX_WAYPOINTS;
+        lift_traj->traj_queue_back.count--;
+
+        // ========== 同步到达时间速度分配 ==========
+        float delta_f = fabsf(next_f - chassis->lift_front_current);
+        float delta_b = fabsf(next_b - chassis->lift_back_current);
+        // 防除零
+        if (delta_f < 0.0001f) delta_f = 0.0001f;
+        if (delta_b < 0.0001f) delta_b = 0.0001f;
+        // 以行程较长的轴为基准，短轴按比例减速
+        float dist_max = (delta_f > delta_b) ? delta_f : delta_b;
+        float pf = delta_f / dist_max;  // ≤ 1
+        float pb = delta_b / dist_max;  // ≤ 1
+
+        // 下发前端
+        lift_traj->traj_front.v_max = CHASSIS_LIFT_V_MAX * pf;
+        lift_traj->traj_front.a_max = CHASSIS_LIFT_A_MAX * pf;
+        lift_traj->traj_front.max_tracking_error = CHASSIS_LIFT_TRACKING_ERROR_THRESHOLD * pf;
+        if (lift_traj->traj_front.v_max < 0.001f) lift_traj->traj_front.v_max = 0.001f;
+        if (lift_traj->traj_front.a_max < 0.001f) lift_traj->traj_front.a_max = 0.001f;
+        if (lift_traj->traj_front.max_tracking_error < 0.001f) lift_traj->traj_front.max_tracking_error = 0.001f;
+        lift_traj->traj_front.target_pos = next_f;
+        lift_traj->traj_front.is_finished = 0;
+        // 下发后端
+        lift_traj->traj_back.v_max = CHASSIS_LIFT_V_MAX * pb;
+        lift_traj->traj_back.a_max = CHASSIS_LIFT_A_MAX * pb;
+        lift_traj->traj_back.max_tracking_error = CHASSIS_LIFT_TRACKING_ERROR_THRESHOLD * pb;
+        if (lift_traj->traj_back.v_max < 0.001f) lift_traj->traj_back.v_max = 0.001f;
+        if (lift_traj->traj_back.a_max < 0.001f) lift_traj->traj_back.a_max = 0.001f;
+        if (lift_traj->traj_back.max_tracking_error < 0.001f) lift_traj->traj_back.max_tracking_error = 0.001f;
+        lift_traj->traj_back.target_pos = next_b;
+        lift_traj->traj_back.is_finished = 0;
+    
+    }
+
+}
+
+/**
+ * @brief 底盘升降添加路径点
+ * @param front_height 前端目标高度（m）
+ * @param back_height  后端目标高度（m）
+ * @param delay_ms     到达后延时（ms）
+ * @note 带有边界保护，限制在机械行程范围内
+ * @note 前抬升最高 0.405m，最低 -0.029m；后抬升最高 0.087m，最低 -0.440m
+ */
+void chassis_lift_queue_add_point(chassis_lift_traj_stu *lift_traj, float front_height, float back_height, uint16_t delay_ms)
+{
+    // 边界保护--参数待测试
+    if (front_height < LIFTER_FRONT_LOWEST) front_height = LIFTER_FRONT_LOWEST;// 前抬升最低 -0.029m
+    if (front_height > LIFTER_FRONT_HIGHEST) front_height = LIFTER_FRONT_HIGHEST; // 前抬升最高 0.405m
+    if (back_height < LIFTER_BACK_LOWEST) back_height = LIFTER_BACK_LOWEST;  // 后抬升最低 -0.440m
+    if (back_height > LIFTER_BACK_HIGHEST) back_height = LIFTER_BACK_HIGHEST;   // 后抬升最高 0.087m
+    if (delay_ms > 3000) delay_ms = 3000;
+
+    if (lift_traj->traj_queue_front.count >= TRAJ_MAX_WAYPOINTS) return;
+
+    lift_traj->delay_queue[lift_traj->traj_queue_front.head] = delay_ms;
+
+    Traj_Path_Queue_AddPoint(&lift_traj->traj_queue_front, front_height);
+    Traj_Path_Queue_AddPoint(&lift_traj->traj_queue_back, back_height);
+}
+
+/**
+ * @brief 底盘抬升执行函数，并下发电机位置环目各参数
+ * @warning 位置环目标位置应由 chassis_lift_ik_update 计算，该函数仅负责执行控制，确保调用顺序正确以避免数据不一致
+*/
+void chassis_lift_excute(chassis_stu *chassis, float kp, float kw)
+{
+    m8010_position_control(&m8010_bus_3.motors[0], m8010_bus_3.motors[0].target.Pos, kp, kw);
+    m8010_position_control(&m8010_bus_3.motors[1], m8010_bus_3.motors[1].target.Pos, kp, kw);
 }
