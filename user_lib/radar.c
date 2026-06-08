@@ -32,6 +32,7 @@ void Data_process_String(char *str)
             Radar_Pos.radar_yaw = temp_d;
             Radar_Pos.radar_vx = temp_e;
             Radar_Pos.radar_vy = temp_f;
+            Radar_Pos.hi14_yaw = hipnuc_raw.hi91.yaw;
           
         
 //            if(abs_float(chassis_r2.vx) <20.0f && abs_float(chassis_r2.vy)  <20.0f)
@@ -64,7 +65,7 @@ void Calculate_Chassis_Position(void)
     const float OFFSET_Y = 62.5f;   // 车体坐标系下，底盘中心相对雷达的y偏移
 
     // 角度转弧度
-    float yaw_rad = Radar_Pos.radar_yaw * 3.1415926f / 180.0f;
+    float yaw_rad = Radar_Pos.hi14_yaw * 3.1415926f / 180.0f;
     // 坐标变换（绕雷达yaw旋转）
     float dx = OFFSET_X * cosf(yaw_rad) - OFFSET_Y * sinf(yaw_rad);
     float dy = OFFSET_X * sinf(yaw_rad) + OFFSET_Y * cosf(yaw_rad);

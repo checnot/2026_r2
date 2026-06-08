@@ -5,13 +5,14 @@
 #include "filter.h"
 // #include "chassis.h"
 #include "own_lib.h"
-
+#include "hi14.h"
 #define RADAR_Filter_Threshold 80.0f //雷达数据滤波的速度阈值
 typedef struct {
 		float radar_x;
 		float radar_y;
 		float radar_z;
 		float radar_yaw;
+		float hi14_yaw;
         float radar_vx;
 		float radar_vy;
 

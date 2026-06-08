@@ -43,7 +43,7 @@
 
 #define CHASSIS_HOME_MC_X 400.0f  /* 武馆区域 底盘 HOME 位置 X (mm) */
 #define CHASSIS_HOME_MC_Y 1400.0f /* 武馆区域 底盘 HOME 位置 Y (mm) */
-#define CHASSIS_HOME_MC_W 0.0f    /* 武馆区域 底盘 HOME 位置 W (deg) */
+#define CHASSIS_HOME_MC_W -180.0f    /* 武馆区域 底盘 HOME 位置 W (deg) */
 
 // 矛头位置：最靠近坐标系原点的第一个矛头为1，依次递增
 #define CLAMP_TO_CHASSIS_CENTER_DIST 139.0f /* 夹爪中心到底盘中心的X方向距离 (mm) */
@@ -53,8 +53,9 @@
 #define CHASSIS_RACK_4_X 1190.0f /* 武馆区域 第四个矛头位置 X (mm) */
 #define CHASSIS_RACK_5_X 1390.0f /* 武馆区域 第五个矛头位置 X (mm) */
 #define CHASSIS_RACK_6_X 1590.0f /* 武馆区域 第六个矛头位置 X (mm) */
-#define CHASSIS_RACK_Y 570.0f    /* 武馆区域 取矛头位置 Y (mm) */
+#define CHASSIS_RACK_Y 560.0f    /* 武馆区域 取矛头位置 Y (mm) */
 #define CHASSIS_RACK_W -180.0f      /* 武馆区域 取矛头位置 W (deg) */
+#define RACK_STABLE_TIMES_CONDITION 200 /*取矛头时到达目标位置次数，保证稳定抓取*/
 // 与R1的对接位置（暂定该位置，后续可重设）
 #define CHASSIS_DOCKING_X 1200.0f /* 武馆区域 对接位置 X (mm) */
 #define CHASSIS_DOCKING_Y 1400.0f /* 武馆区域 对接位置 Y (mm) */
@@ -113,24 +114,47 @@ typedef enum
     PICK_FAILED
 } ArmPickState;
 
+/*武馆任务状态机*/
 typedef enum
-{
-    CHASSIS_ROUTE_IDLE,
-    CHASSIS_ROUTE_1,
-    CHASSIS_ROUTE_2,
-    CHASSIS_ROUTE_3,
-    CHASSIS_FAILED
+{   
+    MC_IDLE,
+    NIVEGATE_TO_RACK,// 从起点导航到第3个矛架位置
+    RACK_PICK,       // 在第3个矛架位置执行拾取动作
+    RACK_FAILED_1,   // 第3个矛架位置拾取失败的第一次重试   
+    RACK_FAILED_2,   // 第3个矛架位置拾取失败的第二次重试   
+    RACK_FAILED_3,   // 第3个矛架位置拾取失败的第三次重试   
+    RACK_FAILED_4,   // 第3个矛架位置拾取失败的第四次重试   
+    RACK_FAILED_5,   // 第3个矛架位置拾取失败的第五次重试   
+    DOCKING,
+    WAIT_DOCKING_COMPLETE, // 等待对接完成
+    WAIT_MF_INSTRUCTION,   // 等待进入梅林指令
+} R2_MC_MISSION_STATE;    
 
-} ChassisRouteState;
+typedef struct
+{
+    uint8_t req_pick;    /* 是否请求执行拾取动作的标志位 */
+    uint8_t retry_count; /* 已经执行的重试次数 */
+    uint8_t seq_mem_idx; 
+    uint8_t seq_mem_idx_combined; 
+    uint8_t R2_MC_timer_ms ; //以 BT tick (10ms为周期) 计数，或在 Tick1ms 中累加 
+    uint8_t RACK_POS_STABLE_TIMES; // 矛架位置稳定的计数器，达到一定次数后认为矛架位置稳定，准备执行夹取
+    uint8_t RACK_PICK_SUCCESS ; //是否成功检夹取矛头的标志，由微动开关触发
+    uint8_t DOCKING_SUCCESS ; //是否成功完成对接的标志，由R1发送指令控制 
+    uint8_t MF_ENTRY_INSTRUCTION  ; //是否收到R1发送的进入MF指令的标志，由R1发送指令控制，收到后进入MF任务流程 
+    uint8_t MF_MISSION_Req ; //MF任务执行标志，收到进入MF指令后置1
+    R2_MC_MISSION_STATE mc_mission_state; /* 武馆任务状态机当前状态 */
+}MC_Blackboard; 
+
 /* ------------ 下层 FSM 类型与状态 --------------- */
 
 void BT_Customized_Init_arm_test(void);
 void BT_RequestSimplePick(void);
 void BT_Customized_Tick1ms_arm_test(void);
 
-void BT_Customized_Tick1ms_chassis_test(void);
+void BT_Start_R2_MC_Mission(void);
+void BT_Init_R2_MC_Mission(void);   
+void BT_Customized_Tick1ms_R2_MC(void);
 
-void BT_Start_Combined_Task(void);
 void BT_Init_Combined_Task(void);
 void BT_Customized_Tick1ms_Combined(void);
 #endif // __BT_CUSTOMIZED_

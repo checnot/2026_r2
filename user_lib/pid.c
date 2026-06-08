@@ -12,7 +12,7 @@ float PID_Calculate(PID_Struct *PID, float Measure, float Target, float max_outp
 
 	PID->P_out = PID->Kp * PID->Error;
 	PID->I_out += PID->Ki * ((PID->Error + PID->LastError)/2);//梯形积分
-	PID->I_out = PID->I_out > (800 ? 800 : PID->I_out);//积分限幅
+	PID->I_out = PID->I_out > 800 ? 800 : PID->I_out;//积分限幅
 	PID->D_out = PID->Kd * (PID->LastMeasure - PID->Measure);//微分项使用测量值的变化率，减少微分环节对目标值突变的敏感性
 	PID->Output = PID->P_out + PID->I_out + PID->D_out;
 

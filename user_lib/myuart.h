@@ -27,9 +27,9 @@
 // extern DMA_HandleTypeDef hdma_uart8_tx;
 // extern DMA_HandleTypeDef hdma_uart8_rx;
 
-// //引入uart6供 hi14
-// extern DMA_HandleTypeDef hdma_usart6_tx;
-// extern DMA_HandleTypeDef hdma_usart6_rx;
+// //引入uart10供 hi14
+extern DMA_HandleTypeDef hdma_usart10_tx;
+extern DMA_HandleTypeDef hdma_usart10_rx;
 
 //引入uart5供 radar
 extern DMA_HandleTypeDef hdma_uart5_tx;

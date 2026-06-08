@@ -123,6 +123,8 @@ int main(void)
   MX_UART4_Init();
   MX_USART3_UART_Init();
   MX_USART6_UART_Init();
+  MX_USART10_UART_Init();
+  MX_UART7_Init();
   /* USER CODE BEGIN 2 */
   
 //FDCAN初始化，配置过滤器并开启CAN
@@ -144,10 +146,10 @@ int main(void)
   // memset(ht10a_buffer, 0, sizeof(ht10a_buffer));
   // HAL_UARTEx_ReceiveToIdle_DMA(&huart6, ht10a_buffer, sizeof(ht10a_buffer));
   // __HAL_DMA_DISABLE_IT(&hdma_usart6_rx, DMA_IT_HT);
-//uart6-hi14
-  // memset(dma_rx_buf, 0, sizeof(dma_rx_buf));
-  // HAL_UARTEx_ReceiveToIdle_DMA(&huart6, dma_rx_buf, sizeof(dma_rx_buf));
-  // __HAL_DMA_DISABLE_IT(&hdma_usart6_rx, DMA_IT_HT);
+   // uart10-hi14
+      memset(dma_rx_buf, 0, sizeof(dma_rx_buf));
+      HAL_UARTEx_ReceiveToIdle_DMA(&huart10, dma_rx_buf, sizeof(dma_rx_buf));
+      __HAL_DMA_DISABLE_IT(&hdma_usart10_rx, DMA_IT_HT);
 
 //uart5-radar
   memset(Rec_Data, 0, sizeof(Rec_Data));
@@ -348,12 +350,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 //TIM7定时发送数据控制m3508电机，1ms会发送一次
   if(htim->Instance == TIM7)
   {
-    if(m3508_send_flag == 1 )
-    {
+    
       FDCAN_Send_M3508(&hfdcan1, m3508_fdcan1);
       FDCAN_Send_M3508(&hfdcan2, m3508_fdcan2);
       FDCAN_Send_M3508(&hfdcan3, m3508_fdcan3);
-    }
+    
   }
 	taskEXIT_CRITICAL_FROM_ISR(status_value);// 退出临界段
 
