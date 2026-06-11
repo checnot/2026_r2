@@ -89,6 +89,7 @@ osThreadId clamp_taskHandle;
 osThreadId cmd_taskHandle;
 osThreadId m8010_taskHandle;
 osSemaphoreId bisem_m8010Handle;
+osStaticSemaphoreDef_t bisem_m8010ControlBlock;
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -136,7 +137,7 @@ void MX_FREERTOS_Init(void) {
 
   /* Create the semaphores(s) */
   /* definition and creation of bisem_m8010 */
-  osSemaphoreDef(bisem_m8010);
+  osSemaphoreStaticDef(bisem_m8010, &bisem_m8010ControlBlock);
   bisem_m8010Handle = osSemaphoreCreate(osSemaphore(bisem_m8010), 1);
 
   /* USER CODE BEGIN RTOS_SEMAPHORES */

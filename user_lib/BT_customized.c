@@ -790,13 +790,13 @@ uint8_t mf_task_request_flag = 0;           /* MF 任务请求标志 (1=有请�
 uint8_t mf_phase_flag = 0;                  /* 规划阶段标记: 0=未规划, 1=Phase1完成, 2=全部规划完成 */
 uint8_t mf_picked_phase1 = 0;               /* Phase1 已拾取 R2KFS 数量 */
 
-/*
- * 🟡【需实测】将 MF 中的方向枚举转换为底盘的世界坐标朝向角
+/**
+ * @brief 将 MF 方向转对应的底盘朝向角度(yaw)
  */
 static float mf_dir_to_yaw(MF_Dir dir)
 {
     switch (dir) {
-        case MF_DIR_NORTH: return MF_YAW_NORTH;  /* 🟡 需实测确认角度值 */
+        case MF_DIR_NORTH: return MF_YAW_NORTH;
         case MF_DIR_EAST:  return MF_YAW_EAST;
         case MF_DIR_SOUTH: return MF_YAW_SOUTH;
         case MF_DIR_WEST:  return MF_YAW_WEST;
@@ -804,33 +804,88 @@ static float mf_dir_to_yaw(MF_Dir dir)
     }
 }
 
-/*
- * 🟡【需实测】将 MF 栅格坐标 (row, col) 转换为世界坐标系 (x, y)
- * @note 坐标原点 MF_ORIGIN_WORLD_X/Y 对应 row0,col0
+/**
+ * @brief MF 栅格中心坐标 (row, col) 转换为世界坐标系 (x, y)
+ * @note 坐标原点 MF_ORIGIN_WORLD_X/Y 对应 row0,col0 的中心
  * @note row 向北递增, col 向东递增
  */
 static void mf_cell_to_world(uint8_t row, uint8_t col, float* out_x, float* out_y)
 {
-    /* 🟡 需实测确认：row 增加对应 Y 增加还是减少 */
-    *out_x = MF_ORIGIN_WORLD_X + (float)col * MF_CELL_SIZE_MM;
-    *out_y = MF_ORIGIN_WORLD_Y + (float)row * MF_CELL_SIZE_MM;
+    *out_x = MF_ORIGIN_WORLD_X + (float)row * MF_CELL_SIZE_MM;
+    *out_y = MF_ORIGIN_WORLD_Y - (float)col * MF_CELL_SIZE_MM;
 }
 
-/*
- * 🟡【需实测】获取当前 R2 所在格的理论高度 (mm)
- * @note 用于底盘升降控制——知道目标格的高度才能决定升/降多少
+// /*
+//  * 🟡【需实测】获取当前 R2 所在格的理论高度 (mm)
+//  * @note 用于底盘升降控制——知道目标格的高度才能决定升/降多少
+//  */
+// static uint16_t mf_get_current_height(void)
+// {
+//     /*
+//      * 🟡【需实测】这里需要返回 R2 当前的底盘高度。
+//      * 方案1：从 MF 规划器内部追踪（需要在 MF_Planner 中加一个 current_row/col 字段）
+//      * 方案2：用底盘升降的实际编码器位置反算
+//      * 方案3（推荐）：在 MF_Planner 中新增 MFPlanner_GetCurrentHeight() 函数
+//      *
+//      * 当前返回 0 作为占位，需替换为实际实现。
+//      */
+//     return 0;  /* 🟡 占位，需实测替换 */
+// }
+
+/**
+ * @brief 从 KFS 坐标和拾取方向，反推 R2 应站立的世界坐标
+ * @param kfs_row    KFS 所在行
+ * @param kfs_col    KFS 所在列
+ * @param pick_dir   拾取方向（R2 面对 KFS 的方向）
+ * @param out_x      输出：R2 应站立的世界 X
+ * @param out_y      输出：R2 应站立的世界 Y
+ * @note R2 站在 KFS 的相邻格（反方向一格），然后向 KFS 偏移 500mm
+ * @note 坐标系：北 = +X, 西 = +Y
  */
-static uint16_t mf_get_current_height(void)
+static void mf_pick_stand_position(uint8_t kfs_row, uint8_t kfs_col,
+                                    MF_Dir pick_dir,
+                                    float* out_x, float* out_y)
 {
     /*
-     * 🟡【需实测】这里需要返回 R2 当前的底盘高度。
-     * 方案1：从 MF 规划器内部追踪（需要在 MF_Planner 中加一个 current_row/col 字段）
-     * 方案2：用底盘升降的实际编码器位置反算
-     * 方案3（推荐）：在 MF_Planner 中新增 MFPlanner_GetCurrentHeight() 函数
-     *
-     * 当前返回 0 作为占位，需替换为实际实现。
+     * 第一步：确定 R2 站在哪个格子
+     * 方向 N → R2 在南侧 (row-1)
+     * 方向 S → R2 在北侧 (row+1)
+     * 方向 E → R2 在西侧 (col+1, 因为西=+Y)
+     * 方向 W → R2 在东侧 (col-1)
      */
-    return 0;  /* 🟡 占位，需实测替换 */
+    int8_t stand_r = (int8_t)kfs_row;
+    int8_t stand_c = (int8_t)kfs_col;
+
+    switch (pick_dir) {
+        case MF_DIR_NORTH: stand_r -= 1; break;  /* 面朝北，R2 在南边 */
+        case MF_DIR_SOUTH: stand_r += 1; break;  /* 面朝南，R2 在北边 */
+        case MF_DIR_EAST:  stand_c += 1; break;  /* 面朝东，R2 在西边(西=+Y) */
+        case MF_DIR_WEST:  stand_c -= 1; break;  /* 面朝西，R2 在东边 */
+        default: break;
+    }
+
+    /* 第二步：计算站立格中心的世界坐标 */
+    float center_x, center_y;
+    mf_cell_to_world((uint8_t)stand_r, (uint8_t)stand_c, &center_x, &center_y);
+
+    /*
+     * 第三步：从格中心向 KFS 方向偏移 200mm
+     * MF_CELL_SIZE_MM 是格边长（如 1200mm）
+     * 格中心到格边界的距离 = MF_CELL_SIZE_MM / 2
+     * 再向 KFS 靠近，使底盘(600*600)前缘距离台阶边界 100mm
+     *
+     *
+     * 🟡【需实测】200mm 这个值需要根据底盘实际尺寸调整
+     */
+    float offset = 200.0f; /* 站立点距离格中心的偏移量，需实测调整 */
+
+    switch (pick_dir) {
+        case MF_DIR_NORTH: *out_x = center_x + offset; *out_y = center_y; break;
+        case MF_DIR_SOUTH: *out_x = center_x - offset; *out_y = center_y; break;
+        case MF_DIR_EAST:  *out_x = center_x; *out_y = center_y - offset; break;
+        case MF_DIR_WEST:  *out_x = center_x; *out_y = center_y + offset; break;
+        default: *out_x = center_x; *out_y = center_y; break;
+    }
 }
 
 /* ================= 2. 条件节点 ================= */
@@ -877,7 +932,7 @@ static BT_Status Act_MF_Init_And_Plan(void)
      * 🟡【需确认】r2kfs_all_need 的值应根据实际视觉识别结果动态确定。
      * 当前硬编码为 4（与 ScanRows 中 real_cell 的 R2KFS 总数一致）。
      */
-    uint8_t r2kfs_all_need = 4;
+    uint8_t r2kfs_all_need = 3; /* 🟡 占位，需根据实际视觉结果替换 */
     MFPlanner_BuildPhase2(&mf_planner_ctx, r2kfs_all_need - mf_picked_phase1);
     mf_phase_flag = 2;
 
@@ -898,40 +953,45 @@ static BT_Status Act_MF_Init_And_Plan(void)
  */
 static BT_Status Act_MF_Execute_Action(void)
 {
+
     MF_Action act;
     if (!MFPlanner_PeekAction(&mf_planner_ctx, &act)) {
         /* 没有更多动作了 */
         return BT_SUCCESS;
     }
 
+    // 根据当前动作类型和执行状态，执行对应的底层指令，并推进状态机
     switch (mf_exec_state) {
 
     /* ============================================================ */
     /* IDLE 状态：读取当前动作，下发对应的底层指令                  */
     /* ============================================================ */
     case MF_EXEC_IDLE:
+
+        /* ======================== 根据动作类型下发指令 ======================== */
         switch (act.type) {
 
         /* ---------- 平移 ---------- */
         case MF_ACT_MOVE_FLAT: {
             /*
-             * 🟡【需实测】将 (row,col) + 方向 转为世界坐标，下发给底盘
-             * 你需要做的事：
-             *   1. 调用 mf_cell_to_world(act.row, act.col, &tx, &ty) 得到目标坐标
-             *   2. 调用 mf_dir_to_yaw(act.dir) 得到目标朝向
-             *   3. 调用 chassis_route_point_add(&chassis_route_traj, tx, ty, yaw, 0)
-             *      下发给底盘轨迹队列
-             *
-             * 下层 task 的标志位/动作：
-             *   - 底盘 task (entry_chassis) 会轮询 chassis_route_traj 队列自动执行
-             *   - 无需额外的标志位，chassis_route_point_add 即可触发
-             */
+                * 🟡【需实测】将 (row,col) + 方向 转为世界坐标，下发给底盘
+                * 你需要做的事：
+                *   1. 调用 mf_cell_to_world(act.row, act.col, &tx, &ty) 得到目标坐标
+                *   2. 调用 mf_dir_to_yaw(act.dir) 得到目标朝向
+                *   3. 调用 chassis_route_point_add(&chassis_route_traj, tx, ty, yaw, 0)
+                *      下发给底盘轨迹队列
+                *
+                * 下层 task 的标志位/动作：
+                *   - 底盘 task (entry_chassis) 会轮询 chassis_route_traj 队列自动执行
+                *   - 无需额外的标志位，chassis_route_point_add 即可触发
+                */
             float tx, ty;
             mf_cell_to_world(act.row, act.col, &tx, &ty);
-            float yaw = mf_dir_to_yaw(act.dir);
+            // float yaw;
+            // mf_dir_to_yaw(act.dir);
 
             taskENTER_CRITICAL();
-            chassis_route_point_add(&chassis_route_traj, tx, ty, yaw, 0);
+            chassis_route_point_add(&chassis_route_traj, tx, ty, Radar_Pos.reliable_yaw, 0);
             taskEXIT_CRITICAL();
 
             mf_exec_state = MF_EXEC_MOVE_FLAT;
@@ -942,23 +1002,24 @@ static BT_Status Act_MF_Execute_Action(void)
         /* ---------- 上台阶 ---------- */
         case MF_ACT_STEP_UP: {
             /*
-             * 🟡【需实测】底盘上台阶动作序列
-             * 你需要做的事（示例流程，需根据实际机构调整）：
-             *   1. 升前腿 → chassis_r2.lift_front = 1
-             *   2. 底盘前进一格（同 MOVE_FLAT）
-             *   3. 升后腿 → chassis_r2.lift_back = 1
-             *
-             * 下层 task 的标志位/动作：
-             *   - chassis_r2.lift_front / chassis_r2.lift_back
-             *     在 entry_chassis 中由 chassis_lift_front_control / chassis_lift_back_control 消费
-             *   - 可能需要一个 step_up_state 子状态机来管理台阶时序
-             *
-             * 🟡【建议】新建一个独立的台阶 FSM，类似 Act_Chassis_Route_FSM
-             *    这里先用占位代码
-             */
+                * 🟡【需实测】底盘上台阶动作序列
+                * 你需要做的事（示例流程，需根据实际机构调整）：
+                *   1. 升前腿 → chassis_r2.lift_front = 1
+                *   2. 底盘前进一格（同 MOVE_FLAT）
+                *   3. 升后腿 → chassis_r2.lift_back = 1
+                *
+                * 下层 task 的标志位/动作：
+                *   - chassis_r2.lift_front / chassis_r2.lift_back
+                *     在 entry_chassis 中由 chassis_lift_front_control / chassis_lift_back_control 消费
+                *   - 可能需要一个 step_up_state 子状态机来管理台阶时序
+                *
+                * 🟡【建议】新建一个独立的台阶 FSM，类似 Act_Chassis_Route_FSM
+                *    这里先用占位代码
+                */
             float tx, ty;
             mf_cell_to_world(act.row, act.col, &tx, &ty);
-            float yaw = mf_dir_to_yaw(act.dir);
+            float yaw;
+            yaw = mf_dir_to_yaw(act.dir);
 
             /* 🟡 占位：先只做平移，台阶升降逻辑需要你实测后填充 */
             taskENTER_CRITICAL();
@@ -966,9 +1027,9 @@ static BT_Status Act_MF_Execute_Action(void)
             taskEXIT_CRITICAL();
 
             /*
-             * 🟡 如果你有现成的台阶动作函数，替换上面的占位代码：
-             * mf_step_up_start(act.dir);  // 启动上台阶序列
-             */
+                * 🟡 如果你有现成的台阶动作函数，替换上面的占位代码：
+                * mf_step_up_start(act.dir);  // 启动上台阶序列
+                */
 
             mf_exec_state = MF_EXEC_STEP_UP;
             mf_exec_timer_ms = 0;
@@ -978,12 +1039,13 @@ static BT_Status Act_MF_Execute_Action(void)
         /* ---------- 下台阶 ---------- */
         case MF_ACT_STEP_DOWN: {
             /*
-             * 🟡【需实测】底盘下台阶动作序列
-             * 与 STEP_UP 类似但顺序相反（先降前腿→前进→降后腿）
-             */
+                * 🟡【需实测】底盘下台阶动作序列
+                * 与 STEP_UP 类似但顺序相反（先降前腿→前进→降后腿）
+                */
             float tx, ty;
             mf_cell_to_world(act.row, act.col, &tx, &ty);
-            float yaw = mf_dir_to_yaw(act.dir);
+            float yaw;
+            yaw = mf_dir_to_yaw(act.dir);
 
             /* 🟡 占位：先只做平移 */
             taskENTER_CRITICAL();
@@ -998,49 +1060,63 @@ static BT_Status Act_MF_Execute_Action(void)
         /* ---------- 拾取 R2KFS ---------- */
         case MF_ACT_PICK_R2: {
             /*
-             * 🟡【需实测】机械臂拾取动作
-             * 你需要做的事：
-             *   1. 根据 act.row/act.col 确定 KFS 的世界坐标
-             *   2. 根据 act.height_pick_diff 确定机械臂的拾取高度
-             *      - height_pick_diff = +200: KFS 在 R2 上方 200mm
-             *      - height_pick_diff = 0:   KFS 与 R2 同高
-             *      - height_pick_diff = -200: KFS 在 R2 下方 200mm
-             *   3. 根据 act.dir 确定 R2 面朝方向（机械臂从哪个方向伸过去）
-             *   4. 调用 arm_queue_add_point 向机械臂轨迹队列添加拾取路径点
-             *
-             * 下层 task 的标志位/动作：
-             *   - arm_queue_add_point(&arm_traj, x, y, theta, time, suck)
-             *     在 entry_robotic_arm 中自动消费
-             *   - ARM_SUCK_ON 开启吸盘
-             *   - ARM_SUCK_OFF 关闭吸盘
-             *
-             * 🟡 你需要预先测试好不同高度差下机械臂的拾取坐标，
-             *    然后在此处根据 height_pick_diff 查表或计算。
-             */
-            float kfs_x, kfs_y;
-            mf_cell_to_world(act.row, act.col, &kfs_x, &kfs_y);
+                * 🟡【需实测】机械臂拾取动作
+                * 你需要做的事：
+                *   1. 根据 act.row/act.col 确定 KFS 的世界坐标
+                *   2. 根据 act.height_pick_diff 确定机械臂的拾取高度
+                *      - height_pick_diff = +200: KFS 在 R2 上方 200mm
+                *      - height_pick_diff = 0:   KFS 与 R2 同高
+                *      - height_pick_diff = -200: KFS 在 R2 下方 200mm
+                *   3. 根据 act.dir 确定 R2 面朝方向（机械臂从哪个方向伸过去）
+                *   4. 调用 arm_queue_add_point 向机械臂轨迹队列添加拾取路径点
+                *
+                * 下层 task 的标志位/动作：
+                *   - arm_queue_add_point(&arm_traj, x, y, theta, time, suck)
+                *     在 entry_robotic_arm 中自动消费
+                *   - ARM_SUCK_ON 开启吸盘
+                *   - ARM_SUCK_OFF 关闭吸盘
+                *
+                * 🟡 你需要预先测试好不同高度差下机械臂的拾取坐标，
+                *    然后在此处根据 height_pick_diff 查表或计算。
+                */
+            
+            /* 计算 R2 应该站立的世界坐标 */
+            float stand_x, stand_y;
+            mf_pick_stand_position(act.row, act.col, act.dir, &stand_x, &stand_y);
 
+            /* 目标朝向 = 拾取方向对应的 yaw */
+            float pick_yaw;
+            pick_yaw = mf_dir_to_yaw(act.dir);
+            
             /*
-             * 🟡 占位：需要你根据实际机械臂工作空间填入正确的坐标
-             * 下面只是示意结构，坐标值是随意写的
-             */
-            int16_t hd = act.height_pick_diff;
-            (void)hd;  /* 🟡 占位：用 hd 来决定机械臂的 Z 轴目标 */
-
+                * 🟡 占位：需要你根据实际机械臂工作空间填入正确的坐标
+                */
             taskENTER_CRITICAL();
-            /* 🟡 示意：向机械臂添加拾取路径点（坐标需实测替换！） */
-            arm_queue_add_point(&arm_traj,
-                                kfs_x * 0.001f,   /* 🟡 假设需要米制单位 */
-                                kfs_y * 0.001f,
-                                arm.theta_target[0],
-                                1000,              /* 🟡 停留时间需实测 */
-                                ARM_SUCK_ON);
-            /* 拾取后存储 */
-            arm_queue_add_point(&arm_traj,
-                                ARM_STORE_X, ARM_STORE_Y,
-                                arm.theta_target[0],
-                                0,
-                                ARM_SUCK_ON);
+            //让底盘转到位预期的方向
+            chassis_route_point_add(&chassis_route_traj, stand_x, stand_y, pick_yaw, 0);
+
+            if(act.height_pick_diff == -200)    // KFS 在 R2 下方 200mm
+            {
+                arm_queue_add_point(&arm_traj, PICK_N200_APR_X_1, PICK_N200_APR_Y_1, 0, 0, ARM_SUCK_OFF);   // 预抓取点1
+                arm_queue_add_point(&arm_traj, PICK_N200_APR_X_2, PICK_N200_APR_Y_2, 0, 0, ARM_SUCK_OFF);   // 预抓取点2
+                arm_queue_add_point(&arm_traj, PICK_N200_TARGET_X, PICK_N200_TARGET_Y, 0, 0, ARM_SUCK_ON);  // 最终抓取点
+                arm_queue_add_point(&arm_traj, PICK_HANDS_UP_X, PICK_HANDS_UP_Y, 0, 2000, ARM_SUCK_ON);                // 此处应换成放置点坐标，用待机位置做占位
+            }
+            if(act.height_pick_diff == 200)     // KFS 在 R2 上方 200mm
+            {
+                arm_queue_add_point(&arm_traj, PICK_P200_APR_X_1, PICK_P200_APR_Y_1, 0, 0, ARM_SUCK_OFF);   // 预抓取点1
+                arm_queue_add_point(&arm_traj, PICK_P200_APR_X_2, PICK_P200_APR_Y_2, 0, 0, ARM_SUCK_OFF);   // 预抓取点2
+                arm_queue_add_point(&arm_traj, PICK_P200_TARGET_X, PICK_P200_TARGET_Y, 0, 0, ARM_SUCK_ON);  // 最终抓取点
+                arm_queue_add_point(&arm_traj, PICK_HANDS_UP_X, PICK_HANDS_UP_Y, 0, 2000, ARM_SUCK_ON);                // 此处应换成放置点坐标，用待机位置做占位
+            }
+            if(act.height_pick_diff == 400)    // KFS 在 R2 上方 400mm
+            {
+                arm_queue_add_point(&arm_traj, PICK_P400_APR_X_1, PICK_P400_APR_Y_1, 0, 0, ARM_SUCK_OFF);   // 预抓取点1
+                arm_queue_add_point(&arm_traj, PICK_P400_APR_X_2, PICK_P400_APR_Y_2, 0, 0, ARM_SUCK_OFF);   // 预抓取点2
+                arm_queue_add_point(&arm_traj, PICK_P400_TARGET_X, PICK_P400_TARGET_Y, 0, 0, ARM_SUCK_ON);  // 最终抓取点
+                arm_queue_add_point(&arm_traj, PICK_HANDS_UP_X, PICK_HANDS_UP_Y, 0, 2000, ARM_SUCK_ON);                // 此处应换成放置点坐标，用待机位置做占位
+            }
+
             taskEXIT_CRITICAL();
 
             mf_exec_state = MF_EXEC_PICK_R2;
@@ -1051,20 +1127,20 @@ static BT_Status Act_MF_Execute_Action(void)
         /* ---------- 等待 R1 清除 R1KFS ---------- */
         case MF_ACT_WAIT_R1: {
             /*
-             * 🟡【需实测/需通信】等待 R1 机器人取走 R1KFS
-             * 你需要做的事：
-             *   1. 通过通信模块（如裁判系统/自定义无线）接收 R1 的完成信号
-             *   2. 收到信号后调用 MFPlanner_NotifyR1KfsRemoved 更新地图
-             *   3. 如果超时，可以强行通过（假设 R1 已完成但通信丢失）
-             *
-             * 当前实现：轮询 cell 状态（由外部 NotifyR1KfsRemoved 更新）
-             * 调试阶段：超时后自动跳过
-             *
-             * 下层 task 的标志位/动作：
-             *   - 需要一个全局标志位，如 r1_clear_signal
-             *   - 由通信 task 在收到 R1 信号后置位
-             *   - 本节点检查该标志位
-             */
+                * 🟡【需实测/需通信】等待 R1 机器人取走 R1KFS
+                * 你需要做的事：
+                *   1. 通过通信模块（如裁判系统/自定义无线）接收 R1 的完成信号
+                *   2. 收到信号后调用 MFPlanner_NotifyR1KfsRemoved 更新地图
+                *   3. 如果超时，可以强行通过（假设 R1 已完成但通信丢失）
+                *
+                * 当前实现：轮询 cell 状态（由外部 NotifyR1KfsRemoved 更新）
+                * 调试阶段：超时后自动跳过
+                *
+                * 下层 task 的标志位/动作：
+                *   - 需要一个全局标志位，如 r1_clear_signal
+                *   - 由通信 task 在收到 R1 信号后置位
+                *   - 本节点检查该标志位
+                */
             mf_exec_state = MF_EXEC_WAIT_R1;
             mf_exec_timer_ms = 0;
             break;
@@ -1073,13 +1149,13 @@ static BT_Status Act_MF_Execute_Action(void)
         /* ---------- 扫描 ---------- */
         case MF_ACT_SCAN: {
             /*
-             * 🟡【需替换】触发相机扫描
-             * 调试阶段：直接调用 ScanRows 用硬编码地图填充
-             * 实际比赛：
-             *   1. 触发相机拍照
-             *   2. 等待视觉模块返回识别结果
-             *   3. 调用 MFPlanner_ScanRows 或逐个 cell 更新
-             */
+                * 🟡【需替换】触发相机扫描
+                * 调试阶段：直接调用 ScanRows 用硬编码地图填充
+                * 实际比赛：
+                *   1. 触发相机拍照
+                *   2. 等待视觉模块返回识别结果
+                *   3. 调用 MFPlanner_ScanRows 或逐个 cell 更新
+                */
             if (act.row == 0 && act.col == 1) {
                 /* 第一次扫描：在 row0,col1 面朝北，揭示 row1~row3 */
                 MFPlanner_ScanRows(&mf_planner_ctx, 1, 3);
@@ -1088,12 +1164,12 @@ static BT_Status Act_MF_Execute_Action(void)
                 MFPlanner_ScanRows(&mf_planner_ctx, 2, 4);
             }
             /* 
-             * 🟡 如果视觉模块是异步的（需要等待），这里需要改为：
-             *   1. 触发扫描 → 进入 MF_EXEC_SCAN 状态
-             *   2. 轮询视觉完成标志
-             *   3. 完成后读取数据 → 更新 cell
-             * 当前为调试简化：扫描瞬间完成
-             */
+                * 🟡 如果视觉模块是异步的（需要等待），这里需要改为：
+                *   1. 触发扫描 → 进入 MF_EXEC_SCAN 状态
+                *   2. 轮询视觉完成标志
+                *   3. 完成后读取数据 → 更新 cell
+                * 当前为调试简化：扫描瞬间完成
+                */
 
             /* 扫描完成，推进到下一个动作 */
             MFPlanner_AdvanceAction(&mf_planner_ctx);
@@ -1111,10 +1187,10 @@ static BT_Status Act_MF_Execute_Action(void)
     /* ============================================================ */
     case MF_EXEC_MOVE_FLAT:
         /*
-         * 🟡【需实测】底盘到达判断条件
-         * 使用 chassis_if_arrived 或 chassis_route_traj 的 is_finished 标志
-         * 需要与你的底盘路径执行逻辑（entry_chassis）对齐
-         */
+            * 🟡【需实测】底盘到达判断条件
+            * 使用 chassis_if_arrived 或 chassis_route_traj 的 is_finished 标志
+            * 需要与你的底盘路径执行逻辑（entry_chassis）对齐
+            */
         if (chassis_route_traj.traj_vx.is_finished &&
             chassis_route_traj.traj_vy.is_finished &&
             chassis_route_traj.traj_vw.is_finished) {
@@ -1131,10 +1207,10 @@ static BT_Status Act_MF_Execute_Action(void)
     /* ============================================================ */
     case MF_EXEC_STEP_UP:
         /*
-         * 🟡【需实测】台阶完成判断
-         * 如果你有独立的台阶 FSM，检查其完成标志
-         * 如果台阶用底盘路径模拟，则与 MOVE_FLAT 一样检查 is_finished
-         */
+            * 🟡【需实测】台阶完成判断
+            * 如果你有独立的台阶 FSM，检查其完成标志
+            * 如果台阶用底盘路径模拟，则与 MOVE_FLAT 一样检查 is_finished
+            */
         if (chassis_route_traj.traj_vx.is_finished &&
             chassis_route_traj.traj_vy.is_finished &&
             chassis_route_traj.traj_vw.is_finished) {
@@ -1150,8 +1226,8 @@ static BT_Status Act_MF_Execute_Action(void)
     /* ============================================================ */
     case MF_EXEC_STEP_DOWN:
         /*
-         * 🟡【需实测】同 STEP_UP
-         */
+            * 🟡【需实测】同 STEP_UP
+            */
         if (chassis_route_traj.traj_vx.is_finished &&
             chassis_route_traj.traj_vy.is_finished &&
             chassis_route_traj.traj_vw.is_finished) {
@@ -1167,16 +1243,15 @@ static BT_Status Act_MF_Execute_Action(void)
     /* ============================================================ */
     case MF_EXEC_PICK_R2:
         /*
-         * 🟡【需实测】机械臂拾取完成判断
-         * 使用 arm_if_arrived_xy 或检查 arm_traj 队列为空
-         * 当前用存储点 (ARM_STORE_X, ARM_STORE_Y) 作为完成标志
-         */
-        if (arm_if_arrived_xy(ARM_STORE_X, ARM_STORE_Y)) {
+            * 🟡【需实测】机械臂拾取完成判断
+            * 使用 arm_if_arrived_xy
+            * 原因为：可以在机械臂到达存块位置后，让机械臂继续存块，但是行为树先行推进，
+            * 这样可以节省时间（不必等机械臂完全收回再走下一步），也让流程更顺畅。
+            */
+        if (arm_if_arrived_xy(PICK_HANDS_UP_X, PICK_HANDS_UP_Y)) {
             /* 拾取完成，关闭吸盘 */
             taskENTER_CRITICAL();
-            arm_queue_add_point(&arm_traj,
-                                ARM_HOME_X, ARM_HOME_Y,
-                                arm.theta_target[0], 0, ARM_SUCK_OFF);
+            arm_queue_add_point(&arm_traj,PICK_REST_X, PICK_REST_Y, 0, 0, ARM_SUCK_OFF);
             taskEXIT_CRITICAL();
 
             MFPlanner_AdvanceAction(&mf_planner_ctx);
@@ -1191,15 +1266,15 @@ static BT_Status Act_MF_Execute_Action(void)
     /* ============================================================ */
     case MF_EXEC_WAIT_R1:
         /*
-         * 🟡【需实测/需通信】R1 完成信号判断
-         * 方案1（当前）：检查 cell 是否已被 NotifyR1KfsRemoved 置为 EMPTY
-         * 方案2（推荐）：检查通信模块的 r1_clear_signal 标志位
-         *
-         * 下层 task 的标志位/动作：
-         *   - 🟡【需新增】一个全局变量：uint8_t r1_clear_signal = 0;
-         *   - 由通信 task（如裁判系统回调）在收到 R1 清除信号后置 1
-         *   - 此处检查该标志位
-         */
+            * 🟡【需实测/需通信】R1 完成信号判断
+            * 方案1（当前）：检查 cell 是否已被 NotifyR1KfsRemoved 置为 EMPTY
+            * 方案2（推荐）：检查通信模块的 r1_clear_signal 标志位
+            *
+            * 下层 task 的标志位/动作：
+            *   - 🟡【需新增】一个全局变量：uint8_t r1_clear_signal = 0;
+            *   - 由通信 task（如裁判系统回调）在收到 R1 清除信号后置 1
+            *   - 此处检查该标志位
+            */
         if (mf_planner_ctx.cell[act.row][act.col] == MF_CELL_EMPTY) {
             /* R1 已清除该格 */
             MFPlanner_AdvanceAction(&mf_planner_ctx);
