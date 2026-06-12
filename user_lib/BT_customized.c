@@ -788,6 +788,7 @@ MF_ExecState mf_exec_state = MF_EXEC_IDLE;  /* MF 动作执行状态机 */
 uint32_t mf_exec_timer_ms = 0;              /* MF 执行计时器 */
 uint8_t mf_task_request_flag = 0;           /* MF 任务请求标志 (1=有请求) */
 uint8_t mf_phase_flag = 0;                  /* 规划阶段标记: 0=未规划, 1=Phase1完成, 2=全部规划完成 */
+
 uint8_t mf_picked_phase1 = 0;               /* Phase1 已拾取 R2KFS 数量 */
 
 /**
@@ -901,10 +902,10 @@ static BT_Status Cond_Has_MF_Request(void)
 /* ================= 3. 动作节点 ================= */
 
 /**
- * @brief [动作节点] 阶段一：初始化 + 扫描 + 规划
- * @note 一次性完成所有规划，生成完整的动作列表
- * @note 内部调用 ScanRows 来模拟相机扫描（调试阶段使用硬编码地图）
- * @warning 🟡【需替换】实际比赛时 ScanRows 应改为接收视觉模块的实时数据
+ * @brief 初始化 MF 规划器
+ * @note 函数内部仅含有：规划器初始化，地图加载，状态初始化
+ * @note 包含一个初始扫描动作的下发，供后续阶段使用
+ * @warning 不包含阶段性的规划函数调用（BuildPhase1/2）
  */
 static BT_Status Act_MF_Init_And_Plan(void)
 {
@@ -918,23 +919,26 @@ static BT_Status Act_MF_Init_And_Plan(void)
     MFPlanner_LoadFixedDemoMap(&mf_planner_ctx);
     /* 此时：row0/row5=EMPTY，height 全部已知，row1~row4=UNKNOWN */
 
-    /* --- 阶段1：第一次扫描 + 局部规划 --- */
-    /*
-     * 🟡【需替换】BuildPhase1 内部会调用 ScanRows 模拟扫描。
-     * 实际比赛时应由相机回调填充 cell 数据，再调用 BuildPhase1。
-     * 当前调试阶段 BuildPhase1 内部硬编码了 real_cell。
-     */
-    MFPlanner_BuildPhase1(&mf_planner_ctx, 0, 1, &mf_picked_phase1);
-    mf_phase_flag = 1;
+    // /* --- 阶段1：第一次扫描 + 局部规划 --- */
+    // /*
+    //  * 🟡【需替换】BuildPhase1 内部会调用 ScanRows 模拟扫描。
+    //  * 实际比赛时应由相机回调填充 cell 数据，再调用 BuildPhase1。
+    //  * 当前调试阶段 BuildPhase1 内部硬编码了 real_cell。
+    //  */
+    // MFPlanner_BuildPhase1(&mf_planner_ctx, 0, 1, &mf_picked_phase1);
+    // mf_phase_flag = 1;
+    // /* --- 阶段2：全局拾取 + 走到出口 --- */
+    // /*
+    //  * 🟡【需确认】r2kfs_all_need 的值应根据实际视觉识别结果动态确定。
+    //  * 当前硬编码为 4（与 ScanRows 中 real_cell 的 R2KFS 总数一致）。
+    //  */
+    // uint8_t r2kfs_all_need = 3; /* 🟡 占位，需根据实际视觉结果替换 */
+    // MFPlanner_BuildPhase2(&mf_planner_ctx, r2kfs_all_need - mf_picked_phase1);
+    // mf_phase_flag = 2;
 
-    /* --- 阶段2：全局拾取 + 走到出口 --- */
-    /*
-     * 🟡【需确认】r2kfs_all_need 的值应根据实际视觉识别结果动态确定。
-     * 当前硬编码为 4（与 ScanRows 中 real_cell 的 R2KFS 总数一致）。
-     */
-    uint8_t r2kfs_all_need = 3; /* 🟡 占位，需根据实际视觉结果替换 */
-    MFPlanner_BuildPhase2(&mf_planner_ctx, r2kfs_all_need - mf_picked_phase1);
-    mf_phase_flag = 2;
+    /* 由于 BT+状态机 的特性，需要在初始化时即向动作序列中添加一个扫描动作 */
+    /* 第一次扫描：在 row0,col1 面朝北，揭示 row1~row3 */
+    MF_PushAction(&mf_planner_ctx, MF_ACT_SCAN, MF_DIR_NORTH, 0, 1);
 
     /* 初始化执行状态 */
     mf_exec_state = MF_EXEC_IDLE;
@@ -954,6 +958,7 @@ static BT_Status Act_MF_Init_And_Plan(void)
 static BT_Status Act_MF_Execute_Action(void)
 {
 
+    // 如果当前没有正在执行的动作，尝试从 mf_planner_ctx 的 actions 列表中取出下一个动作
     MF_Action act;
     if (!MFPlanner_PeekAction(&mf_planner_ctx, &act)) {
         /* 没有更多动作了 */
@@ -1155,22 +1160,24 @@ static BT_Status Act_MF_Execute_Action(void)
                 *   1. 触发相机拍照
                 *   2. 等待视觉模块返回识别结果
                 *   3. 调用 MFPlanner_ScanRows 或逐个 cell 更新
-                */
+            */
+            /* 根据执行位置判断是第一次扫描规划还是第二次扫描规划 */
             if (act.row == 0 && act.col == 1) {
-                /* 第一次扫描：在 row0,col1 面朝北，揭示 row1~row3 */
-                MFPlanner_ScanRows(&mf_planner_ctx, 1, 3);
+                /* 此处没有第一次扫描动作的push，该动作的push应在初始化时添加 */
+                /* 第一次扫描：在 row0,col1 面朝北，揭示 row1~row2 */
+                MFPlanner_BuildPhase1(&mf_planner_ctx, 0, 1, &mf_picked_phase1);
             } else if (act.row == 1 && act.col == 1) {
-                /* 第二次扫描：在 row1,col1 面朝北，揭示 row2~row4 */
-                MFPlanner_ScanRows(&mf_planner_ctx, 2, 4);
+                /* 第二次扫描：在 row1,col1 面朝北，揭示 row3~row4 */
+                MFPlanner_BuildPhase2(&mf_planner_ctx, R2_KFS_ALL_NEED - mf_picked_phase1);
             }
+
             /* 
                 * 🟡 如果视觉模块是异步的（需要等待），这里需要改为：
                 *   1. 触发扫描 → 进入 MF_EXEC_SCAN 状态
                 *   2. 轮询视觉完成标志
                 *   3. 完成后读取数据 → 更新 cell
                 * 当前为调试简化：扫描瞬间完成
-                */
-
+            */
             /* 扫描完成，推进到下一个动作 */
             MFPlanner_AdvanceAction(&mf_planner_ctx);
             mf_exec_state = MF_EXEC_IDLE;
@@ -1191,13 +1198,18 @@ static BT_Status Act_MF_Execute_Action(void)
             * 使用 chassis_if_arrived 或 chassis_route_traj 的 is_finished 标志
             * 需要与你的底盘路径执行逻辑（entry_chassis）对齐
             */
-        if (chassis_route_traj.traj_vx.is_finished &&
-            chassis_route_traj.traj_vy.is_finished &&
-            chassis_route_traj.traj_vw.is_finished) {
+
+        // if (chassis_route_traj.traj_vx.is_finished &&
+        //     chassis_route_traj.traj_vy.is_finished &&
+        //     chassis_route_traj.traj_vw.is_finished)
+        if(1)
+        {
             /* 平移到位，推进到下一个动作 */
             MFPlanner_AdvanceAction(&mf_planner_ctx);
             mf_exec_state = MF_EXEC_IDLE;
-        } else if (++mf_exec_timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS) {
+        }
+        else if (++mf_exec_timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS) 
+        {
             mf_exec_state = MF_EXEC_FAILED;
         }
         return BT_RUNNING;
@@ -1211,12 +1223,17 @@ static BT_Status Act_MF_Execute_Action(void)
             * 如果你有独立的台阶 FSM，检查其完成标志
             * 如果台阶用底盘路径模拟，则与 MOVE_FLAT 一样检查 is_finished
             */
-        if (chassis_route_traj.traj_vx.is_finished &&
-            chassis_route_traj.traj_vy.is_finished &&
-            chassis_route_traj.traj_vw.is_finished) {
+           
+        // if (chassis_route_traj.traj_vx.is_finished &&
+        //     chassis_route_traj.traj_vy.is_finished &&
+        //     chassis_route_traj.traj_vw.is_finished) 
+        if(1)
+        {
             MFPlanner_AdvanceAction(&mf_planner_ctx);
             mf_exec_state = MF_EXEC_IDLE;
-        } else if (++mf_exec_timer_ms * 10 >= MF_STEP_TIMEOUT_MS) {
+        } 
+        else if (++mf_exec_timer_ms * 10 >= MF_STEP_TIMEOUT_MS) 
+        {
             mf_exec_state = MF_EXEC_FAILED;
         }
         return BT_RUNNING;
@@ -1228,12 +1245,17 @@ static BT_Status Act_MF_Execute_Action(void)
         /*
             * 🟡【需实测】同 STEP_UP
             */
-        if (chassis_route_traj.traj_vx.is_finished &&
-            chassis_route_traj.traj_vy.is_finished &&
-            chassis_route_traj.traj_vw.is_finished) {
+
+        // if (chassis_route_traj.traj_vx.is_finished &&
+        //     chassis_route_traj.traj_vy.is_finished &&
+        //     chassis_route_traj.traj_vw.is_finished) 
+        if(1)
+        {
             MFPlanner_AdvanceAction(&mf_planner_ctx);
             mf_exec_state = MF_EXEC_IDLE;
-        } else if (++mf_exec_timer_ms * 10 >= MF_STEP_TIMEOUT_MS) {
+        } 
+        else if (++mf_exec_timer_ms * 10 >= MF_STEP_TIMEOUT_MS) 
+        {
             mf_exec_state = MF_EXEC_FAILED;
         }
         return BT_RUNNING;
@@ -1248,7 +1270,10 @@ static BT_Status Act_MF_Execute_Action(void)
             * 原因为：可以在机械臂到达存块位置后，让机械臂继续存块，但是行为树先行推进，
             * 这样可以节省时间（不必等机械臂完全收回再走下一步），也让流程更顺畅。
             */
-        if (arm_if_arrived_xy(PICK_HANDS_UP_X, PICK_HANDS_UP_Y)) {
+
+        // if (arm_if_arrived_xy(PICK_HANDS_UP_X, PICK_HANDS_UP_Y)) 
+        if(1)
+        {
             /* 拾取完成，关闭吸盘 */
             taskENTER_CRITICAL();
             arm_queue_add_point(&arm_traj,PICK_REST_X, PICK_REST_Y, 0, 0, ARM_SUCK_OFF);
@@ -1256,7 +1281,9 @@ static BT_Status Act_MF_Execute_Action(void)
 
             MFPlanner_AdvanceAction(&mf_planner_ctx);
             mf_exec_state = MF_EXEC_IDLE;
-        } else if (++mf_exec_timer_ms * 10 >= MF_PICK_TIMEOUT_MS) {
+        } 
+        else if (++mf_exec_timer_ms * 10 >= MF_PICK_TIMEOUT_MS) 
+        {
             mf_exec_state = MF_EXEC_FAILED;
         }
         return BT_RUNNING;
@@ -1275,11 +1302,16 @@ static BT_Status Act_MF_Execute_Action(void)
             *   - 由通信 task（如裁判系统回调）在收到 R1 清除信号后置 1
             *   - 此处检查该标志位
             */
-        if (mf_planner_ctx.cell[act.row][act.col] == MF_CELL_EMPTY) {
+
+        // if (mf_planner_ctx.cell[act.row][act.col] == MF_CELL_EMPTY) 
+        if(1)
+        {
             /* R1 已清除该格 */
             MFPlanner_AdvanceAction(&mf_planner_ctx);
             mf_exec_state = MF_EXEC_IDLE;
-        } else if (++mf_exec_timer_ms * 10 >= MF_WAIT_R1_TIMEOUT_MS) {
+        } 
+        else if (++mf_exec_timer_ms * 10 >= MF_WAIT_R1_TIMEOUT_MS) 
+        {
             /* 超时：强行通过（假设通信丢失但 R1 已完成） */
             MFPlanner_NotifyR1KfsRemoved(&mf_planner_ctx, act.row, act.col);
             MFPlanner_AdvanceAction(&mf_planner_ctx);

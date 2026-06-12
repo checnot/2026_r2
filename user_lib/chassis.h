@@ -125,5 +125,6 @@ void chassis_lift_traj_init(void);
 void chassis_lift_linear_interpolation_update(chassis_stu *chassis, chassis_lift_traj_stu *lift_traj, float blend_radius);
 void chassis_lift_queue_add_point(chassis_lift_traj_stu *lift_traj, float front_height, float back_height, uint16_t delay_ms);
 void chassis_lift_excute(chassis_stu *chassis, float kp, float kw);
+void chassis_lift_wheel_excute(float target_speed, float speed_kp, float speed_kd);
 #endif /* CHASSIS_H */
 

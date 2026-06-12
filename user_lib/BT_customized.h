@@ -142,6 +142,8 @@ void BT_Customized_Tick1ms_Combined(void);
 
 /* ---------- MF 专用参数宏（需实测调整） ---------- */
 
+#define R2_KFS_ALL_NEED 3 /* 需要拾取的 R2KFS 总数量（根据实际情况调整，并非所有的R2KFS） */
+
 /* MF 区原点在世界坐标系中的位置 (mm) — row0,col0 的坐标 */
 #define MF_ORIGIN_WORLD_X  2600.0f   /* row0,col0 的中心在世界坐标系中的x位置 */
 #define MF_ORIGIN_WORLD_Y  4200.0f   /* row0,col0 的中心在世界坐标系中的y位置 */
@@ -150,10 +152,10 @@ void BT_Customized_Tick1ms_Combined(void);
 #define MF_CELL_SIZE_MM     1200.0f  /* 每个栅格的实际大小 */
 
 /* 🟡【需实测】各方向对应的底盘朝向角 (度) */
-#define MF_YAW_NORTH        0.0f     /* 🟡 北向的底盘 yaw 角 */
-#define MF_YAW_EAST         -90.0f    /* 🟡 东向的底盘 yaw 角 */
-#define MF_YAW_SOUTH        180.0f   /* 🟡 南向的底盘 yaw 角 */
-#define MF_YAW_WEST         90.0f    /* 🟡 西向的底盘 yaw 角 */
+#define MF_YAW_NORTH        0.0f     /* 北向的底盘 yaw 角 */
+#define MF_YAW_EAST         -90.0f   /* 东向的底盘 yaw 角 */
+#define MF_YAW_SOUTH        180.0f   /* 南向的底盘 yaw 角 */
+#define MF_YAW_WEST         90.0f    /* 西向的底盘 yaw 角 */
 
 /* 🟡【需实测】台阶升降的动作耗时 (ms) */
 #define MF_STEP_TIMEOUT_MS  10000    /* 🟡 上/下台阶超时时间 */
@@ -164,7 +166,7 @@ void BT_Customized_Tick1ms_Combined(void);
 /* 🟡【需实测】等待 R1 的超时时间 (ms) */
 #define MF_WAIT_R1_TIMEOUT_MS 10000 /* 🟡 等待 R1 清理的超时，超时后强行跳过 */
 
-/* ============================== 机械臂预设拾取路径点 ============================== */
+/* ============================== 🟡（待定）机械臂预设拾取路径点 ============================== */
 #define PICK_REST_X 0.25f             /* 🟡（待定）机械臂待机位置 X */
 #define PICK_REST_Y 0.25f             /* 🟡（待定）机械臂待机位置 Y */
 
@@ -198,7 +200,7 @@ void BT_Customized_Tick1ms_Combined(void);
 #define PICK_0_APR_Y_2 0.5f             /* 0预抓取点2 Y */
 #define PICK_0_TARGET_X 0.5f            /* 0抓取点 X */
 #define PICK_0_TARGET_Y 0.5f            /* 0抓取点 Y */
-/* ============================== 机械臂预设拾取路径点 ============================== */
+/* ============================== 🟡（待定）机械臂预设拾取路径点 ============================== */
 
 
 
