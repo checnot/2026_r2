@@ -86,8 +86,8 @@
 typedef enum
 {
     CHASSIS_IDLE = 0,     /* 状态空闲，准备下发前往拾取区的第一个点 */
-    CHASSIS_TO_RACK,      /* 正在前往拾取准备点 */
-    CHASSIS_TO_DOCKING,   /* 正在前往真正的拾取点 */
+    CHASSIS_TO_RACK,      /* 前往矛头点 */
+    CHASSIS_TO_DOCKING,   /* 正在拾取矛头/前往对接点 */
     CHASSIS_TO_SCANNING,  /* 前往扫描位置，准备扫描 */
     CHASSIS_TO_PICK,      /* 前往拾取点 */
     CHASSIS_TO_PICK_DONE, /* 到达拾取点，底盘第一段任务完成 */
@@ -223,6 +223,24 @@ void BT_MF_Init_Task(void);
 void BT_Customized_Tick1ms_MF(void);
 
 /* ================================================ MF 规划行为树接口 ================================================ */
+
+
+
+
+
+
+
+/* ================================================ MASTER 行为树 ================================================ */
+/* ================================================ MASTER 行为树 ================================================ */
+/* ================================================ MASTER 行为树 ================================================ */
+
+
+
+void BT_MASTER_Start_Task(void);
+
+void BT_MASTER_Init_Task(void);
+
+void BT_MASTER_Tick(void);
 
 
 #endif // __BT_CUSTOMIZED_

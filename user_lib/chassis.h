@@ -17,8 +17,8 @@
 #define CHASSIS_A_MAX 2500.0f //底盘最大加速度
 #define CHASSIS_TRACKING_POSITION_ERROR_THRESHOLD 200.0f //底盘跟踪位置误差阈值，单位mm
 #define CHASSIS_TRACKING_ANGLE_ERROR_THRESHOLD 6.0f //底盘跟踪角度误差阈值，单位rad
-#define CHASSIS_ROUTE_ARRIVAL_THRESHOLD 7.0f //底盘路径到达判定阈值，单位mm    
-#define CHASSIS_ANGLE_ARRIVAL_THRESHOLD 1.0f //底盘路径到达判定阈值，单位度
+#define CHASSIS_ROUTE_ARRIVAL_THRESHOLD 7.0f //底盘路径 坐标 到达判定阈值，单位mm    
+#define CHASSIS_ANGLE_ARRIVAL_THRESHOLD 1.0f //底盘路径 角度 到达判定阈值，单位度
 #define CHASSIS_ROUTE_FINAL_APPROACH_THRESHOLD 300.0f //底盘路径最终接近目标判定阈值，单位mm        
 #define CHASSIS_ROUTE_FINAL_APPROACH_ANGLE_THRESHOLD 5.0f //底盘路径最终接近目标判定阈值，单位度
 

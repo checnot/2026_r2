@@ -25,9 +25,9 @@ struct {
 
 
 
-/*=========================================================== 机械臂行为树测试用 ===============================================================*/
-/*=========================================================== 机械臂行为树测试用 ===============================================================*/
-/*=========================================================== 机械臂行为树测试用 ===============================================================*/
+/*=========================================================== 机械臂 / 底盘 行为树测试用 ===============================================================*/
+/*=========================================================== 机械臂 / 底盘 行为树测试用 ===============================================================*/
+/*=========================================================== 机械臂 / 底盘 行为树测试用 ===============================================================*/
 
 
 
@@ -38,6 +38,7 @@ struct {
 
 
 
+/* ========================================================== 底盘部分 ========================================================== */
 
 
 
@@ -280,22 +281,7 @@ void BT_Customized_Tick1ms_arm_test(void)
 }
 
 
-
-
-
-
-
-
-/*=========================================================== 底盘路径行为树测试用 ===============================================================*/
-/*=========================================================== 底盘路径行为树测试用 ===============================================================*/
-/*=========================================================== 底盘路径行为树测试用 ===============================================================*/
-
-
-
-
-
-
-
+/* ========================================================== 底盘部分 ========================================================== */
 
 
 static BT_Status Act_Chassis_Route_FSM(void)
@@ -514,10 +500,7 @@ static BT_Status Act_Chassis_Move_FSM_MC(void)
                 {
                     /* 暂定取矛头瞬间成功，直接前往对接点 */
                     taskENTER_CRITICAL();
-                    // if(rack_finished_flag == 1)
-                    // {
-                        chassis_route_point_add(&chassis_route_traj, CHASSIS_DOCKING_X, CHASSIS_DOCKING_Y, CHASSIS_DOCKING_W, 0);
-                    // }
+                    chassis_route_point_add(&chassis_route_traj, CHASSIS_DOCKING_X, CHASSIS_DOCKING_Y, CHASSIS_DOCKING_W, 0);
                     taskEXIT_CRITICAL();
 
                     task_chassis_state = CHASSIS_TO_SCANNING; // 状态推进，防止下次误入
@@ -770,9 +753,26 @@ void BT_Customized_Tick1ms_Combined(void)
     }
 }
 
-/* ================================================ MF 规划行为树 ============================================= */
-/* ================================================ MF 规划行为树 ============================================= */
-/* ================================================ MF 规划行为树 ============================================= */
+
+
+
+
+/* ================================================ MC 规划行为树 ================================================ */
+/* ================================================ MC 规划行为树 ================================================ */
+/* ================================================ MC 规划行为树 ================================================ */
+
+
+
+
+
+
+/* ================================================ MF 规划行为树 ================================================ */
+/* ================================================ MF 规划行为树 ================================================ */
+/* ================================================ MF 规划行为树 ================================================ */
+
+
+
+
 
 /*
  * 【架构说明】
@@ -1413,6 +1413,244 @@ void BT_Customized_Tick1ms_MF(void)
     }
 }
 
-/* ================================================ MF 规划行为树 ============================================= */
-/* ================================================ MF 规划行为树 ============================================= */
-/* ================================================ MF 规划行为树 ============================================= */
+
+
+
+
+
+
+/* ================================================ ARENA 规划行为树 ================================================ */
+/* ================================================ ARENA 规划行为树 ================================================ */
+/* ================================================ ARENA 规划行为树 ================================================ */
+
+/* =========== 三区占位 ===========*/
+
+
+
+
+
+
+
+/* ================================================ MASTER 行为树 ================================================ */
+/* ================================================ MASTER 行为树 ================================================ */
+/* ================================================ MASTER 行为树 ================================================ */
+
+
+
+/* ================================== MASTER 状态区 ================================== */
+
+uint8_t master_task_request_flag = 0;  /* MASTER 总任务请求标志 */
+uint8_t master_seq_mem_idx = 0;        /* MASTER Memory Sequence 索引 */
+
+/* 次任务 Wrapper 状态 */
+typedef enum {
+    SUBTASK_IDLE = 0,
+    SUBTASK_RUNNING,
+    SUBTASK_DONE,
+    SUBTASK_FAILED
+} Subtask_State;
+Subtask_State mc_subtask_state = SUBTASK_IDLE;      /* MC 任务 wrapper 状态 */
+Subtask_State mf_subtask_state = SUBTASK_IDLE;      /* MF 任务 wrapper 状态 */
+Subtask_State arena_subtask_state = SUBTASK_IDLE;   /* ARENA 任务 wrapper 状态 */
+
+
+/* ================================== MASTER 条件节点 ================================= */
+
+/**
+ * @brief [条件节点] 检查是否有 MASTER 总任务请求
+ */
+static BT_Status Cond_Has_MASTER_Request(void)
+{
+    return master_task_request_flag ? BT_SUCCESS : BT_FAILURE;
+}
+
+
+/* ================================== MASTER 动作节点 ================================= */
+
+
+/* ====================== 动作（子任务）节点 ====================== */
+
+/**
+ * @brief [动作节点] MC(武馆)任务 Wrapper
+ * @note 内部调用已有的 BT_Combined_Task_Tree_Root
+ * @note 自动触发 MC 任务，等待其完成后返回 SUCCESS
+ */
+static BT_Status Act_MC_Task_Wrapper(void)
+{
+    switch (mc_subtask_state) {
+
+    case SUBTASK_IDLE: {
+        /* 触发 MC 任务 */
+        BT_Start_Combined_Task();
+        mc_subtask_state = SUBTASK_RUNNING;
+        return BT_RUNNING;
+    }
+    case SUBTASK_RUNNING: {
+        /* 运行 MC 行为树 */
+        BT_Status mc_status = BT_Combined_Task_Tree_Root();
+        if (mc_status == BT_SUCCESS) {
+            mc_subtask_state = SUBTASK_DONE;
+            return BT_SUCCESS;
+        } else if (mc_status == BT_FAILURE) {
+            mc_subtask_state = SUBTASK_FAILED;
+            return BT_FAILURE;
+        }
+        return BT_RUNNING;
+    }
+    case SUBTASK_DONE:{
+        return BT_SUCCESS;
+    }
+    case SUBTASK_FAILED:{
+        return BT_FAILURE;
+    }
+    default:{
+        return BT_FAILURE;
+    }
+
+    }
+}
+
+/**
+ * @brief [动作节点] MF(梅林)任务 Wrapper
+ * @note 内部调用已有的 BT_MF_Task_Tree_Root
+ * @note 自动触发 MF 任务，等待其完成后返回 SUCCESS
+ */
+static BT_Status Act_MF_Task_Wrapper(void)
+{
+    switch (mf_subtask_state) {
+
+    case SUBTASK_IDLE:{
+        /* 触发 MF 任务 */
+        BT_MF_Start_Task();
+        mf_subtask_state = SUBTASK_RUNNING;
+        return BT_RUNNING;
+    }
+    case SUBTASK_RUNNING: {
+        /* 运行 MF 行为树 */
+        BT_Status mf_status = BT_MF_Task_Tree_Root();
+        if (mf_status == BT_SUCCESS) {
+            mf_subtask_state = SUBTASK_DONE;
+            return BT_SUCCESS;
+        } else if (mf_status == BT_FAILURE) {
+            mf_subtask_state = SUBTASK_FAILED;
+            return BT_FAILURE;
+        }
+        return BT_RUNNING;
+    }
+    case SUBTASK_DONE:{
+        return BT_SUCCESS;
+    }
+    case SUBTASK_FAILED:{
+        return BT_FAILURE;
+    }
+    default:{
+        return BT_FAILURE;
+    }
+
+    }
+}
+
+
+/**
+ * @brief [动作节点] ARENA(对抗区)任务 Wrapper（占位）
+ */
+static BT_Status Act_ARENA_Task_Wrapper(void)
+{
+    /* 🟡 ARENA 任务尚未实现，暂时直接返回成功 */
+    arena_subtask_state = SUBTASK_DONE;
+    return BT_SUCCESS;
+}
+
+
+/* ====================== 清理节点 ====================== */
+
+/**
+ * @brief [动作节点] MASTER 任务收尾清理
+ */
+static BT_Status Act_MASTER_Finish_Cleanup(void)
+{
+    master_task_request_flag = 0;
+
+    mc_subtask_state = SUBTASK_IDLE;
+    mf_subtask_state = SUBTASK_IDLE;
+    arena_subtask_state = SUBTASK_IDLE;
+
+    /* 清理各子任务状态，防止残留 */
+    BT_Init_Combined_Task();
+    BT_MF_Init_Task();
+    // BT_ARENA_Init_Task(); 此处如果有 ARENA 任务，也需要调用其初始化函数，如 BT_ARENA_Init_Task();
+
+    return BT_SUCCESS;
+}
+
+
+/* ====================== MASTER 顶层 ====================== */
+
+/**
+ * @brief MASTER 总任务行为树 Root 根节点
+ * @note 按顺序执行：
+ *   1. 等待总请求
+ *   2. MC(武馆)任务
+ *   3. MF(梅林)任务
+ *   4. ARENA(竞技场)任务
+ *   5. 清理
+ */
+static BT_Status BT_MASTER_Task_Tree_Root(void)
+{
+    static const BT_NodeFunc seq[] = {
+        Cond_Has_MASTER_Request,       /* 1. 有总任务请求？ */
+        Act_MC_Task_Wrapper,           /* 2. MC(武馆) */
+        Act_MF_Task_Wrapper,           /* 3. MF(梅林) */
+        Act_ARENA_Task_Wrapper,        /* 4. ARENA(竞技场) */
+        Act_MASTER_Finish_Cleanup      /* 5. 清理 */
+    };
+
+    return BT_Sequence_Memory(seq,
+                              (uint8_t)(sizeof(seq) / sizeof(seq[0])),
+                              &master_seq_mem_idx);
+}
+
+
+/* ====================== MASTER 外部接口 ====================== */
+
+/**
+ * @brief 发起 MASTER 总任务请求
+ */
+void BT_MASTER_Start_Task(void)
+{
+    master_task_request_flag = 1;
+    mc_subtask_state = SUBTASK_IDLE;
+    mf_subtask_state = SUBTASK_IDLE;
+    arena_subtask_state = SUBTASK_IDLE;
+}
+
+/**
+ * @brief 初始化/重置 MASTER 任务状态
+ */
+void BT_MASTER_Init_Task(void)
+{
+    master_task_request_flag = 0;
+    master_seq_mem_idx = 0;
+    mc_subtask_state = SUBTASK_IDLE;
+    mf_subtask_state = SUBTASK_IDLE;
+    arena_subtask_state = SUBTASK_IDLE;
+}
+
+/**
+ * @brief MASTER 行为树 Tick 入口
+ * @note 内部降频到 10ms
+ */
+void BT_MASTER_Tick(void)
+{
+    static uint8_t div10 = 0;
+    div10++;
+    if (div10 < 10) return;
+    div10 = 0;
+
+    BT_Status status = BT_MASTER_Task_Tree_Root();
+
+    if (status == BT_FAILURE) {
+        Act_MASTER_Finish_Cleanup();
+        master_seq_mem_idx = 0;
+    }
+}
