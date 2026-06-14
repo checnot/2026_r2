@@ -291,7 +291,7 @@ static bool MF_AStar(const MF_Planner* ctx,
  * @return true 表示追加成功
  * @note 超出容量直接返回 false
  */
-static bool MF_PushAction(MF_Planner* ctx, MF_ActionType type, MF_Dir dir, uint8_t row, uint8_t col)
+bool MF_PushAction(MF_Planner* ctx, MF_ActionType type, MF_Dir dir, uint8_t row, uint8_t col)
 {
     if (ctx->action_count >= MF_MAX_ACTIONS) {
         /* 动作列表溢出 */
@@ -725,17 +725,11 @@ void MFPlanner_ScanRows(MF_Planner* ctx, uint8_t start_row, uint8_t end_row)
 }
 
 /**
- * @brief 阶段1规划：从起点到 row1,col1 → 扫描后三行
- * @param ctx        规划器上下文
- * @param start_row  R2 初始行(row0)
- * @param start_col  R2 初始列
- * @return true 表示规划成功
- * @note 动作序列：
- *   1) 扫描前：在 row0,col1 面朝北扫描 row1-row3(调用前已完成)
- *   2) 从 start 走到 row1,col1(仅基于已知格，未知格不可通过)
- *   3) 在 row1,col1 面朝北扫描 row2~row4
- * @note 调用此函数前应先调用 ScanRows 完成第一次扫描
- */
+ * @brief 分阶段规划：阶段1 先确保 R2 能登上 row1，拾取至少一个 row1 上的 R2KFS
+ * @note 该函数内部包含了 1 个 MF_PushAction 用于添加扫描动作
+ * @note 该函数内部同时有 2 个 MFPlanner_ScanRows 用于模拟从视觉模块获取数据并更新地图状态
+ * @note 实际使用时需要替换为真正的视觉扫描，并添加对应逻辑
+*/
 bool MFPlanner_BuildPhase1(MF_Planner* ctx,
                            uint8_t start_row,
                            uint8_t start_col,
@@ -746,9 +740,9 @@ bool MFPlanner_BuildPhase1(MF_Planner* ctx,
         *out_r2kfs_picked = 0;
     }
 
-    /* 重置动作列表与执行指针 */
-    ctx->action_count = 0;
-    ctx->action_index = 0;
+    // /* 重置动作列表与执行指针 */
+    // ctx->action_count = 0;
+    // ctx->action_index = 0;
 
     /* 阶段1不允许穿过 R1KFS(保守策略) */
     bool allow_r1kfs = false;
@@ -763,12 +757,15 @@ bool MFPlanner_BuildPhase1(MF_Planner* ctx,
     /* ============================================================ */
 
     /* 在 row0,col1 面朝北扫描前三行(row1/row2/row3) */
-    if (MF_PushAction(ctx, MF_ACT_SCAN, MF_DIR_NORTH, 0, 1)) 
-    {
-        /* === 一次扫描：在 row0,col1 面朝北，揭示 row1~row3 === */
-        MFPlanner_ScanRows(&mf_planner_ctx, 1, 3);
-        /* 此时：row1/row2/row3 变为真实 KFS 分布，row4 仍为 UNKNOWN */
-    }
+    // if (MF_PushAction(ctx, MF_ACT_SCAN, MF_DIR_NORTH, 0, 1)) 
+    // {
+        /* === 一次扫描：在 row0,col1 面朝北，揭示 row1~row2 === */
+        // MFPlanner_ScanRows(&mf_planner_ctx, 1, 2);
+        /* 此时：row1/row2变为真实 KFS 分布，row3/row4 仍为 UNKNOWN */
+    // }
+
+    /* 此处应修改为实际的相机扫描 */
+    MFPlanner_ScanRows(&mf_planner_ctx, 1, 2);
 
     /* 扫描 row1 上是否有 R2KFS */
     bool row1_has_r2kfs = false;
@@ -840,26 +837,22 @@ bool MFPlanner_BuildPhase1(MF_Planner* ctx,
         }
     }
 
-    /* 在 row1,col1 面朝北扫描后三行(row2/row3/row4) */
+    /* 在 row1,col1 面朝北扫描后二行(row3/row4) */
     if (MF_PushAction(ctx, MF_ACT_SCAN, MF_DIR_NORTH, 1, 1)) 
     {
-        /* === 第二次扫描(在 SCAN 动作执行后触发)：揭示 row2~row4 === */
-        MFPlanner_ScanRows(&mf_planner_ctx, 2, 4);
-        /* 此时：row2/row3/row4 全部已知(如已揭示则保持不变) */
+        /* === 第二次扫描(在 SCAN 动作执行后触发)：揭示 row3~row4 === */
+        MFPlanner_ScanRows(&mf_planner_ctx, 3, 4);
+        /* 此时：row3/row4 全部已知(如已揭示则保持不变) */
     }
 
     return true;
 }
 
 /**
- * @brief 阶段2规划：从当前位置(row1,col1)全局拾取 + 走到出口
- * @param ctx        规划器上下文
- * @param r2kfs_need 需要拾取的 R2KFS 数量
- * @return true 表示规划成功
- * @note 调用前所有行已扫描完毕(ScanRows 已调用)
- * @note 核心逻辑与原来的 BuildFullPlan 完全相同，只是起点固定为 row1,col1
- *       且不再包含扫描动作
- */
+ * @brief 分阶段规划：阶段2 在 row1,col1 的基础上继续拾取剩余 R2KFS 并走到出口
+ * @note 该函数假设阶段1已完成，当前位于 row1,col1，且至少一个 row1 上的 R2KFS 已被拾取
+ * @note 该函数内部不包含扫描动作，因为阶段1结束时已添加扫描动作
+*/
 bool MFPlanner_BuildPhase2(MF_Planner* ctx, uint8_t r2kfs_need)
 {
     /* 阶段2从 row1,col1 开始(阶段1结束时的位置) */

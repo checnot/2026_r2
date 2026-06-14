@@ -44,7 +44,7 @@ typedef enum {
 	MF_ACT_STEP_DOWN,     /* 下台阶(-200) */
 	MF_ACT_PICK_R2,       /* 面对相邻 R2KFS 拾取 */
 	MF_ACT_WAIT_R1,       /* 等待 R1 清除 R1KFS */
-	MF_ACT_SCAN           /* 在当前位置面朝某方向扫描，揭示前方若干行 */
+	MF_ACT_SCAN        /* 第一次扫描 */
 } MF_ActionType;
 
 typedef struct {
@@ -97,6 +97,8 @@ bool MFPlanner_PeekAction(const MF_Planner* ctx, MF_Action* out_action);
 bool MFPlanner_AdvanceAction(MF_Planner* ctx);
 
 void MFPlanner_NotifyR1KfsRemoved(MF_Planner* ctx, uint8_t row, uint8_t col);
+
+bool MF_PushAction(MF_Planner* ctx, MF_ActionType type, MF_Dir dir, uint8_t row, uint8_t col);
 
 /*---------------------- 多步/动态规划暂存 ----------------------*/
 

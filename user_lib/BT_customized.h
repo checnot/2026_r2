@@ -191,18 +191,20 @@ void BT_Customized_Tick1ms_Combined(void);
 
 /* ---------- MF 专用参数宏（需实测调整） ---------- */
 
-/* 🟡【需实测】MF 区原点在世界坐标系中的位置 (mm) — row0,col0 的坐标 */
-#define MF_ORIGIN_WORLD_X  2600.0f   /* 🟡 暂用 CHASSIS_ENTRY_2_X，需根据实际场地测量 */
-#define MF_ORIGIN_WORLD_Y  3000.0f   /* 🟡 暂用 CHASSIS_ENTRY_2_Y，需根据实际场地测量 */
+#define R2_KFS_ALL_NEED 3 /* 需要拾取的 R2KFS 总数量（根据实际情况调整，并非所有的R2KFS） */
 
-/* 🟡【需实测】每个格子的边长 (mm) */
-#define MF_CELL_SIZE_MM     400.0f   /* 🟡 需根据实际梅林方块尺寸测量 */
+/* MF 区原点在世界坐标系中的位置 (mm) — row0,col0 的坐标 */
+#define MF_ORIGIN_WORLD_X  2600.0f   /* row0,col0 的中心在世界坐标系中的x位置 */
+#define MF_ORIGIN_WORLD_Y  4200.0f   /* row0,col0 的中心在世界坐标系中的y位置 */
+
+/* 每个树林方块的边长 (mm) */
+#define MF_CELL_SIZE_MM     1200.0f  /* 每个栅格的实际大小 */
 
 /* 🟡【需实测】各方向对应的底盘朝向角 (度) */
-#define MF_YAW_NORTH        0.0f     /* 🟡 北向的底盘 yaw 角 */
-#define MF_YAW_EAST         90.0f    /* 🟡 东向的底盘 yaw 角 */
-#define MF_YAW_SOUTH        180.0f   /* 🟡 南向的底盘 yaw 角 */
-#define MF_YAW_WEST        -90.0f    /* 🟡 西向的底盘 yaw 角 */
+#define MF_YAW_NORTH        0.0f     /* 北向的底盘 yaw 角 */
+#define MF_YAW_EAST         -90.0f   /* 东向的底盘 yaw 角 */
+#define MF_YAW_SOUTH        180.0f   /* 南向的底盘 yaw 角 */
+#define MF_YAW_WEST         90.0f    /* 西向的底盘 yaw 角 */
 
 /* 🟡【需实测】台阶升降的动作耗时 (ms) */
 #define MF_STEP_TIMEOUT_MS  10000    /* 🟡 上/下台阶超时时间 */
@@ -212,6 +214,45 @@ void BT_Customized_Tick1ms_Combined(void);
 
 /* 🟡【需实测】等待 R1 的超时时间 (ms) */
 #define MF_WAIT_R1_TIMEOUT_MS 10000 /* 🟡 等待 R1 清理的超时，超时后强行跳过 */
+
+/* ============================== 🟡（待定）机械臂预设拾取路径点 ============================== */
+#define PICK_REST_X 0.25f             /* 🟡（待定）机械臂待机位置 X */
+#define PICK_REST_Y 0.25f             /* 🟡（待定）机械臂待机位置 Y */
+
+#define PICK_HANDS_UP_X 0.15f       /* 演示用抬手坐标 */
+#define PICK_HANDS_UP_Y 0.9f       /* 演示用抬手坐标 */
+
+#define PICK_N200_APR_X_1 0.5f          /* -200预抓取点1 X */
+#define PICK_N200_APR_Y_1 0.5f          /* -200预抓取点1 Y */
+#define PICK_N200_APR_X_2 0.5f          /* -200预抓取点2 X */
+#define PICK_N200_APR_Y_2 0.5f          /* -200预抓取点2 Y */
+#define PICK_N200_TARGET_X 0.5f         /* -200抓取点 X */
+#define PICK_N200_TARGET_Y 0.5f         /* -200抓取点 Y */
+
+#define PICK_P200_APR_X_1 0.5f     /* +200预抓取点1 X */
+#define PICK_P200_APR_Y_1 0.5f     /* +200预抓取点1 Y */
+#define PICK_P200_APR_X_2 0.5f     /* +200预抓取点2 X */
+#define PICK_P200_APR_Y_2 0.5f     /* +200预抓取点2 Y */
+#define PICK_P200_TARGET_X 0.5f         /* +200抓取点 X */
+#define PICK_P200_TARGET_Y 0.5f         /* +200抓取点 Y */
+
+#define PICK_P400_APR_X_1 0.5f     /* +400预抓取点1 X */
+#define PICK_P400_APR_Y_1 0.5f     /* +400预抓取点1 Y */
+#define PICK_P400_APR_X_2 0.5f     /* +400预抓取点2 X */
+#define PICK_P400_APR_Y_2 0.5f     /* +400预抓取点2 Y */
+#define PICK_P400_TARGET_X 0.5f         /* +400抓取点 X */
+#define PICK_P400_TARGET_Y 0.5f         /* +400抓取点 Y */
+
+#define PICK_0_APR_X_1 0.5f             /* 0预抓取点1 X */
+#define PICK_0_APR_Y_1 0.5f             /* 0预抓取点1 Y */
+#define PICK_0_APR_X_2 0.5f             /* 0预抓取点2 X */
+#define PICK_0_APR_Y_2 0.5f             /* 0预抓取点2 Y */
+#define PICK_0_TARGET_X 0.5f            /* 0抓取点 X */
+#define PICK_0_TARGET_Y 0.5f            /* 0抓取点 Y */
+/* ============================== 🟡（待定）机械臂预设拾取路径点 ============================== */
+
+
+
 
 /* ---------- MF 执行状态机 ---------- */
 typedef enum {

@@ -644,3 +644,15 @@ void chassis_lift_excute(chassis_stu *chassis, float kp, float kw)
     m8010_position_control(&m8010_bus_3.motors[0], m8010_bus_3.motors[0].target.Pos, kp, kw);
     m8010_position_control(&m8010_bus_3.motors[1], m8010_bus_3.motors[1].target.Pos, kp, kw);
 }
+
+/**
+ * @brief 底盘升降轮速控制函数，提供给路径调度器调用以实现速度控制
+*/
+void chassis_lift_wheel_excute(float target_speed, float speed_kp, float speed_kd)
+{
+    m3508_parameter_init(&m3508_fdcan1[1], speed_kp, speed_kd, 0.0f, 0.0f);
+    m3508_parameter_init(&m3508_fdcan1[2], speed_kp, speed_kd, 0.0f, 0.0f);
+    m3508_speed_control(&m3508_fdcan1[1], (int16_t)target_speed, 3000);
+    m3508_speed_control(&m3508_fdcan1[2], (int16_t)(-target_speed), 3000);
+}
+
