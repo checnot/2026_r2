@@ -1,7 +1,7 @@
 #include "BT_customized.h"
 
 ArmPickState pick_state = PICK_IDLE; /* 单独开发时使用抓取动作的状态机当前状态 */
-ChassisRouteState chassis_state = CHASSIS_ROUTE_IDLE;/* 单独开发时使用底盘路径状态机当前状态 */
+
 
 uint32_t pick_timer_ms = 0; /* 以 BT tick (10ms为周期) 计数，或在 Tick1ms 中累加 */
 uint32_t chassis_timer_ms = 0 ;
@@ -467,7 +467,7 @@ static BT_Status Act_Chassis_Move_FSM_MC(void)
             {
                 /* HOME点到了，立马前往RACK点 */
                 taskENTER_CRITICAL();
-                chassis_route_point_add(&chassis_route_traj, CHASSIS_RACK_2_X, CHASSIS_RACK_Y, CHASSIS_RACK_W, 0); 
+                chassis_route_point_add(&chassis_route_traj, CHASSIS_RACK_6_X, CHASSIS_RACK_Y, CHASSIS_RACK_W, 0); 
                 taskEXIT_CRITICAL();
                 
                 task_chassis_state = CHASSIS_TO_DOCKING;
@@ -481,7 +481,7 @@ static BT_Status Act_Chassis_Move_FSM_MC(void)
 
         case CHASSIS_TO_DOCKING:
                 /* 检查是否到达RACK点 */
-            if (chassis_if_arrived(CHASSIS_RACK_2_X, CHASSIS_RACK_Y, CHASSIS_RACK_W)) {
+            if (chassis_if_arrived(CHASSIS_RACK_6_X, CHASSIS_RACK_Y, CHASSIS_RACK_W)) {
                 /* 检查是否完成取矛头 */
                 rack_Pos_times++;
                 if( rack_finished_flag == 0 && rack_Pos_times > 100) //保证稳定检测到矛头位置，避免误触发   

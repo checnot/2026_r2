@@ -44,7 +44,7 @@
 
 #define CHASSIS_HOME_MC_X 400.0f  /* 武馆区域 底盘 HOME 位置 X (mm) */
 #define CHASSIS_HOME_MC_Y 1400.0f /* 武馆区域 底盘 HOME 位置 Y (mm) */
-#define CHASSIS_HOME_MC_W 0.0f    /* 武馆区域 底盘 HOME 位置 W (deg) */
+#define CHASSIS_HOME_MC_W -180.0f    /* 武馆区域 底盘 HOME 位置 W (deg) */
 
 // 矛头位置：最靠近坐标系原点的第一个矛头为1，依次递增
 #define CLAMP_TO_CHASSIS_CENTER_DIST 139.0f /* 夹爪中心到底盘中心的X方向距离 (mm) */
@@ -54,8 +54,9 @@
 #define CHASSIS_RACK_4_X 1190.0f /* 武馆区域 第四个矛头位置 X (mm) */
 #define CHASSIS_RACK_5_X 1390.0f /* 武馆区域 第五个矛头位置 X (mm) */
 #define CHASSIS_RACK_6_X 1590.0f /* 武馆区域 第六个矛头位置 X (mm) */
-#define CHASSIS_RACK_Y 570.0f    /* 武馆区域 取矛头位置 Y (mm) */
+#define CHASSIS_RACK_Y 560.0f    /* 武馆区域 取矛头位置 Y (mm) */
 #define CHASSIS_RACK_W -180.0f      /* 武馆区域 取矛头位置 W (deg) */
+#define RACK_STABLE_TIMES_CONDITION 150 /*取矛头时到达目标位置次数，保证稳定抓取*/
 // 与R1的对接位置（暂定该位置，后续可重设）
 #define CHASSIS_DOCKING_X 1200.0f /* 武馆区域 对接位置 X (mm) */
 #define CHASSIS_DOCKING_Y 1400.0f /* 武馆区域 对接位置 Y (mm) */
@@ -74,7 +75,31 @@
 #define CHASSIS_ENTRY_3_X 2600.0f /* 武馆到梅林区域 入口位置3 X (mm) */
 #define CHASSIS_ENTRY_3_Y 1800.0f /* 武馆到梅林区域 入口位置3 Y (mm) */
 #define CHASSIS_ENTRY_3_W 0.0f    /* 武馆到梅林区域 入口位置3 W (deg) */
-
+#define CHASSIS_EXIT_1_X 8650.0f /*出梅林 出口位置1 X (mm)*/
+#define CHASSIS_EXIT_1_Y 1800.0f /*出梅林 出口位置1 Y (mm)*/
+#define CHASSIS_EXIT_1_W 0.0f /*出梅林 出口位置1 W (deg)*/
+#define CHASSIS_EXIT_2_X 8650.0f /*出梅林 出口位置2 X (mm)*/
+#define CHASSIS_EXIT_2_Y 4200.0f /*出梅林 出口位置2 Y (mm)*/
+#define CHASSIS_EXIT_2_W 0.0f /*出梅林 出口位置2 W (deg)*/
+#define CHASSIS_SLOPE_START_X 8650.0f /*梅林进入对抗区 坡道起点 X (mm)*/
+#define CHASSIS_SLOPE_START_Y 5250.0f /*梅林进入对抗区 坡道起点 Y (mm)*/
+#define CHASSIS_SLOPE_START_W 0.0f /*梅林进入对抗区 坡道起点 W (deg)*/
+//对抗区路径点位
+#define CHASSIS_SLOPE_END_X 11000.0f /*梅林进入对抗区 坡道终点 X (mm)*/
+#define CHASSIS_SLOPE_END_Y 5250.0f /*梅林进入对抗区 坡道终点 Y (mm)*/
+#define CHASSIS_SLOPE_END_W 180.0f /*梅林进入对抗区 坡道终点 W (deg)*/
+#define CHASSIS_CZ_INIT_X 11400.0f /*对抗区重试区 X (mm)*/
+#define CHASSIS_CZ_INIT_Y 5500.0f /*对抗区重试区 Y (mm)*/
+#define CHASSIS_CZ_INIT_W -90.0f /*对抗区重试区 W (deg)*/
+#define CHASSIS_SUDUKU_1_X 11290.0f /*九宫格第一列 X (mm) */
+#define CHASSIS_SUDUKU_1_Y 350.0f /*九宫格第一列 Y (mm) */
+#define CHASSIS_SUDUKU_1_W 90.0f /*九宫格第一列 W (deg) */
+#define CHASSIS_SUDUKU_2_X 10750.0f /*九宫格第二列 X (mm) */
+#define CHASSIS_SUDUKU_2_Y 350.0f /*九宫格第二列 Y (mm) */
+#define CHASSIS_SUDUKU_2_W 90.0f /*九宫格第二列 W (deg) */
+#define CHASSIS_SUDUKU_3_X 10210.0f /*九宫格第三列  X (mm) */
+#define CHASSIS_SUDUKU_3_Y 350.0f /*九宫格第三列  Y (mm) */
+#define CHASSIS_SUDUKU_3_W 90.0f /*九宫格第三列  W (deg) */
 /**
  * @brief 综合任务中专属的底盘子状态机。
  * @note 为什么不复用原来的 CHASSIS_ROUTE_IDLE 那些？
@@ -114,24 +139,48 @@ typedef enum
     PICK_FAILED
 } ArmPickState;
 
+/*武馆任务状态机*/
 typedef enum
-{
-    CHASSIS_ROUTE_IDLE,
-    CHASSIS_ROUTE_1,
-    CHASSIS_ROUTE_2,
-    CHASSIS_ROUTE_3,
-    CHASSIS_FAILED
+{   
+    MC_IDLE,
+    NIVEGATE_TO_RACK,// 从起点导航到第3个矛架位置
+    RACK_PICK,       // 在第3个矛架位置执行拾取动作
+    RACK_FAILED_1,   // 第3个矛架位置拾取失败的第一次重试   
+    RACK_FAILED_2,   // 第3个矛架位置拾取失败的第二次重试   
+    RACK_FAILED_3,   // 第3个矛架位置拾取失败的第三次重试   
+    RACK_FAILED_4,   // 第3个矛架位置拾取失败的第四次重试   
+    RACK_FAILED_5,   // 第3个矛架位置拾取失败的第五次重试   
+    DOCKING,
+    WAIT_DOCKING_COMPLETE, // 等待对接完成
+    WAIT_MF_INSTRUCTION,   // 等待进入梅林指令
+} R2_MC_MISSION_STATE;    
 
-} ChassisRouteState;
+typedef struct
+{
+    uint8_t req_pick;    /* 是否请求执行拾取动作的标志位 */
+    uint8_t retry_count; /* 已经执行的重试次数 */
+    uint8_t seq_mem_idx; 
+    uint8_t seq_mem_idx_combined; 
+    uint8_t R2_MC_timer_ms ; //以 BT tick (10ms为周期) 计数，或在 Tick1ms 中累加 
+    uint16_t RACK_POS_STABLE_TIMES; // 矛架位置稳定的计数器，达到一定次数后认为矛架位置稳定，准备执行夹取
+    uint8_t RACK_PICK_SUCCESS ; //是否成功检夹取矛头的标志，由微动开关触发
+    uint8_t DOCKING_SUCCESS ; //是否成功完成对接的标志，由R1发送指令控制 
+    uint8_t MF_ENTRY_INSTRUCTION  ; //是否收到R1发送的进入MF指令的标志，由R1发送指令控制，收到后进入MF任务流程 
+    uint8_t MF_MISSION_Req ; //MF任务执行标志，收到进入MF指令后置1
+    R2_MC_MISSION_STATE mc_mission_state; /* 武馆任务状态机当前状态 */
+}MC_Blackboard; 
+
 /* ------------ 下层 FSM 类型与状态 --------------- */
 
 void BT_Customized_Init_arm_test(void);
 void BT_RequestSimplePick(void);
 void BT_Customized_Tick1ms_arm_test(void);
 
-void BT_Customized_Tick1ms_chassis_test(void);
+void BT_Start_R2_MC_Mission(void);
+void BT_Init_R2_MC_Mission(void);   
+void BT_Customized_Tick1ms_R2_MC(void);
+extern MC_Blackboard MC_bb;
 
-void BT_Start_Combined_Task(void);
 void BT_Init_Combined_Task(void);
 void BT_Customized_Tick1ms_Combined(void);
 
@@ -223,7 +272,7 @@ void BT_MF_Init_Task(void);
 void BT_Customized_Tick1ms_MF(void);
 
 /* ================================================ MF 规划行为树接口 ================================================ */
-
+void CZ_Test(uint8_t mode);
 
 
 

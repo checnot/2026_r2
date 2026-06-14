@@ -64,23 +64,7 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
     //     HAL_UARTEx_ReceiveToIdle_DMA(&huart8, ht10a_buffer, sizeof(ht10a_buffer));
     //     __HAL_DMA_DISABLE_IT(&hdma_uart8_rx, DMA_IT_HT);
     // }
-    // uart6供 hi14 回传数据
-    // if (huart->Instance == USART6)
-    // {
-    //     memset(uart_rx_buf, 0, sizeof(uart_rx_buf));
-
-    //     uart_rx_index = 0;
-    //     for (uint16_t i = 0; i < Size; i++)
-    //     {
-    //         uart_rx_buf[uart_rx_index++] = dma_rx_buf[i];
-    //     }
-    //     process_data();
-    //     uart_rx_index = 0;
-
-    //     memset(dma_rx_buf, 0, sizeof(dma_rx_buf));
-    //     HAL_UARTEx_ReceiveToIdle_DMA(&huart6, dma_rx_buf, sizeof(dma_rx_buf));
-    //     __HAL_DMA_DISABLE_IT(&hdma_usart6_rx, DMA_IT_HT);
-    // }
+    // uart7供 hi14 回传数据
 
     //================================ 临时 usart6供遥控器ht10a =========================
     // if(huart->Instance == USART6)
@@ -99,13 +83,38 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
         HAL_UARTEx_ReceiveToIdle_DMA(&huart5, Rec_Data, sizeof(Rec_Data));
         __HAL_DMA_DISABLE_IT(&hdma_uart5_rx, DMA_IT_HT);
     }
+    // uart8-camera
+    if (huart->Instance == UART8)
+    {
+        parse_full_table((char*)Camera_Rec_Data);
+        memset(Camera_Rec_Data, 0, sizeof(Camera_Rec_Data));
+        HAL_UARTEx_ReceiveToIdle_DMA(&huart8, (uint8_t *)Camera_Rec_Data, sizeof(Camera_Rec_Data));
+        __HAL_DMA_DISABLE_IT(&hdma_uart8_rx, DMA_IT_HT);
+    }
+    // usart10-供hi14回传
+    if (huart->Instance == USART10)
+    {
+        memset(uart_rx_buf, 0, sizeof(uart_rx_buf));
+
+        uart_rx_index = 0;
+        for (uint16_t i = 0; i < Size; i++)
+        {
+            uart_rx_buf[uart_rx_index++] = dma_rx_buf[i];
+        }
+        process_data();
+        uart_rx_index = 0;
+
+        memset(dma_rx_buf, 0, sizeof(dma_rx_buf));
+        HAL_UARTEx_ReceiveToIdle_DMA(&huart10, dma_rx_buf, sizeof(dma_rx_buf));
+        __HAL_DMA_DISABLE_IT(&hdma_usart10_rx, DMA_IT_HT);
+    }
 
     taskEXIT_CRITICAL_FROM_ISR(status_value); // 退出临界段
 }
 
 /**
  * @brief UART错误回调函数，在串口发生错误时调用
-**/
+ **/
 void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
 {
     uint32_t status_value;
@@ -130,12 +139,6 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
     //     HAL_UARTEx_ReceiveToIdle_DMA(&huart8, ht10a_buffer, sizeof(ht10a_buffer));
     //     __HAL_DMA_DISABLE_IT(&hdma_uart8_rx, DMA_IT_HT);
     // }
-    // if (huart->Instance == USART6)
-    // {
-    //     memset(dma_rx_buf, 0, sizeof(dma_rx_buf));
-    //     HAL_UARTEx_ReceiveToIdle_DMA(&huart6, dma_rx_buf, sizeof(dma_rx_buf));
-    //     __HAL_DMA_DISABLE_IT(&hdma_usart6_rx, DMA_IT_HT);
-    // }
 
     // uart5供雷达回传
     if (huart->Instance == UART5)
@@ -144,14 +147,27 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
         HAL_UARTEx_ReceiveToIdle_DMA(&huart5, Rec_Data, sizeof(Rec_Data));
         __HAL_DMA_DISABLE_IT(&hdma_uart5_rx, DMA_IT_HT);
     }
+    // uart8-camera
+    if (huart->Instance == UART8)
+    {
+        memset(Camera_Rec_Data, 0, sizeof(Camera_Rec_Data));
+        HAL_UARTEx_ReceiveToIdle_DMA(&huart8, (uint8_t *)Camera_Rec_Data, sizeof(Camera_Rec_Data));
+        __HAL_DMA_DISABLE_IT(&hdma_uart8_rx, DMA_IT_HT);
+    }
+    // usart10-hi14
+    if (huart->Instance == USART10)
+    {
+        memset(dma_rx_buf, 0, sizeof(dma_rx_buf));
+        HAL_UARTEx_ReceiveToIdle_DMA(&huart10, dma_rx_buf, sizeof(dma_rx_buf));
+        __HAL_DMA_DISABLE_IT(&hdma_usart10_rx, DMA_IT_HT);
+    }
     taskEXIT_CRITICAL_FROM_ISR(status_value); // 退出临界段
 }
 
-
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 {
-// 只有 USART3、USART6 和 UART4 用于 m8010 电机通信，其他串口的发送完成回调不处理
-    if(huart->Instance == USART3 || huart->Instance == USART6 || huart->Instance == UART4)
+    // 只有 USART3、USART6 和 UART4 用于 m8010 电机通信，其他串口的发送完成回调不处理
+    if (huart->Instance == USART3 || huart->Instance == USART6 || huart->Instance == UART4)
     {
         Gom485Bus_t *b = m8010_find_by_huart(huart);
         if (b == &m8010_bus_1)

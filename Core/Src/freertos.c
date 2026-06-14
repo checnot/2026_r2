@@ -69,8 +69,8 @@ float debug_test_time; // 用于测试的万能小变量
 
 int32_t debug_flag; // 万能小变量
 float debug_position;
-uint8_t point_add = 0; // 测试用：是否添加路径点的标志位
-uint8_t point_add1 = 0; // 测试用：是否添加路径点的标志位 
+uint8_t point_add = 0;           // 测试用：是否添加路径点的标志位
+uint8_t point_add1 = 0;          // 测试用：是否添加路径点的标志位
 uint8_t kalman_update_times = 0; // 卡尔曼滤波更新次数统计
 uint8_t kalman_init_flag = 0; // 卡尔曼滤波初始化flag
 float vx, vy, vw = 0.0f; // 用于测试的底盘速度变量
@@ -80,21 +80,22 @@ int32_t rotate_target_angle = 0; // 测试用：夹爪旋转目标角度
 uint8_t task_flag = 0; // 测试用：总开关，控制是否执行BT_Combined_Task_Tree_Root函数  
 float debug_speed; // 用于测试的速度变量
 
-uint8_t traj_init_flag_arm = 0;   // 机械臂轨迹初始化标志位
-uint8_t traj_init_flag_lift = 0;  // 抬升轨迹初始化标志位
+uint8_t traj_init_flag_arm = 0;  // 机械臂轨迹初始化标志位
+uint8_t traj_init_flag_lift = 0; // 抬升轨迹初始化标志位
 /* USER CODE END Variables */
 osThreadId defaultTaskHandle;
 osThreadId roboticarm_taskHandle;
 osThreadId chassis_taskHandle;
 osThreadId clamp_taskHandle;
 osThreadId cmd_taskHandle;
-osThreadId m8010_taskHandle;
 osSemaphoreId bisem_m8010Handle;
 osStaticSemaphoreDef_t bisem_m8010ControlBlock;
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
-
+//#ifndef bisem_m8010Handle
+//	osSemaphoreId bisem_m8010Handle;
+//#endif
 /* USER CODE END FunctionPrototypes */
 
 void StartDefaultTask(void const * argument);
@@ -102,7 +103,6 @@ void entry_robotic_arm(void const * argument);
 void entry_chassis(void const * argument);
 void entry_clamp(void const * argument);
 void entry_cmd_task(void const * argument);
-void entry_m8010_task(void const * argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -144,7 +144,7 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN RTOS_SEMAPHORES */
 
   // CubeMX 创建的信号量默认计数为 1，需要先 take 掉让它变为 0
-  osSemaphoreWait(bisem_m8010Handle, 0);  // 非阻塞地取走初始的 1，使计数变为 0
+  osSemaphoreWait(bisem_m8010Handle, 0); // 非阻塞地取走初始的 1，使计数变为 0
 
   /* add semaphores, ... */
   /* USER CODE END RTOS_SEMAPHORES */
@@ -167,20 +167,16 @@ void MX_FREERTOS_Init(void) {
   roboticarm_taskHandle = osThreadCreate(osThread(roboticarm_task), NULL);
 
   /* definition and creation of chassis_task */
-  osThreadDef(chassis_task, entry_chassis, osPriorityBelowNormal, 0, 256);
+  osThreadDef(chassis_task, entry_chassis, osPriorityBelowNormal, 0, 128);
   chassis_taskHandle = osThreadCreate(osThread(chassis_task), NULL);
 
   /* definition and creation of clamp_task */
-  osThreadDef(clamp_task, entry_clamp, osPriorityBelowNormal, 0, 256);
+  osThreadDef(clamp_task, entry_clamp, osPriorityBelowNormal, 0, 128);
   clamp_taskHandle = osThreadCreate(osThread(clamp_task), NULL);
 
   /* definition and creation of cmd_task */
-  osThreadDef(cmd_task, entry_cmd_task, osPriorityNormal, 0, 512);
+  osThreadDef(cmd_task, entry_cmd_task, osPriorityNormal, 0, 128);
   cmd_taskHandle = osThreadCreate(osThread(cmd_task), NULL);
-
-  /* definition and creation of m8010_task */
-  osThreadDef(m8010_task, entry_m8010_task, osPriorityNormal, 0, 256);
-  m8010_taskHandle = osThreadCreate(osThread(m8010_task), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -199,22 +195,21 @@ void StartDefaultTask(void const * argument)
 {
   /* USER CODE BEGIN StartDefaultTask */
 
-//start tim2
+  // start tim2
   TIM2->CNT = 0;
   HAL_TIM_Base_Start_IT(&htim2);
-//start tim6
-	TIM6->CNT = 0;
-	HAL_TIM_Base_Start_IT(&htim6);
-//start tim7
-	TIM7->CNT = 0;
-	HAL_TIM_Base_Start_IT(&htim7);
-	
-	
+  // start tim6
+  TIM6->CNT = 0;
+  HAL_TIM_Base_Start_IT(&htim6);
+  // start tim7
+  TIM7->CNT = 0;
+  HAL_TIM_Base_Start_IT(&htim7);
+
   /* Infinite loop */
   for (;;)
   {
-  //=======================================================================
-  // vofa显示调试信息
+    //=======================================================================
+    // vofa显示调试信息
 
     // data_send_vofa[0] = arm.x0_now;
     // data_send_vofa[1] = arm_traj.traj_x.out_pos;
@@ -225,25 +220,30 @@ void StartDefaultTask(void const * argument)
 
     // data_send_vofa[0] = Radar_Pos.reliable_yaw;
     // data_send_vofa[1] = chassis_route_traj.traj_vw.target_pos;
-		// data_send_vofa[2] = Radar_Pos.reliable_x;
+    // data_send_vofa[2] = Radar_Pos.reliable_x;
 
     // 此处measure.Pos是实际转子位置减去初始位置（即电机上电时的位置），加上初始位置的目的是为了显示实际的机械位置（相对于上电时的零点）
     // 因此此处将measure.pos加上init_pos显示的数值是电机的实际位置，更直观地和发给电机的位置环目标进行对比
-    data_send_vofa[0] = m8010_bus_3.motors[0].measure.Pos + m8010_bus_3.motors[0].measure.init_Pos;
-    data_send_vofa[1] = m8010_bus_3.motors[0].target.Pos;
-    data_send_vofa[2] = chassis_lift_traj.traj_queue_front.points[chassis_lift_traj.traj_queue_front.tail > 0 ? chassis_lift_traj.traj_queue_front.tail - 1 : 0];
-    data_send_vofa[3] = m8010_bus_3.motors[1].measure.Pos + m8010_bus_3.motors[1].measure.init_Pos;
-    data_send_vofa[4] = m8010_bus_3.motors[1].target.Pos;
-    data_send_vofa[5] = chassis_lift_traj.traj_queue_back.points[chassis_lift_traj.traj_queue_back.tail > 0 ? chassis_lift_traj.traj_queue_back.tail - 1 : 0];
-    // data_send_vofa[6] = m8010_bus_3.motors[1].measure.T;
-    // data_send_vofa[7] = m8010_bus_3.motors[0].measure.T;
-    data_send_vofa[6] = m3508_fdcan1[1].Angle_Sum;
-    data_send_vofa[7] = m3508_fdcan1[2].Angle_Sum;
-
+    // data_send_vofa[0] =chassis_route_traj.traj_vx.out_pos ;
+    // data_send_vofa[1] = Radar_Pos.reliable_x;
+    // data_send_vofa[2] = chassis_route_traj.traj_vx.out_vel;
+    // data_send_vofa[3] = chassis_route_traj.traj_vx.target_pos;
+    // data_send_vofa[4] = Radar_Pos.radar_x;
+    // data_send_vofa[5] = Radar_Pos.radar_x_filtered;
+    // data_send_vofa[6] = m3508_fdcan3[0].Now_Speed;
+    // data_send_vofa[7] = m3508_fdcan3[0].M3508_Speed_PID.Target;
+    data_send_vofa[0] = m3508_fdcan3[0].Now_Speed;
+    data_send_vofa[1] = m3508_fdcan3[0].M3508_Speed_PID.Target;
+    data_send_vofa[2] = m3508_fdcan3[1].Now_Speed;
+    data_send_vofa[3] = m3508_fdcan3[1].M3508_Speed_PID.Target;
+    data_send_vofa[4] = m3508_fdcan3[2].Now_Speed;
+    data_send_vofa[5] = m3508_fdcan3[2].M3508_Speed_PID.Target;
+    data_send_vofa[6] = m3508_fdcan3[3].Now_Speed;
+    data_send_vofa[7] = m3508_fdcan3[3].M3508_Speed_PID.Target;
     vofa_send_to_show_justfloat(&huart7, data_send_vofa);
 
-  // vofa显示调试信息
-  //=======================================================================
+    // vofa显示调试信息
+    //=======================================================================
 
     debug_test_time += 0.001f;
     osDelay(1);
@@ -262,19 +262,18 @@ void entry_robotic_arm(void const * argument)
 {
   /* USER CODE BEGIN entry_robotic_arm */
 
-// 机械臂dh参数初始化
+  // 机械臂dh参数初始化
   arm_joint_parameter_init(&arm);
-  
-// 机械臂上的3508参数初始化
-//  m3508_parameter_init(&m3508_fdcan1[0], 1.0f, 1.0f, 1.5f, 12.5f);
-  m3508_parameter_init(&m3508_fdcan1[0], 0.0f, 0.0f, 0.0f, 0.0f);
 
-// 末端执行器默认目标姿态
+  // 机械臂上的3508参数初始化
+  //  m3508_parameter_init(&m3508_fdcan1[0], 1.0f, 1.0f, 1.5f, 12.5f);
+  m3508_parameter_init(&m3508_fdcan1[0], 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+
+  // 末端执行器默认目标姿态
   arm.effector_pitch_target = 0.0f;
   // arm.theta_target[4] = 0.0f;
 
-
-// 向机械臂添加默认路径点，替代之前的单位置环上电复位
+  // 向机械臂添加默认路径点，替代之前的单位置环上电复位
 
   /* Infinite loop */
   for (;;)
@@ -282,7 +281,7 @@ void entry_robotic_arm(void const * argument)
     arm_joint_state_update(&arm);
     arm_route_point_calculate(&arm);
 
-    if(traj_init_flag_arm == 0)
+    if (traj_init_flag_arm == 0)
     {
       arm_trajectory_init(&arm_traj, &arm);   // 以当前位置初始化轨迹系统
       arm_queue_add_point(&arm_traj, 0.35f, 0.35f, 0.0f, 500, 0);
@@ -291,19 +290,19 @@ void entry_robotic_arm(void const * argument)
       traj_init_flag_arm = 1;
     }
 
-    //等待初始化完成
-    if(m8010_bus_1.motors[0].measure.Pos_init_flag == 200 &&
+    // 等待初始化完成
+    if (m8010_bus_1.motors[0].measure.Pos_init_flag == 200 &&
         m8010_bus_1.motors[1].measure.Pos_init_flag == 200 &&
         m8010_bus_1.motors[2].measure.Pos_init_flag == 200)
     {
-    //保持执行器水平
-      if(m3508_fdcan1[0].Initial_flag == 200)
+      // 保持执行器水平
+      if (m3508_fdcan1[0].Initial_flag == 200)
       {
         arm_actuator_stable_control(&arm, arm.effector_pitch_target, arm.theta_target[4]);
       }
 
       // 1. 调用多段直线插补协调器 (它会从队列中成组提取路点)
-      arm_linear_interpolation_update(&arm, &arm_traj, 0.03f); 
+      arm_linear_interpolation_update(&arm, &arm_traj, 0.03f);
 
       // 2. 分别推演 X 和 Y 的单段物理影子 (0.001f 代表 1ms)
       Traj_Adaptive_Update(&arm_traj.traj_x, arm.x0_now, 0.001f);
@@ -311,7 +310,7 @@ void entry_robotic_arm(void const * argument)
       Traj_Adaptive_Update(&arm_traj.traj_w, m8010_bus_1.motors[0].measure.Pos, 0.001f);
 
       // 3. 将影子坐标交接给逆解器
-// ==============4月28日更新：去除遥控模式=====================
+      // ==============4月28日更新：去除遥控模式=====================
 
       arm.x0_target = arm_traj.traj_x.out_pos;
       arm.y0_target = arm_traj.traj_y.out_pos;
@@ -327,7 +326,7 @@ void entry_robotic_arm(void const * argument)
       //     arm_traj.traj_queue_y.count = 0;
       //     arm_traj.traj_queue_w.count = 0;
       //     // 将“影子进度”拽回到当前物理世界真正的坐标身上去！
-      //     arm_trajectory_init(&arm_traj, &arm); 
+      //     arm_trajectory_init(&arm_traj, &arm);
       //     // 下发真实位置重新解算：机械臂进入阻尼缓下落模式
       //     arm.x0_target = arm.x0_now;
       //     arm.y0_target = arm.y0_now;
@@ -356,14 +355,13 @@ void entry_chassis(void const * argument)
 {
   /* USER CODE BEGIN entry_chassis */
   // 3508参数初始化
-  m3508_parameter_init(&m3508_fdcan3[0], 0.0f, 0.0f, 0.0f, 0.0f);
-  m3508_parameter_init(&m3508_fdcan3[1], 0.0f, 0.0f, 0.0f, 0.0f);
-  m3508_parameter_init(&m3508_fdcan3[2], 0.0f, 0.0f, 0.0f, 0.0f);
-  m3508_parameter_init(&m3508_fdcan3[3], 0.0f, 0.0f, 0.0f, 0.0f);
-  // m3508_parameter_init(&m3508_fdcan3[0], 10.0f, 1.0f, 0.0f, 0.0f);
-  // m3508_parameter_init(&m3508_fdcan3[1], 10.0f, 1.0f, 0.0f, 0.0f);
-  // m3508_parameter_init(&m3508_fdcan3[2], 10.0f, 1.0f, 0.0f, 0.0f);
-  // m3508_parameter_init(&m3508_fdcan3[3], 10.0f, 1.0f, 0.0f, 0.0f);
+  m3508_parameter_init(&m3508_fdcan3[0], 17.0f, 0.01f, 3.0f, 0.0f, 0.0f, 0.0f);
+  m3508_parameter_init(&m3508_fdcan3[1], 15.0f, 0.01f, 3.0f, 0.0f, 0.0f, 0.0f);
+  m3508_parameter_init(&m3508_fdcan3[2], 15.0f, 0.01f, 5.0f, 0.0f, 0.0f, 0.0f);
+  m3508_parameter_init(&m3508_fdcan3[3], 16.0f, 0.01f, 3.0f, 0.0f, 0.0f, 0.0f);
+	//抬升机构辅助轮电机初始化
+	m3508_parameter_init(&m3508_fdcan1[1], 15.0f, 0.00f,2.0f, 0.0f, 0.0f, 0.0f);
+  m3508_parameter_init(&m3508_fdcan1[2], 15.0f, 0.00f, 2.0f, 0.0f, 0.0f, 0.0f);
   // 底盘升降初始化为收回状态
   // chassis_r2.lift_front = 0;
   // chassis_r2.lift_back = 0;
@@ -373,61 +371,62 @@ void entry_chassis(void const * argument)
   /* Infinite loop */
   for (;;)
   {
-    if(m3508_fdcan3[0].Initial_flag == 200 && m3508_fdcan3[1].Initial_flag == 200
-      && m3508_fdcan3[2].Initial_flag == 200 && m3508_fdcan3[3].Initial_flag == 200)
+    if (m3508_fdcan3[0].Initial_flag == 200 && m3508_fdcan3[1].Initial_flag == 200 && m3508_fdcan3[2].Initial_flag == 200 && m3508_fdcan3[3].Initial_flag == 200)
     {
-// 测试用添加路径点
-      if(point_add == 1)
-      {
-        //      chassis_route_point_add(&chassis_route_traj,55.0f,66.0f,0.0f);
-        chassis_route_point_add(&chassis_route_traj, 789.0f, 580.0f, -180.0f,0);
-        // chassis_route_point_add(&chassis_route_traj, 2200.0f, 3000.0f, 180.0f);
-        // chassis_route_point_add(&chassis_route_traj, 1200.0f, 3000.0f, -45.0f);
-        point_add = 0;
-      }
-      if(point_add1 ==1)
-      {
-        chassis_route_point_add(&chassis_route_traj, 11600.0f,5650.0f, 0.0f,0);
-        point_add1 = 0;
-      }
-// 测试用添加路径点
+//      // 测试用添加路径点
+//            if(point_add == 1)
+//            {
+//              //      chassis_route_point_add(&chassis_route_traj,55.0f,66.0f,0.0f);
+//              chassis_route_point_add(&chassis_route_traj, 600.0f, 2000.0f, -180.0f,0);
+//              // chassis_route_point_add(&chassis_route_traj, 2200.0f, 3000.0f, 180.0f);
+//              // chassis_route_point_add(&chassis_route_traj, 1200.0f, 3000.0f, -45.0f);
+//              point_add = 0;
+//            }
+//            if(point_add1 ==1)
+//            {
+//              chassis_route_point_add(&chassis_route_traj, 450.0f,1400.0f, 0.0f,0);
+//              point_add1 = 0;
+//            }
+//      // 测试用添加路径点
+//           CZ_Test( mode);
+//            // 滤波后的雷达数据更新
+//            Radar_Pos.radar_x_filtered = Kalman_Update(&Radar_Kalman_X, Radar_Pos.radar_x);
+//            Radar_Pos.radar_y_filtered = Kalman_Update(&Radar_Kalman_Y, Radar_Pos.radar_y);
+//            Radar_Pos.radar_z_filtered = Kalman_Update(&Radar_Kalman_Z, Radar_Pos.radar_z);
+//       // Radar_Pos.radar_yaw_filtered = Kalman_Update(&Radar_Kalman_Yaw, Radar_Pos.radar_yaw);
+//            // 利用电机速度计算底盘实际速度（逆解算）
+//            omni_chassis_inverse_calculate(&chassis_r2, m3508_fdcan3);
+//          //  Radar_Pos.reliable_x = Radar_Pos.radar_x;
+//          //  Radar_Pos.reliable_y = Radar_Pos.radar_y;
+//          //  Radar_Pos.reliable_yaw = Radar_Pos.radar_yaw;
+//            // 当底盘实际速度足够小时，认为雷达数据不可靠，使用滤波后的雷达数据
+//            if (abs_float(Radar_Pos.radar_x_filtered - Radar_Pos.radar_x) <5 && abs_float(Radar_Pos.radar_y_filtered - Radar_Pos.radar_y) <5 && abs_float(chassis_route_traj.traj_vy.target_pos - Radar_Pos.radar_y_filtered) < 10 && abs_float(chassis_route_traj.traj_vx.target_pos - Radar_Pos.radar_x_filtered) < 20 && abs_float(chassis_route_traj.traj_vx.target_pos - Radar_Pos.radar_x) < 10 && abs_float(chassis_route_traj.traj_vy.target_pos - Radar_Pos.radar_y) < 10)
+//            {
+//              // if(kalman_init_flag == 0)
+//              // {
+//              //   kalman_init_flag = 1; // 仅在第一次满足条件时初始化卡尔曼滤波器，避免频繁初始化
+//              //   Kalman_Init(&Radar_Kalman_X, 0.0001f, 100.0f, 0.0f, Radar_Pos.radar_x);
+//              //   Kalman_Init(&Radar_Kalman_Y, 0.0001f, 100.0f, 0.0f, Radar_Pos.radar_y);
+//              // }
+//              Radar_Pos.reliable_x = Radar_Pos.radar_x_filtered;
+//              Radar_Pos.reliable_y = Radar_Pos.radar_y_filtered;
+//              Radar_Pos.reliable_z = Radar_Pos.radar_z_filtered;
+//              Radar_Pos.reliable_yaw = Radar_Pos.hi14_yaw; // 直接使用hi14的yaw数据，替代雷达的yaw数据
+//            }
+//            // 否则认为雷达数据可靠，直接使用原始雷达数据
+//            else
+//            {
+//              Radar_Pos.reliable_x = Radar_Pos.radar_x;
+//              Radar_Pos.reliable_y = Radar_Pos.radar_y;
+//              Radar_Pos.reliable_z = Radar_Pos.radar_z;
+//              Radar_Pos.reliable_yaw = Radar_Pos.hi14_yaw;
+//            }
 
-      // 滤波后的雷达数据更新
-      Radar_Pos.radar_x_filtered = Kalman_Update(&Radar_Kalman_X, Radar_Pos.radar_x);
-      Radar_Pos.radar_y_filtered = Kalman_Update(&Radar_Kalman_Y, Radar_Pos.radar_y);
-      Radar_Pos.radar_z_filtered = Kalman_Update(&Radar_Kalman_Z, Radar_Pos.radar_z);
- // Radar_Pos.radar_yaw_filtered = Kalman_Update(&Radar_Kalman_Yaw, Radar_Pos.radar_yaw);
-      // 利用电机速度计算底盘实际速度（逆解算）
-      omni_chassis_inverse_calculate(&chassis_r2, m3508_fdcan3);
-
-      // 当底盘实际速度足够小时，认为雷达数据不可靠，使用滤波后的雷达数据
-      if (abs_float(chassis_r2.real_vx) < RADAR_Filter_Threshold && abs_float(chassis_r2.real_vy) < RADAR_Filter_Threshold)
-      {
-        // if(kalman_init_flag == 0)
-        // {
-        //   kalman_init_flag = 1; // 仅在第一次满足条件时初始化卡尔曼滤波器，避免频繁初始化
-        //   Kalman_Init(&Radar_Kalman_X, 0.0001f, 100.0f, 0.0f, Radar_Pos.radar_x);
-        //   Kalman_Init(&Radar_Kalman_Y, 0.0001f, 100.0f, 0.0f, Radar_Pos.radar_y);
-        // }
-        Radar_Pos.reliable_x = Radar_Pos.radar_x_filtered;
-        Radar_Pos.reliable_y = Radar_Pos.radar_y_filtered;
-        Radar_Pos.reliable_z = Radar_Pos.radar_z_filtered;
-        Radar_Pos.reliable_yaw = Radar_Pos.radar_yaw;
-      }
-      // 否则认为雷达数据可靠，直接使用原始雷达数据
-      else
-      {
-        Radar_Pos.reliable_x = Radar_Pos.radar_x;
-        Radar_Pos.reliable_y = Radar_Pos.radar_y;
-        Radar_Pos.reliable_z = Radar_Pos.radar_z;
-        Radar_Pos.reliable_yaw = Radar_Pos.radar_yaw;
-      }
-
-      // 多段-单段-坐标系变换-底盘解算 路径执行部分
-      chassis_multi_route_scheduler(&chassis_route_traj, &Radar_Pos);
-      chassis_single_route_scheduler(&Radar_Pos, &chassis_route_traj, 1);
-      chassis_world_to_robot_velocity(&chassis_r2, chassis_route_traj.traj_vx.out_vel, chassis_route_traj.traj_vy.out_vel, chassis_route_traj.traj_vw.out_vel, Radar_Pos.reliable_yaw);
-      omni_chassis_calculate(&chassis_r2, chassis_r2.vx, chassis_r2.vy, chassis_r2.vw);
+//            // 多段-单段-坐标系变换-底盘解算 路径执行部分
+//            chassis_multi_route_scheduler(&chassis_route_traj, &Radar_Pos);
+//            chassis_single_route_scheduler(&Radar_Pos, &chassis_route_traj, 1);
+//            chassis_world_to_robot_velocity(&chassis_r2, chassis_route_traj.traj_vx.out_vel, chassis_route_traj.traj_vy.out_vel, chassis_route_traj.traj_vw.out_vel, Radar_Pos.reliable_yaw);
+//      omni_chassis_calculate(&chassis_r2, chassis_r2.vx, chassis_r2.vy, chassis_r2.vw);
     }
     // if(m3508_fdcan3[0].Initial_flag == 200 && m3508_fdcan3[1].Initial_flag == 200
     //   && m3508_fdcan3[2].Initial_flag == 200 && m3508_fdcan3[3].Initial_flag == 200)
@@ -458,16 +457,14 @@ void entry_chassis(void const * argument)
     //     omni_chassis_calculate(&chassis_r2, chassis_r2.vx, chassis_r2.vy, chassis_r2.vw);
     //   }
     // }
-    
 
-/* ========================= 抬升部分 ========================= */
+    /* ========================= 抬升部分 ========================= */
 
-
-    if(m8010_bus_3.motors[0].measure.Pos_init_flag == 200 && m8010_bus_3.motors[1].measure.Pos_init_flag == 200)
+    if (m8010_bus_3.motors[0].measure.Pos_init_flag == 200 && m8010_bus_3.motors[1].measure.Pos_init_flag == 200)
     {
       // 1. 正向运动学更新当前升降高度
       chassis_lift_fk_update(&chassis_r2);
-      if(traj_init_flag_lift == 0)
+      if (traj_init_flag_lift == 0)
       {
         // 以当前升降高度初始化升降轨迹系统
         chassis_lift_traj_init();
@@ -475,24 +472,24 @@ void entry_chassis(void const * argument)
         chassis_lift_queue_add_point(&chassis_lift_traj, 0.230f, 0.030f, 0);
         traj_init_flag_lift = 1;
       }
-      if(debug_flag == 1)
+      if (debug_flag == 1)
       {
         chassis_lift_queue_add_point(&chassis_lift_traj, -0.025f, -0.225f, 0);
         debug_flag = 0;
       }
-      if(debug_flag == 2)
+      if (debug_flag == 2)
       {
         chassis_lift_queue_add_point(&chassis_lift_traj, 0.230f, 0.030f, 0);
         debug_flag = 0;
       }
       // 2. 多段路径调度器：当前段完成→从队列出队下一个目标
-      chassis_lift_linear_interpolation_update(&chassis_r2, &chassis_lift_traj,CHASSIS_LIFT_QUEUE_BLEND_RADIUS);
+      chassis_lift_linear_interpolation_update(&chassis_r2, &chassis_lift_traj, CHASSIS_LIFT_QUEUE_BLEND_RADIUS);
       // 3. 单段轨迹推演（影子位置 + 速度 + 自动判敛）
-      Traj_Adaptive_Update(&chassis_lift_traj.traj_front,chassis_r2.lift_front_current, 0.001f);
-      Traj_Adaptive_Update(&chassis_lift_traj.traj_back,chassis_r2.lift_back_current, 0.001f);
+      Traj_Adaptive_Update(&chassis_lift_traj.traj_front, chassis_r2.lift_front_current, 0.001f);
+      Traj_Adaptive_Update(&chassis_lift_traj.traj_back, chassis_r2.lift_back_current, 0.001f);
       // 4. 影子位置 → 目标高度
       chassis_r2.lift_front_target = chassis_lift_traj.traj_front.out_pos;
-      chassis_r2.lift_back_target  = chassis_lift_traj.traj_back.out_pos;
+      chassis_r2.lift_back_target = chassis_lift_traj.traj_back.out_pos;
       // 5. 逆运动学：目标高度 → 电机位置
       chassis_lift_ik_update(&chassis_r2);
       // 6. 位置环执行
@@ -521,10 +518,10 @@ void entry_clamp(void const * argument)
   /* USER CODE BEGIN entry_clamp */
 
   // 夹爪电机初始化
-  m3508_parameter_init(&m3508_fdcan2[0], 5, 2, 0.5, 0.2);
-  m3508_parameter_init(&m3508_fdcan2[1], 5, 2, 0.5, 0.2);
-  m3508_parameter_init(&m3508_fdcan2[2], 5, 2, 0.5, 0.2);
-  m3508_parameter_init(&m3508_fdcan2[3], 5, 2, 0.5, 0.2);
+  m3508_parameter_init(&m3508_fdcan2[0], 5.0f, 0.0f, 2.0f, 0.5f, 0.0f, 0.2f);
+  m3508_parameter_init(&m3508_fdcan2[1], 5.0f, 0.0f, 2.0f, 0.5f, 0.0f, 0.2f);
+  m3508_parameter_init(&m3508_fdcan2[2], 5.0f, 0.0f, 2.0f, 0.5f, 0.0f, 0.2f);
+
   // 标志位初始化
   clamp.catch_flag = 0;
   clamp.rotate_flag = 0;
@@ -536,16 +533,15 @@ void entry_clamp(void const * argument)
   {
     if (m3508_fdcan2[0].Initial_flag == 200 && m3508_fdcan2[1].Initial_flag == 200 && m3508_fdcan2[2].Initial_flag == 200)
     {
-        
-        // 气缸驱动夹爪部分
-        clamp_open_control(clamp.catch_flag);
-        // 夹爪旋转部分
-        clamp_rotate_control(clamp.rotate_flag * CLAMP_ROTATE_MAX_POSITION, &m3508_fdcan2[2]);
-        // 夹爪伸缩部分
-        clamp_extend_control(clamp.retractable_flag * CLAMP_EXTEND_MAX_POSITION, &m3508_fdcan2[1]);
-        // // 夹爪升降部分
-        // clamp_lift_control(clamp.lift_flag, &m3508_fdcan2[0]);
-    
+
+      // 气缸驱动夹爪部分
+      clamp_open_control(clamp.catch_flag);
+      // 夹爪旋转部分
+      clamp_rotate_control(clamp.rotate_flag * CLAMP_ROTATE_MAX_POSITION, &m3508_fdcan2[2]);
+      // 夹爪伸缩部分
+      clamp_extend_control(clamp.retractable_flag * CLAMP_EXTEND_MAX_POSITION, &m3508_fdcan2[1]);
+      // // 夹爪升降部分
+      // clamp_lift_control(clamp.lift_flag, &m3508_fdcan2[0]);
     }
     osDelay(1);
   }
@@ -604,46 +600,23 @@ void entry_cmd_task(void const * argument)
     /* MF 行为树 Tick（内部 10ms 降频） */
     BT_Customized_Tick1ms_MF();
 
+		
+//MF_Scan_Command_Send( Command_Number);
+    // 调用武馆定制的1ms周期函数
+    BT_Customized_Tick1ms_R2_MC();
+    // 调用 BT_Customized_Tick1ms_Combined（内部做 10ms 降频）
+    BT_Customized_Tick1ms_Combined();
+    if (task_flag == 1)
+    {
+    BT_Start_R2_MC_Mission();
+		
+				
+	  task_flag = 0;
+    }
+    // HT10A_last = HT10A;
     osDelay(1);
   }
   /* USER CODE END entry_cmd_task */
-}
-
-/* USER CODE BEGIN Header_entry_m8010_task */
-/**
-* @brief Function implementing the m8010_task thread.
-* @param argument: Not used
-* @retval None
-*/
-/* USER CODE END Header_entry_m8010_task */
-void entry_m8010_task(void const * argument)
-{
-  /* USER CODE BEGIN entry_m8010_task */
-
-  m8010_bus_1.motors[0].target.id = 1;
-  m8010_bus_1.motors[0].target.mode = 1;
-  m8010_bus_1.motors[1].target.id = 2;
-  m8010_bus_1.motors[1].target.mode = 1;
-  m8010_bus_1.motors[2].target.id = 3;
-  m8010_bus_1.motors[2].target.mode = 1;
-
-  m8010_bus_3.motors[0].target.id = 1;
-  m8010_bus_3.motors[0].target.mode = 1;
-  m8010_bus_3.motors[1].target.id = 2;
-  m8010_bus_3.motors[1].target.mode = 1;
-  // m8010_bus_3.motors[2].target.id = 3;
-  // m8010_bus_3.motors[2].target.mode = 1;
-
-  /* Infinite loop */
-  for(;;)
-  {
-    osSemaphoreWait(bisem_m8010Handle, osWaitForever); // 等待信号量，确保在主循环中被正确触发
-
-    m8010_bus_poll(&m8010_bus_1);
-    // m8010_bus_poll(&m8010_bus_2);
-    m8010_bus_poll(&m8010_bus_3);
-  }
-  /* USER CODE END entry_m8010_task */
 }
 
 /* Private application code --------------------------------------------------*/

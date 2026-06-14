@@ -1,20 +1,20 @@
 /* USER CODE BEGIN Header */
 /**
-  ******************************************************************************
-  * @file           : main.c
-  * @brief          : Main program body
-  ******************************************************************************
-  * @attention
-  *
-  * Copyright (c) 2026 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
-  ******************************************************************************
-  */
+ ******************************************************************************
+ * @file           : main.c
+ * @brief          : Main program body
+ ******************************************************************************
+ * @attention
+ *
+ * Copyright (c) 2026 STMicroelectronics.
+ * All rights reserved.
+ *
+ * This software is licensed under terms that can be found in the LICENSE file
+ * in the root directory of this software component.
+ * If no LICENSE file comes with this software, it is provided AS-IS.
+ *
+ ******************************************************************************
+ */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
@@ -39,6 +39,8 @@
 #include "hi14.h"
 #include "clamp.h"
 #include "go_m8010.h"
+#include "BT_customized.h"
+#include "camera.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -60,12 +62,11 @@
 
 /* USER CODE BEGIN PV */
 
-extern osSemaphoreId bisem_m8010Handle;   // ← 新增（v1 中类型名可能是 osSemaphoreId）
+extern osSemaphoreId bisem_m8010Handle; // ← 新增（v1 中类型名可能是 osSemaphoreId）
 
+uint8_t timer_a1_flag = 0; // 用于使定时器中对A1电机依次发送的标志位，0-3分别对应4个电机
 
-uint8_t timer_a1_flag = 0;//用于使定时器中对A1电机依次发送的标志位，0-3分别对应4个电机
-
-uint32_t timer_ms = 0;//定时器计时变量，单位ms
+uint32_t timer_ms = 0; // 定时器计时变量，单位ms
 
 // uint8_t m3508_send_flag = 0;//用于使定时器中对M3508电机依次发送的标志位
 /* USER CODE END PV */
@@ -127,45 +128,49 @@ int main(void)
   MX_USART3_UART_Init();
   MX_USART6_UART_Init();
   MX_UART7_Init();
+  MX_USART10_UART_Init();
+  MX_UART8_Init();
   /* USER CODE BEGIN 2 */
-  
-//FDCAN初始化，配置过滤器并开启CAN
+
+  // FDCAN初始化，配置过滤器并开启CAN
   FDCan_Start(&FDCAN_Default_FilterConfig_1);
 
-//uart1-a1
-  // memset(a1_usart1_raw_recv.RX_pData, 0, sizeof(a1_usart1_raw_recv.RX_pData));
-  // HAL_UARTEx_ReceiveToIdle_DMA(&huart1, a1_usart1_raw_recv.RX_pData, RX_LEN1);
-  // __HAL_DMA_DISABLE_IT(&hdma_usart1_rx, DMA_IT_HT);
-//uart9-a1
-  // memset(a1_usart9_raw_recv.RX_pData, 0, sizeof(a1_usart9_raw_recv.RX_pData));
-  // HAL_UARTEx_ReceiveToIdle_DMA(&huart9, a1_usart9_raw_recv.RX_pData, RX_LEN1);
-  // __HAL_DMA_DISABLE_IT(&hdma_uart9_rx, DMA_IT_HT);
-//uart8-ht10a
-  // memset(ht10a_buffer, 0, sizeof(ht10a_buffer));
-  // HAL_UARTEx_ReceiveToIdle_DMA(&huart8, ht10a_buffer, sizeof(ht10a_buffer));
-  // __HAL_DMA_DISABLE_IT(&hdma_uart8_rx, DMA_IT_HT);
-//uart6-ht10a-仅调试用，实际不适用
-  // memset(ht10a_buffer, 0, sizeof(ht10a_buffer));
-  // HAL_UARTEx_ReceiveToIdle_DMA(&huart6, ht10a_buffer, sizeof(ht10a_buffer));
-  // __HAL_DMA_DISABLE_IT(&hdma_usart6_rx, DMA_IT_HT);
-//uart6-hi14
-  // memset(dma_rx_buf, 0, sizeof(dma_rx_buf));
-  // HAL_UARTEx_ReceiveToIdle_DMA(&huart6, dma_rx_buf, sizeof(dma_rx_buf));
-  // __HAL_DMA_DISABLE_IT(&hdma_usart6_rx, DMA_IT_HT);
+  // uart1-a1
+  //  memset(a1_usart1_raw_recv.RX_pData, 0, sizeof(a1_usart1_raw_recv.RX_pData));
+  //  HAL_UARTEx_ReceiveToIdle_DMA(&huart1, a1_usart1_raw_recv.RX_pData, RX_LEN1);
+  //  __HAL_DMA_DISABLE_IT(&hdma_usart1_rx, DMA_IT_HT);
+  // uart9-a1
+  //  memset(a1_usart9_raw_recv.RX_pData, 0, sizeof(a1_usart9_raw_recv.RX_pData));
+  //  HAL_UARTEx_ReceiveToIdle_DMA(&huart9, a1_usart9_raw_recv.RX_pData, RX_LEN1);
+  //  __HAL_DMA_DISABLE_IT(&hdma_uart9_rx, DMA_IT_HT);
+  // uart8-ht10a
+  //  memset(ht10a_buffer, 0, sizeof(ht10a_buffer));
+  //  HAL_UARTEx_ReceiveToIdle_DMA(&huart8, ht10a_buffer, sizeof(ht10a_buffer));
+  //  __HAL_DMA_DISABLE_IT(&hdma_uart8_rx, DMA_IT_HT);
+  // uart6-ht10a-仅调试用，实际不适用
+  //  memset(ht10a_buffer, 0, sizeof(ht10a_buffer));
+  //  HAL_UARTEx_ReceiveToIdle_DMA(&huart6, ht10a_buffer, sizeof(ht10a_buffer));
+  //  __HAL_DMA_DISABLE_IT(&hdma_usart6_rx, DMA_IT_HT);
+  //  uart10-hi14
+  memset(dma_rx_buf, 0, sizeof(dma_rx_buf));
+  HAL_UARTEx_ReceiveToIdle_DMA(&huart10, dma_rx_buf, sizeof(dma_rx_buf));
+  __HAL_DMA_DISABLE_IT(&hdma_usart10_rx, DMA_IT_HT);
 
-//uart5-radar
+  // uart5-radar
   memset(Rec_Data, 0, sizeof(Rec_Data));
   HAL_UARTEx_ReceiveToIdle_DMA(&huart5, Rec_Data, sizeof(Rec_Data));
   __HAL_DMA_DISABLE_IT(&hdma_uart5_rx, DMA_IT_HT);
-
-
-// 雷达卡尔曼滤波器初始化
+  // uart8 - camera
+  memset(Camera_Rec_Data, 0, sizeof(Camera_Rec_Data));
+  HAL_UARTEx_ReceiveToIdle_DMA(&huart8, (uint8_t*)Camera_Rec_Data, sizeof(Camera_Rec_Data));
+  __HAL_DMA_DISABLE_IT(&hdma_uart8_rx, DMA_IT_HT);
+  // 雷达卡尔曼滤波器初始化
   Kalman_Init(&Radar_Kalman_X, 0.0001f, 100.0f, 0.0f, 400.0f);
   Kalman_Init(&Radar_Kalman_Y, 0.0001f, 100.0f, 0.0f, 1400.0f);
   Kalman_Init(&Radar_Kalman_Z, 0.0001f, 100.0f, 0.0f, 140.0f);
-  Kalman_Init(&Radar_Kalman_Yaw, 0.0001f, 100.0f, 0.0f, 0.0f); 
+  Kalman_Init(&Radar_Kalman_Yaw, 0.0001f, 100.0f, 0.0f, 0.0f);
 
-// go_m8010电机总线初始化
+  // go_m8010电机总线初始化
   m8010_bus_init(&m8010_bus_1, &huart3, &htim6);
   m8010_bus_init(&m8010_bus_2, &huart6, &htim6);
   m8010_bus_init(&m8010_bus_3, &huart4, &htim6);
@@ -173,9 +178,7 @@ int main(void)
   // A1_Motor_Parameter_Init(&A1_debug_485_2[0], 0, 0, 0, 0);
   // A1_Motor_Parameter_Init(&A1_debug_485_2[1], 1, 0, 0, 0);
 
-
-
-//clamp_position_init(&m3508_fdcan2[1],&m3508_fdcan2[3],&m3508_fdcan2[2]);
+  // clamp_position_init(&m3508_fdcan2[1],&m3508_fdcan2[3],&m3508_fdcan2[2]);
   /* USER CODE END 2 */
 
   /* Call init function for freertos objects (in cmsis_os2.c) */
@@ -257,6 +260,26 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+  uint32_t status_value;
+  status_value = taskENTER_CRITICAL_FROM_ISR();
+
+  if (GPIO_Pin == GPIO_PIN_5)
+  {
+    if (HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_5) == 1)
+    {
+     // osDelay(20);
+      if (HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_5) == 1)
+      {
+        MC_bb.RACK_PICK_SUCCESS = 1;
+      }
+    }
+    else
+      MC_bb.RACK_PICK_SUCCESS = 0;
+  }
+  taskEXIT_CRITICAL_FROM_ISR(status_value); // 退出临界段
+}
 
 /* USER CODE END 4 */
 
@@ -300,8 +323,8 @@ void MPU_Config(void)
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
   /* USER CODE BEGIN Callback 0 */
-	uint32_t status_value;
-	status_value = taskENTER_CRITICAL_FROM_ISR();
+  uint32_t status_value;
+  status_value = taskENTER_CRITICAL_FROM_ISR();
 
   /* USER CODE END Callback 0 */
   if (htim->Instance == TIM1)
@@ -310,38 +333,38 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   }
   /* USER CODE BEGIN Callback 1 */
 
-//TIM2定时累加时间，每1ms累加一次，单位为ms
-  if(htim->Instance == TIM2)
+  // TIM2定时累加时间，每1ms累加一次，单位为ms
+  if (htim->Instance == TIM2)
   {
     timer_ms++;
   }
-
-//TIM6定时发送数据控制m8010电机，0.5ms会发送一次，每次发送一个电机的数据，依次循环4个电机
-	if(htim->Instance == TIM6)
-	{
-		//  switch(timer_a1_flag)
-		//  {
-		//  	// case 0:{A1_Motor_Send_Data(&A1_debug_485_1[0], &huart1); break;}
-		//  	// case 1:{A1_Motor_Send_Data(&A1_debug_485_1[1], &huart1); break;}
-		//   // case 2:{A1_Motor_Send_Data(&A1_debug_485_2[0], &huart9); break;}
-		//  	// case 3:{A1_Motor_Send_Data(&A1_debug_485_2[1], &huart9); break;}
-		//  }
-		//  timer_a1_flag++;
-		//  if (timer_a1_flag > 3)	timer_a1_flag = 0;
+	
+  // TIM6定时发送数据控制m8010电机，0.5ms会发送一次，每次发送一个电机的数据，依次循环4个电机
+  if (htim->Instance == TIM6)
+  {
+    //  switch(timer_a1_flag)
+    //  {
+    //  	// case 0:{A1_Motor_Send_Data(&A1_debug_485_1[0], &huart1); break;}
+    //  	// case 1:{A1_Motor_Send_Data(&A1_debug_485_1[1], &huart1); break;}
+    //   // case 2:{A1_Motor_Send_Data(&A1_debug_485_2[0], &huart9); break;}
+    //  	// case 3:{A1_Motor_Send_Data(&A1_debug_485_2[1], &huart9); break;}
+    //  }
+    //  timer_a1_flag++;
+    //  if (timer_a1_flag > 3)	timer_a1_flag = 0;
 
     m8010_485_timer_trigger(htim);
 
     // 必须要等 RTOS 初始化完毕，信号量句柄不为空才能 Give 信号量
     if (bisem_m8010Handle != NULL)
     {
-        // 去掉 static，并确保每次进中断时初始化为 pdFALSE
-        BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-        xSemaphoreGiveFromISR(bisem_m8010Handle, &xHigherPriorityTaskWoken);
-        portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+      // 去掉 static，并确保每次进中断时初始化为 pdFALSE
+      BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+      xSemaphoreGiveFromISR(bisem_m8010Handle, &xHigherPriorityTaskWoken);
+      portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
     }
-	}
-//TIM7定时发送数据控制m3508电机，1ms会发送一次
-  if(htim->Instance == TIM7)
+  }
+  // TIM7定时发送数据控制m3508电机，1ms会发送一次
+  if (htim->Instance == TIM7)
   {
 
     FDCAN_Send_M3508(&hfdcan1, m3508_fdcan1);
@@ -349,7 +372,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     FDCAN_Send_M3508(&hfdcan3, m3508_fdcan3);
 
   }
-	taskEXIT_CRITICAL_FROM_ISR(status_value);// 退出临界段
+  taskEXIT_CRITICAL_FROM_ISR(status_value); // 退出临界段
 
   /* USER CODE END Callback 1 */
 }
