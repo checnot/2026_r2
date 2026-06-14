@@ -75,7 +75,31 @@
 #define CHASSIS_ENTRY_3_X 2600.0f /* 武馆到梅林区域 入口位置3 X (mm) */
 #define CHASSIS_ENTRY_3_Y 1800.0f /* 武馆到梅林区域 入口位置3 Y (mm) */
 #define CHASSIS_ENTRY_3_W 0.0f    /* 武馆到梅林区域 入口位置3 W (deg) */
-
+#define CHASSIS_EXIT_1_X 8650.0f /*出梅林 出口位置1 X (mm)*/
+#define CHASSIS_EXIT_1_Y 1800.0f /*出梅林 出口位置1 Y (mm)*/
+#define CHASSIS_EXIT_1_W 0.0f /*出梅林 出口位置1 W (deg)*/
+#define CHASSIS_EXIT_2_X 8650.0f /*出梅林 出口位置2 X (mm)*/
+#define CHASSIS_EXIT_2_Y 4200.0f /*出梅林 出口位置2 Y (mm)*/
+#define CHASSIS_EXIT_2_W 0.0f /*出梅林 出口位置2 W (deg)*/
+#define CHASSIS_SLOPE_START_X 8650.0f /*梅林进入对抗区 坡道起点 X (mm)*/
+#define CHASSIS_SLOPE_START_Y 5250.0f /*梅林进入对抗区 坡道起点 Y (mm)*/
+#define CHASSIS_SLOPE_START_W 0.0f /*梅林进入对抗区 坡道起点 W (deg)*/
+//对抗区路径点位
+#define CHASSIS_SLOPE_END_X 11000.0f /*梅林进入对抗区 坡道终点 X (mm)*/
+#define CHASSIS_SLOPE_END_Y 5250.0f /*梅林进入对抗区 坡道终点 Y (mm)*/
+#define CHASSIS_SLOPE_END_W 180.0f /*梅林进入对抗区 坡道终点 W (deg)*/
+#define CHASSIS_CZ_INIT_X 11400.0f /*对抗区重试区 X (mm)*/
+#define CHASSIS_CZ_INIT_Y 5500.0f /*对抗区重试区 Y (mm)*/
+#define CHASSIS_CZ_INIT_W -90.0f /*对抗区重试区 W (deg)*/
+#define CHASSIS_SUDUKU_1_X 11290.0f /*九宫格第一列 X (mm) */
+#define CHASSIS_SUDUKU_1_Y 350.0f /*九宫格第一列 Y (mm) */
+#define CHASSIS_SUDUKU_1_W 90.0f /*九宫格第一列 W (deg) */
+#define CHASSIS_SUDUKU_2_X 10750.0f /*九宫格第二列 X (mm) */
+#define CHASSIS_SUDUKU_2_Y 350.0f /*九宫格第二列 Y (mm) */
+#define CHASSIS_SUDUKU_2_W 90.0f /*九宫格第二列 W (deg) */
+#define CHASSIS_SUDUKU_3_X 10210.0f /*九宫格第三列  X (mm) */
+#define CHASSIS_SUDUKU_3_Y 350.0f /*九宫格第三列  Y (mm) */
+#define CHASSIS_SUDUKU_3_W 90.0f /*九宫格第三列  W (deg) */
 /**
  * @brief 综合任务中专属的底盘子状态机。
  * @note 为什么不复用原来的 CHASSIS_ROUTE_IDLE 那些？
@@ -155,6 +179,7 @@ void BT_Customized_Tick1ms_arm_test(void);
 void BT_Start_R2_MC_Mission(void);
 void BT_Init_R2_MC_Mission(void);   
 void BT_Customized_Tick1ms_R2_MC(void);
+extern MC_Blackboard MC_bb;
 
 void BT_Init_Combined_Task(void);
 void BT_Customized_Tick1ms_Combined(void);
@@ -206,6 +231,6 @@ void BT_MF_Init_Task(void);
 void BT_Customized_Tick1ms_MF(void);
 
 /* ================================================ MF 规划行为树接口 ================================================ */
-
+void CZ_Test(uint8_t mode);
 
 #endif // __BT_CUSTOMIZED_

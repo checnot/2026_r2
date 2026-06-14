@@ -10,7 +10,7 @@
 #include "ht10a.h"
 #include "radar.h"
 #include "go_m8010.h"
-
+#include "camera.h"
 // //引入uart1供 a1
 // extern DMA_HandleTypeDef hdma_usart1_tx;
 // extern DMA_HandleTypeDef hdma_usart1_rx;
@@ -23,9 +23,9 @@
 // extern DMA_HandleTypeDef hdma_usart10_tx;
 // extern DMA_HandleTypeDef hdma_usart10_rx;
 
-// //引入uart8供 ht10a
-// extern DMA_HandleTypeDef hdma_uart8_tx;
-// extern DMA_HandleTypeDef hdma_uart8_rx;
+//引入uart8-camera
+extern DMA_HandleTypeDef hdma_uart8_tx;
+extern DMA_HandleTypeDef hdma_uart8_rx;
 
 // //引入uart10供 hi14
 extern DMA_HandleTypeDef hdma_usart10_tx;

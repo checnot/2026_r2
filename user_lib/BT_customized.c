@@ -1572,3 +1572,29 @@ void BT_Customized_Tick1ms_MF(void)
 /* ================================================ MF 规划行为树 ============================================= */
 /* ================================================ MF 规划行为树 ============================================= */
 /* ================================================ MF 规划行为树 ============================================= */
+
+void CZ_Test(uint8_t mode)
+{
+    switch (mode)
+    {
+    case 1:chassis_route_point_add(&chassis_route_traj,CHASSIS_EXIT_1_X,CHASSIS_EXIT_1_Y,CHASSIS_EXIT_1_W,0);
+        break;
+    case 2:chassis_route_point_add(&chassis_route_traj,CHASSIS_EXIT_2_X,CHASSIS_EXIT_2_Y,CHASSIS_EXIT_2_W,0);
+        break;
+    case 3:chassis_route_point_add(&chassis_route_traj,CHASSIS_SLOPE_START_X,CHASSIS_SLOPE_START_Y,CHASSIS_SLOPE_START_W,0);
+        break;
+    case 4:chassis_route_point_add(&chassis_route_traj,CHASSIS_SLOPE_END_X,CHASSIS_SLOPE_END_Y,CHASSIS_SLOPE_END_W,0);
+        break;
+    case 5:chassis_route_point_add(&chassis_route_traj,CHASSIS_CZ_INIT_X,CHASSIS_CZ_INIT_Y,CHASSIS_CZ_INIT_W,0);
+        break;
+    case 6:chassis_route_point_add(&chassis_route_traj,CHASSIS_SUDUKU_1_X,CHASSIS_SUDUKU_1_Y,CHASSIS_SUDUKU_1_W,0);
+        break;
+    case 7:chassis_route_point_add(&chassis_route_traj,CHASSIS_SUDUKU_2_X,CHASSIS_SUDUKU_2_Y,CHASSIS_SUDUKU_2_W,0);
+        break;
+    case 8:chassis_route_point_add(&chassis_route_traj,CHASSIS_SUDUKU_3_X,CHASSIS_SUDUKU_3_Y,CHASSIS_SUDUKU_3_W,0);
+        break;
+    default:
+        break;
+    }
+
+}

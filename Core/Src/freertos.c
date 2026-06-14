@@ -79,6 +79,7 @@ uint8_t catch_flag = 0;          // 测试用：夹爪开合标志位
 int32_t rotate_target_angle = 0; // 测试用：夹爪旋转目标角度
 uint8_t task_flag = 0;           // 测试用：总开关，控制是否执行BT_Combined_Task_Tree_Root函数
 
+
 uint8_t traj_init_flag_arm = 0;  // 机械臂轨迹初始化标志位
 uint8_t traj_init_flag_lift = 0; // 抬升轨迹初始化标志位
 /* USER CODE END Variables */
@@ -87,24 +88,24 @@ osThreadId roboticarm_taskHandle;
 osThreadId chassis_taskHandle;
 osThreadId clamp_taskHandle;
 osThreadId cmd_taskHandle;
-osThreadId m8010_taskHandle;
 osSemaphoreId bisem_m8010Handle;
-
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
-
+//#ifndef bisem_m8010Handle
+//	osSemaphoreId bisem_m8010Handle;
+//#endif
 /* USER CODE END FunctionPrototypes */
 
-void StartDefaultTask(void const *argument);
-void entry_robotic_arm(void const *argument);
-void entry_chassis(void const *argument);
-void entry_clamp(void const *argument);
-void entry_cmd_task(void const *argument);
+void StartDefaultTask(void const * argument);
+void entry_robotic_arm(void const * argument);
+void entry_chassis(void const * argument);
+void entry_clamp(void const * argument);
+void entry_cmd_task(void const * argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
 /* GetIdleTaskMemory prototype (linked to static allocation support) */
-void vApplicationGetIdleTaskMemory(StaticTask_t **ppxIdleTaskTCBBuffer, StackType_t **ppxIdleTaskStackBuffer, uint32_t *pulIdleTaskStackSize);
+void vApplicationGetIdleTaskMemory( StaticTask_t **ppxIdleTaskTCBBuffer, StackType_t **ppxIdleTaskStackBuffer, uint32_t *pulIdleTaskStackSize );
 
 /* USER CODE BEGIN GET_IDLE_TASK_MEMORY */
 static StaticTask_t xIdleTaskTCBBuffer;
@@ -120,12 +121,11 @@ void vApplicationGetIdleTaskMemory(StaticTask_t **ppxIdleTaskTCBBuffer, StackTyp
 /* USER CODE END GET_IDLE_TASK_MEMORY */
 
 /**
- * @brief  FreeRTOS initialization
- * @param  None
- * @retval None
- */
-void MX_FREERTOS_Init(void)
-{
+  * @brief  FreeRTOS initialization
+  * @param  None
+  * @retval None
+  */
+void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN Init */
 
   /* USER CODE END Init */
@@ -174,6 +174,7 @@ void MX_FREERTOS_Init(void)
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
   /* USER CODE END RTOS_THREADS */
+
 }
 
 /* USER CODE BEGIN Header_StartDefaultTask */
@@ -183,7 +184,7 @@ void MX_FREERTOS_Init(void)
  * @retval None
  */
 /* USER CODE END Header_StartDefaultTask */
-void StartDefaultTask(void const *argument)
+void StartDefaultTask(void const * argument)
 {
   /* USER CODE BEGIN StartDefaultTask */
 
@@ -250,7 +251,7 @@ void StartDefaultTask(void const *argument)
  * @retval None
  */
 /* USER CODE END Header_entry_robotic_arm */
-void entry_robotic_arm(void const *argument)
+void entry_robotic_arm(void const * argument)
 {
   /* USER CODE BEGIN entry_robotic_arm */
 
@@ -353,7 +354,7 @@ void entry_robotic_arm(void const *argument)
  * @retval None
  */
 /* USER CODE END Header_entry_chassis */
-void entry_chassis(void const *argument)
+void entry_chassis(void const * argument)
 {
   /* USER CODE BEGIN entry_chassis */
   // 3508参数初始化
@@ -361,6 +362,9 @@ void entry_chassis(void const *argument)
   m3508_parameter_init(&m3508_fdcan3[1], 15.0f, 0.01f, 3.0f, 0.0f, 0.0f, 0.0f);
   m3508_parameter_init(&m3508_fdcan3[2], 15.0f, 0.01f, 5.0f, 0.0f, 0.0f, 0.0f);
   m3508_parameter_init(&m3508_fdcan3[3], 16.0f, 0.01f, 3.0f, 0.0f, 0.0f, 0.0f);
+	//抬升机构辅助轮电机初始化
+	m3508_parameter_init(&m3508_fdcan1[1], 15.0f, 0.00f,2.0f, 0.0f, 0.0f, 0.0f);
+  m3508_parameter_init(&m3508_fdcan1[2], 15.0f, 0.00f, 2.0f, 0.0f, 0.0f, 0.0f);
   // 底盘升降初始化为收回状态
   // chassis_r2.lift_front = 0;
   // chassis_r2.lift_back = 0;
@@ -372,60 +376,60 @@ void entry_chassis(void const *argument)
   {
     if (m3508_fdcan3[0].Initial_flag == 200 && m3508_fdcan3[1].Initial_flag == 200 && m3508_fdcan3[2].Initial_flag == 200 && m3508_fdcan3[3].Initial_flag == 200)
     {
-      // 测试用添加路径点
-            if(point_add == 1)
-            {
-              //      chassis_route_point_add(&chassis_route_traj,55.0f,66.0f,0.0f);
-              chassis_route_point_add(&chassis_route_traj, 600.0f, 2000.0f, -180.0f,0);
-              // chassis_route_point_add(&chassis_route_traj, 2200.0f, 3000.0f, 180.0f);
-              // chassis_route_point_add(&chassis_route_traj, 1200.0f, 3000.0f, -45.0f);
-              point_add = 0;
-            }
-            if(point_add1 ==1)
-            {
-              chassis_route_point_add(&chassis_route_traj, 450.0f,1400.0f, 0.0f,0);
-              point_add1 = 0;
-            }
-      // 测试用添加路径点
+//      // 测试用添加路径点
+//            if(point_add == 1)
+//            {
+//              //      chassis_route_point_add(&chassis_route_traj,55.0f,66.0f,0.0f);
+//              chassis_route_point_add(&chassis_route_traj, 600.0f, 2000.0f, -180.0f,0);
+//              // chassis_route_point_add(&chassis_route_traj, 2200.0f, 3000.0f, 180.0f);
+//              // chassis_route_point_add(&chassis_route_traj, 1200.0f, 3000.0f, -45.0f);
+//              point_add = 0;
+//            }
+//            if(point_add1 ==1)
+//            {
+//              chassis_route_point_add(&chassis_route_traj, 450.0f,1400.0f, 0.0f,0);
+//              point_add1 = 0;
+//            }
+//      // 测试用添加路径点
+//           CZ_Test( mode);
+//            // 滤波后的雷达数据更新
+//            Radar_Pos.radar_x_filtered = Kalman_Update(&Radar_Kalman_X, Radar_Pos.radar_x);
+//            Radar_Pos.radar_y_filtered = Kalman_Update(&Radar_Kalman_Y, Radar_Pos.radar_y);
+//            Radar_Pos.radar_z_filtered = Kalman_Update(&Radar_Kalman_Z, Radar_Pos.radar_z);
+//       // Radar_Pos.radar_yaw_filtered = Kalman_Update(&Radar_Kalman_Yaw, Radar_Pos.radar_yaw);
+//            // 利用电机速度计算底盘实际速度（逆解算）
+//            omni_chassis_inverse_calculate(&chassis_r2, m3508_fdcan3);
+//          //  Radar_Pos.reliable_x = Radar_Pos.radar_x;
+//          //  Radar_Pos.reliable_y = Radar_Pos.radar_y;
+//          //  Radar_Pos.reliable_yaw = Radar_Pos.radar_yaw;
+//            // 当底盘实际速度足够小时，认为雷达数据不可靠，使用滤波后的雷达数据
+//            if (abs_float(Radar_Pos.radar_x_filtered - Radar_Pos.radar_x) <5 && abs_float(Radar_Pos.radar_y_filtered - Radar_Pos.radar_y) <5 && abs_float(chassis_route_traj.traj_vy.target_pos - Radar_Pos.radar_y_filtered) < 10 && abs_float(chassis_route_traj.traj_vx.target_pos - Radar_Pos.radar_x_filtered) < 20 && abs_float(chassis_route_traj.traj_vx.target_pos - Radar_Pos.radar_x) < 10 && abs_float(chassis_route_traj.traj_vy.target_pos - Radar_Pos.radar_y) < 10)
+//            {
+//              // if(kalman_init_flag == 0)
+//              // {
+//              //   kalman_init_flag = 1; // 仅在第一次满足条件时初始化卡尔曼滤波器，避免频繁初始化
+//              //   Kalman_Init(&Radar_Kalman_X, 0.0001f, 100.0f, 0.0f, Radar_Pos.radar_x);
+//              //   Kalman_Init(&Radar_Kalman_Y, 0.0001f, 100.0f, 0.0f, Radar_Pos.radar_y);
+//              // }
+//              Radar_Pos.reliable_x = Radar_Pos.radar_x_filtered;
+//              Radar_Pos.reliable_y = Radar_Pos.radar_y_filtered;
+//              Radar_Pos.reliable_z = Radar_Pos.radar_z_filtered;
+//              Radar_Pos.reliable_yaw = Radar_Pos.hi14_yaw; // 直接使用hi14的yaw数据，替代雷达的yaw数据
+//            }
+//            // 否则认为雷达数据可靠，直接使用原始雷达数据
+//            else
+//            {
+//              Radar_Pos.reliable_x = Radar_Pos.radar_x;
+//              Radar_Pos.reliable_y = Radar_Pos.radar_y;
+//              Radar_Pos.reliable_z = Radar_Pos.radar_z;
+//              Radar_Pos.reliable_yaw = Radar_Pos.hi14_yaw;
+//            }
 
-            // 滤波后的雷达数据更新
-            Radar_Pos.radar_x_filtered = Kalman_Update(&Radar_Kalman_X, Radar_Pos.radar_x);
-            Radar_Pos.radar_y_filtered = Kalman_Update(&Radar_Kalman_Y, Radar_Pos.radar_y);
-            Radar_Pos.radar_z_filtered = Kalman_Update(&Radar_Kalman_Z, Radar_Pos.radar_z);
-       // Radar_Pos.radar_yaw_filtered = Kalman_Update(&Radar_Kalman_Yaw, Radar_Pos.radar_yaw);
-            // 利用电机速度计算底盘实际速度（逆解算）
-            omni_chassis_inverse_calculate(&chassis_r2, m3508_fdcan3);
-          //  Radar_Pos.reliable_x = Radar_Pos.radar_x;
-          //  Radar_Pos.reliable_y = Radar_Pos.radar_y;
-          //  Radar_Pos.reliable_yaw = Radar_Pos.radar_yaw;
-            // 当底盘实际速度足够小时，认为雷达数据不可靠，使用滤波后的雷达数据
-            if (abs_float(Radar_Pos.radar_x_filtered - Radar_Pos.radar_x) <5 && abs_float(Radar_Pos.radar_y_filtered - Radar_Pos.radar_y) <5 && abs_float(chassis_route_traj.traj_vy.target_pos - Radar_Pos.radar_y_filtered) < 10 && abs_float(chassis_route_traj.traj_vx.target_pos - Radar_Pos.radar_x_filtered) < 20 && abs_float(chassis_route_traj.traj_vx.target_pos - Radar_Pos.radar_x) < 10 && abs_float(chassis_route_traj.traj_vy.target_pos - Radar_Pos.radar_y) < 10)
-            {
-              // if(kalman_init_flag == 0)
-              // {
-              //   kalman_init_flag = 1; // 仅在第一次满足条件时初始化卡尔曼滤波器，避免频繁初始化
-              //   Kalman_Init(&Radar_Kalman_X, 0.0001f, 100.0f, 0.0f, Radar_Pos.radar_x);
-              //   Kalman_Init(&Radar_Kalman_Y, 0.0001f, 100.0f, 0.0f, Radar_Pos.radar_y);
-              // }
-              Radar_Pos.reliable_x = Radar_Pos.radar_x_filtered;
-              Radar_Pos.reliable_y = Radar_Pos.radar_y_filtered;
-              Radar_Pos.reliable_z = Radar_Pos.radar_z_filtered;
-              Radar_Pos.reliable_yaw = Radar_Pos.hi14_yaw; // 直接使用hi14的yaw数据，替代雷达的yaw数据
-            }
-            // 否则认为雷达数据可靠，直接使用原始雷达数据
-            else
-            {
-              Radar_Pos.reliable_x = Radar_Pos.radar_x;
-              Radar_Pos.reliable_y = Radar_Pos.radar_y;
-              Radar_Pos.reliable_z = Radar_Pos.radar_z;
-              Radar_Pos.reliable_yaw = Radar_Pos.hi14_yaw;
-            }
-
-            // 多段-单段-坐标系变换-底盘解算 路径执行部分
-            chassis_multi_route_scheduler(&chassis_route_traj, &Radar_Pos);
-            chassis_single_route_scheduler(&Radar_Pos, &chassis_route_traj, 1);
-            chassis_world_to_robot_velocity(&chassis_r2, chassis_route_traj.traj_vx.out_vel, chassis_route_traj.traj_vy.out_vel, chassis_route_traj.traj_vw.out_vel, Radar_Pos.reliable_yaw);
-      omni_chassis_calculate(&chassis_r2, chassis_r2.vx, chassis_r2.vy, chassis_r2.vw);
+//            // 多段-单段-坐标系变换-底盘解算 路径执行部分
+//            chassis_multi_route_scheduler(&chassis_route_traj, &Radar_Pos);
+//            chassis_single_route_scheduler(&Radar_Pos, &chassis_route_traj, 1);
+//            chassis_world_to_robot_velocity(&chassis_r2, chassis_route_traj.traj_vx.out_vel, chassis_route_traj.traj_vy.out_vel, chassis_route_traj.traj_vw.out_vel, Radar_Pos.reliable_yaw);
+//      omni_chassis_calculate(&chassis_r2, chassis_r2.vx, chassis_r2.vy, chassis_r2.vw);
     }
     // if(m3508_fdcan3[0].Initial_flag == 200 && m3508_fdcan3[1].Initial_flag == 200
     //   && m3508_fdcan3[2].Initial_flag == 200 && m3508_fdcan3[3].Initial_flag == 200)
@@ -507,7 +511,7 @@ void entry_chassis(void const *argument)
  * @retval None
  */
 /* USER CODE END Header_entry_clamp */
-void entry_clamp(void const *argument)
+void entry_clamp(void const * argument)
 {
   /* USER CODE BEGIN entry_clamp */
 
@@ -549,7 +553,7 @@ void entry_clamp(void const *argument)
  * @retval None
  */
 /* USER CODE END Header_entry_cmd_task */
-void entry_cmd_task(void const *argument)
+void entry_cmd_task(void const * argument)
 {
   /* USER CODE BEGIN entry_cmd_task */
 
@@ -584,15 +588,18 @@ void entry_cmd_task(void const *argument)
   /* Infinite loop */
   for (;;)
   {
-
+		
+//MF_Scan_Command_Send( Command_Number);
     // 调用武馆定制的1ms周期函数
     BT_Customized_Tick1ms_R2_MC();
     // 调用 BT_Customized_Tick1ms_Combined（内部做 10ms 降频）
     BT_Customized_Tick1ms_Combined();
     if (task_flag == 1)
     {
-      BT_Start_R2_MC_Mission();
-      task_flag = 0;
+    BT_Start_R2_MC_Mission();
+		
+				
+	  task_flag = 0;
     }
     // HT10A_last = HT10A;
     osDelay(1);
