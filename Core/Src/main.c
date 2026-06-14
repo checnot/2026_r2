@@ -151,19 +151,22 @@ int main(void)
   //  memset(ht10a_buffer, 0, sizeof(ht10a_buffer));
   //  HAL_UARTEx_ReceiveToIdle_DMA(&huart6, ht10a_buffer, sizeof(ht10a_buffer));
   //  __HAL_DMA_DISABLE_IT(&hdma_usart6_rx, DMA_IT_HT);
-  //  uart10-hi14
+
+  // uart10 - hi14
   memset(dma_rx_buf, 0, sizeof(dma_rx_buf));
   HAL_UARTEx_ReceiveToIdle_DMA(&huart10, dma_rx_buf, sizeof(dma_rx_buf));
   __HAL_DMA_DISABLE_IT(&hdma_usart10_rx, DMA_IT_HT);
 
-  // uart5-radar
+  // uart5 - radar
   memset(Rec_Data, 0, sizeof(Rec_Data));
   HAL_UARTEx_ReceiveToIdle_DMA(&huart5, Rec_Data, sizeof(Rec_Data));
   __HAL_DMA_DISABLE_IT(&hdma_uart5_rx, DMA_IT_HT);
+  
   // uart8 - camera
   memset(Camera_Rec_Data, 0, sizeof(Camera_Rec_Data));
   HAL_UARTEx_ReceiveToIdle_DMA(&huart8, (uint8_t*)Camera_Rec_Data, sizeof(Camera_Rec_Data));
   __HAL_DMA_DISABLE_IT(&hdma_uart8_rx, DMA_IT_HT);
+
   // 雷达卡尔曼滤波器初始化
   Kalman_Init(&Radar_Kalman_X, 0.0001f, 100.0f, 0.0f, 400.0f);
   Kalman_Init(&Radar_Kalman_Y, 0.0001f, 100.0f, 0.0f, 1400.0f);

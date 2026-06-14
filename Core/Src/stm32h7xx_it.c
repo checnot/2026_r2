@@ -630,12 +630,6 @@ void USART10_IRQHandler(void)
 void FDCAN3_IT0_IRQHandler(void)
 {
   /* USER CODE BEGIN FDCAN3_IT0_IRQn 0 */
-  if (__HAL_UART_GET_FLAG(&huart6, UART_FLAG_IDLE))
-  {
-      __HAL_UART_CLEAR_IDLEFLAG(&huart6);
-      m8010_485_idle_callback(&huart6);
-      return;
-  }
   /* USER CODE END FDCAN3_IT0_IRQn 0 */
   HAL_FDCAN_IRQHandler(&hfdcan3);
   /* USER CODE BEGIN FDCAN3_IT0_IRQn 1 */

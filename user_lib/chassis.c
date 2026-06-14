@@ -143,9 +143,9 @@ void omni_chassis_inverse_calculate(chassis_stu *chassis, M3508_Motor_Struct * m
  */
 void chassis_route_traj_init(void)
 {
-    Traj_Adaptive_Init(&chassis_route_traj.traj_vx, Radar_Pos.radar_x, 8650.0f, CHASSIS_V_MAX, CHASSIS_A_MAX, CHASSIS_TRACKING_POSITION_ERROR_THRESHOLD);
-    Traj_Adaptive_Init(&chassis_route_traj.traj_vy, Radar_Pos.radar_y, 5250.0f, CHASSIS_V_MAX, CHASSIS_A_MAX, CHASSIS_TRACKING_POSITION_ERROR_THRESHOLD);
-    Traj_Adaptive_Init(&chassis_route_traj.traj_vw, Radar_Pos.hi14_yaw , 180.0f, CHASSIS_V_MAX, CHASSIS_A_MAX, CHASSIS_TRACKING_ANGLE_ERROR_THRESHOLD);
+    Traj_Adaptive_Init(&chassis_route_traj.traj_vx, Radar_Pos.reliable_x, Radar_Pos.reliable_x, CHASSIS_V_MAX, CHASSIS_A_MAX, CHASSIS_TRACKING_POSITION_ERROR_THRESHOLD);
+    Traj_Adaptive_Init(&chassis_route_traj.traj_vy, Radar_Pos.reliable_y, Radar_Pos.reliable_y, CHASSIS_V_MAX, CHASSIS_A_MAX, CHASSIS_TRACKING_POSITION_ERROR_THRESHOLD);
+    Traj_Adaptive_Init(&chassis_route_traj.traj_vw, Radar_Pos.reliable_yaw , Radar_Pos.reliable_yaw , CHASSIS_V_MAX, CHASSIS_A_MAX, CHASSIS_TRACKING_ANGLE_ERROR_THRESHOLD);
     
     // PID参数初始化，针对最终接近目标时的微调，输出限制在较小范围内    
     PID_Set(&chassis_route_traj.pid_final_vx,11.0f, 0.0f, 5.0f);      
@@ -483,9 +483,16 @@ float dis_total =  sqrtf(dist_to_actual_vx * dist_to_actual_vx + dist_to_actual_
 }
 
 
+
+
+
+
+
 /* ========================================== 以下为底盘抬升部分 ========================================== */
 /* ========================================== 以下为底盘抬升部分 ========================================== */
 /* ========================================== 以下为底盘抬升部分 ========================================== */
+
+
 
 // 底盘升降轨迹实例
 chassis_lift_traj_stu chassis_lift_traj;
@@ -650,8 +657,8 @@ void chassis_lift_excute(chassis_stu *chassis, float kp, float kw)
 */
 void chassis_lift_wheel_excute(float target_speed, float speed_kp, float speed_kd)
 {
-    m3508_parameter_init(&m3508_fdcan1[1], speed_kp, speed_kd, 0.0f, 0.0f);
-    m3508_parameter_init(&m3508_fdcan1[2], speed_kp, speed_kd, 0.0f, 0.0f);
+    m3508_parameter_init(&m3508_fdcan1[1], speed_kp, 0.0f, speed_kd, 0.0f, 0.0f, 0.0f);
+    m3508_parameter_init(&m3508_fdcan1[2], speed_kp, 0.0f, speed_kd, 0.0f, 0.0f, 0.0f);
     m3508_speed_control(&m3508_fdcan1[1], (int16_t)target_speed, 3000);
     m3508_speed_control(&m3508_fdcan1[2], (int16_t)(-target_speed), 3000);
 }

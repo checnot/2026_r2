@@ -1,5 +1,34 @@
 #include "myuart.h"
 
+
+
+
+
+/**
+ * ====================================================================================
+ * 
+ * @brief 每次修改串口相关时，此处应该记录修改之后的串口配置，以便后续维护
+ * 
+ * @note 目前涉及的串口有 3，6，4，5，8，7，10
+ * 
+ * @note 用于 RS485 通信：3-4851 6-4952 4-4853
+ * @note 用于雷达回传：5
+ * @note 用于相机回传：8
+ * @note 用于调试输出：7
+ * @note 用于 hi14 回传：10
+ * 
+ * ====================================================================================
+ * 
+ */
+
+
+
+
+
+
+
+
+
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 {
     uint32_t status_value;
@@ -64,17 +93,8 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
     //     HAL_UARTEx_ReceiveToIdle_DMA(&huart8, ht10a_buffer, sizeof(ht10a_buffer));
     //     __HAL_DMA_DISABLE_IT(&hdma_uart8_rx, DMA_IT_HT);
     // }
-    // uart7供 hi14 回传数据
 
-    //================================ 临时 usart6供遥控器ht10a =========================
-    // if(huart->Instance == USART6)
-    // {
-    // 	HT10A_process(ht10a_buffer);
-    //     HAL_UARTEx_ReceiveToIdle_DMA(&huart6, ht10a_buffer, sizeof(ht10a_buffer));
-    //     __HAL_DMA_DISABLE_IT(&hdma_usart6_rx,DMA_IT_HT);
-    // }
-    //================================ 临时 usart6供遥控器ht10a =========================
-    // uart5供雷达回传
+    // uart5-供雷达回传
     if (huart->Instance == UART5)
     {
         Rec_Data[Size] = '\0'; // 转换成 C 字符串

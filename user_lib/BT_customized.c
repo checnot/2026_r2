@@ -1,4 +1,10 @@
-#include "BT_customized.h"
+﻿#include "BT_customized.h"
+
+/* ================= 万能小变量 ================= */
+uint8_t debug_if_reach_MF_phase2_scan = 0; // 用于调试是否达到 MF 区第二次扫描的条件，实际比赛时请删除或替换为 BuildPhase2 调用
+
+/* ================= 万能小变量 ================= */
+
 
 ArmPickState pick_state = PICK_IDLE; /* 单独开发时使用抓取动作的状态机当前状态 */
 
@@ -284,109 +290,104 @@ void BT_Customized_Tick1ms_arm_test(void)
 /* ========================================================== 底盘部分 ========================================================== */
 
 
-static BT_Status Act_Chassis_Route_FSM(void)
-{
-    /* 该函数由 BT_Customized_Tick1ms 每 10ms 调用一次（示例），
-       route_timer_ms 的单位与 Tick 调用频率对应（本示例按 10ms 计数）。 */
 
-    switch (chassis_state) {       //根据当前状态执行对应的动作，并根据条件推进状态机
-
-    case CHASSIS_ROUTE_IDLE:
-        /* 第一次进入：回归到 HOME 位置，并进入 Position1 */
-        taskENTER_CRITICAL(); /* 保护轨迹队列写入，或使用 mutex */
-        chassis_route_point_add(&chassis_route_traj, 400.0f, 1400.0f, 0.0f,1000);
-        taskEXIT_CRITICAL();
-        chassis_state = CHASSIS_ROUTE_1;
-        chassis_timer_ms = 0;
-        return BT_RUNNING;
-    case CHASSIS_ROUTE_1:
-        /* 等待到达抓取矛头位置 */
-        if (chassis_route_traj.traj_vx.is_finished && chassis_route_traj.traj_vy.is_finished && chassis_route_traj.traj_vw.is_finished) {
-            /* 到位后下发下一个点 */
-            taskENTER_CRITICAL();
-            chassis_route_point_add(&chassis_route_traj, 400.0f, 600.0f, 0.0f,1000);
-            taskEXIT_CRITICAL();
-            chassis_state = CHASSIS_ROUTE_2;
-            chassis_timer_ms = 0;
-        }else if(++chassis_timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS)
-        {
-            chassis_state = CHASSIS_FAILED;
-        }
-        return BT_RUNNING;
-    case CHASSIS_ROUTE_2:
-        /* 等待到达抓取矛头位置 */
-        if (chassis_route_traj.traj_vx.is_finished && chassis_route_traj.traj_vy.is_finished && chassis_route_traj.traj_vw.is_finished) {
-            /* 到位后下发下一个点 */
-            taskENTER_CRITICAL();
-            chassis_route_point_add(&chassis_route_traj, 1200.0f, 1400.0f, 0.0f,1000);   //对接位置
-            taskEXIT_CRITICAL();
-            chassis_state = CHASSIS_ROUTE_3;
-            chassis_timer_ms = 0;
-        }else if(++chassis_timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS)
-        {
-            chassis_state = CHASSIS_FAILED;
-        }
-        return BT_RUNNING;
-    case CHASSIS_ROUTE_3:
-        /* 等待到达对矛头位置 */
-        if (chassis_route_traj.traj_vx.is_finished && chassis_route_traj.traj_vy.is_finished && chassis_route_traj.traj_vw.is_finished) {
-            /* 到位时返回success */
-            chassis_state = CHASSIS_ROUTE_IDLE; /* 进入完成阶段，等待轨迹完成后再判断是否成功 */
-            chassis_timer_ms = 0;
-            return BT_SUCCESS;  
-        } else {
-            if (++chassis_timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS) {
-                chassis_state = CHASSIS_FAILED;
-            }
-        }
-        return BT_RUNNING;  
-    case CHASSIS_FAILED:
-    default:
-        /* 失败时复位并告诉上层失败，供上层 Selector 做重试或回退 */
-        chassis_route_point_add(&chassis_route_traj, 400.0f, 1400.0f, 0.0f,1000);
-        chassis_state = CHASSIS_ROUTE_IDLE;
-        chassis_timer_ms = 0;
-        bb.req_chassis_route = 0; /* 失败时清除请求，等待下一次触发 */
-        return BT_FAILURE;
-    }
-}
-static BT_Status Cond_Has_Chassis_Request(void)
-{
-    return bb.req_chassis_route ? BT_SUCCESS : BT_FAILURE;
-}
-static BT_Status Act_Chassis_Finish_Cleanup(void)
-{
-    bb.req_chassis_route = 0;
-    chassis_timer_ms = 0;
-    return BT_SUCCESS;
-}
-static BT_Status BT_Chassis_Route_Tree_Root(void)
-{
-    /* 按顺序执行：
-     *  1) 有请求？
-     *  2) 执行底盘路径 FSM
-     *  3) 收尾清理
-     */
-    static const BT_NodeFunc seq[] = {
-        Cond_Has_Chassis_Request,
-        Act_Chassis_Route_FSM,
-        Act_Chassis_Finish_Cleanup
-    };
-
-    return BT_Sequence_Memory(seq, (uint8_t)(sizeof(seq) / sizeof(seq[0])), &seq_mem_idx);
-}
-
-void BT_Customized_Tick1ms_chassis_test(void)
-{
-    static uint8_t div10 = 0;
-    div10++;
-    if (div10 < 10) return; /* 每 10ms 执行一次 BT Tick */
-
-    //清空计时，遍历行为树
-    div10 = 0;
-  
-    (void)BT_Chassis_Route_Tree_Root();
-}
+// static BT_Status Act_Chassis_Route_FSM(void)
+// {
+//     /* 该函数由 BT_Customized_Tick1ms 每 10ms 调用一次（示例），
+//        route_timer_ms 的单位与 Tick 调用频率对应（本示例按 10ms 计数）。 */
+//     switch (chassis_state) {       //根据当前状态执行对应的动作，并根据条件推进状态机
+//     case CHASSIS_ROUTE_IDLE:
+//         /* 第一次进入：回归到 HOME 位置，并进入 Position1 */
+//         taskENTER_CRITICAL(); /* 保护轨迹队列写入，或使用 mutex */
+//         chassis_route_point_add(&chassis_route_traj, 400.0f, 1400.0f, 0.0f,1000);
+//         taskEXIT_CRITICAL();
+//         chassis_state = CHASSIS_ROUTE_1;
+//         chassis_timer_ms = 0;
+//         return BT_RUNNING;
+//     case CHASSIS_ROUTE_1:
+//         /* 等待到达抓取矛头位置 */
+//         if (chassis_route_traj.traj_vx.is_finished && chassis_route_traj.traj_vy.is_finished && chassis_route_traj.traj_vw.is_finished) {
+//             /* 到位后下发下一个点 */
+//             taskENTER_CRITICAL();
+//             chassis_route_point_add(&chassis_route_traj, 400.0f, 600.0f, 0.0f,1000);
+//             taskEXIT_CRITICAL();
+//             chassis_state = CHASSIS_ROUTE_2;
+//             chassis_timer_ms = 0;
+//         }else if(++chassis_timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS)
+//         {
+//             chassis_state = CHASSIS_FAILED;
+//         }
+//         return BT_RUNNING;
+//     case CHASSIS_ROUTE_2:
+//         /* 等待到达抓取矛头位置 */
+//         if (chassis_route_traj.traj_vx.is_finished && chassis_route_traj.traj_vy.is_finished && chassis_route_traj.traj_vw.is_finished) {
+//             /* 到位后下发下一个点 */
+//             taskENTER_CRITICAL();
+//             chassis_route_point_add(&chassis_route_traj, 1200.0f, 1400.0f, 0.0f,1000);   //对接位置
+//             taskEXIT_CRITICAL();
+//             chassis_state = CHASSIS_ROUTE_3;
+//             chassis_timer_ms = 0;
+//         }else if(++chassis_timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS)
+//         {
+//             chassis_state = CHASSIS_FAILED;
+//         }
+//         return BT_RUNNING;
+//     case CHASSIS_ROUTE_3:
+//         /* 等待到达对矛头位置 */
+//         if (chassis_route_traj.traj_vx.is_finished && chassis_route_traj.traj_vy.is_finished && chassis_route_traj.traj_vw.is_finished) {
+//             /* 到位时返回success */
+//             chassis_state = CHASSIS_ROUTE_IDLE; /* 进入完成阶段，等待轨迹完成后再判断是否成功 */
+//             chassis_timer_ms = 0;
+//             return BT_SUCCESS;  
+//         } else {
+//             if (++chassis_timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS) {
+//                 chassis_state = CHASSIS_FAILED;
+//             }
+//         }
+//         return BT_RUNNING;  
+//     case CHASSIS_FAILED:
+//     default:
+//         /* 失败时复位并告诉上层失败，供上层 Selector 做重试或回退 */
+//         chassis_route_point_add(&chassis_route_traj, 400.0f, 1400.0f, 0.0f,1000);
+//         chassis_state = CHASSIS_ROUTE_IDLE;
+//         chassis_timer_ms = 0;
+//         bb.req_chassis_route = 0; /* 失败时清除请求，等待下一次触发 */
+//         return BT_FAILURE;
+//     }
+// }
+// static BT_Status Cond_Has_Chassis_Request(void)
+// {
+//     return bb.req_chassis_route ? BT_SUCCESS : BT_FAILURE;
+// }
+// static BT_Status Act_Chassis_Finish_Cleanup(void)
+// {
+//     bb.req_chassis_route = 0;
+//     chassis_timer_ms = 0;
+//     return BT_SUCCESS;
+// }
+// static BT_Status BT_Chassis_Route_Tree_Root(void)
+// {
+//     /* 按顺序执行：
+//      *  1) 有请求？
+//      *  2) 执行底盘路径 FSM
+//      *  3) 收尾清理
+//      */
+//     static const BT_NodeFunc seq[] = {
+//         Cond_Has_Chassis_Request,
+//         Act_Chassis_Route_FSM,
+//         Act_Chassis_Finish_Cleanup
+//     };
+//     return BT_Sequence_Memory(seq, (uint8_t)(sizeof(seq) / sizeof(seq[0])), &seq_mem_idx);
+// }
+// void BT_Customized_Tick1ms_chassis_test(void)
+// {
+//     static uint8_t div10 = 0;
+//     div10++;
+//     if (div10 < 10) return; /* 每 10ms 执行一次 BT Tick */
+//     //清空计时，遍历行为树
+//     div10 = 0;
+//     (void)BT_Chassis_Route_Tree_Root();
+// }
 
 
 
@@ -761,6 +762,417 @@ void BT_Customized_Tick1ms_Combined(void)
 /* ================================================ MC 规划行为树 ================================================ */
 /* ================================================ MC 规划行为树 ================================================ */
 
+MC_Blackboard MC_bb; //一区行为树的黑板，存放状态量                     
+
+
+/**
+ * @brief [条件节点]检查是否收到了一区任务的执行请求
+ * @return BT_SUCCESS (收到了，继续往下执行) / BT_FAILURE (没收到，打断执行树)
+*/
+static BT_Status Cond_Has_R2_MC_Mission_Request(void)
+{
+    return MC_bb.req_pick ? BT_SUCCESS : BT_FAILURE;
+}
+
+
+/**
+ * @brief [动作节点]一区任务执行
+ * @return "耗时动作"，因此在执行过程中我们会一直返回 BT_RUNNING（挂起）。上层记忆序列节点（BT_Sequence_Memory）收到 RUNNING 后，下一帧会再次调用本节点，直到返回 SUCCESS。
+*/
+static BT_Status Act_R2_MC_Mission(void)
+{
+    switch (MC_bb.mc_mission_state) {
+
+        case MC_IDLE:
+        {
+            //  空任务状态，等待触发进入MC任务流程，进入后直接推进状态机到第一个阶段
+            MC_bb.mc_mission_state = NIVEGATE_TO_RACK; 
+            MC_bb.R2_MC_timer_ms = 0; // 重置计时器
+            return BT_RUNNING;
+        }
+
+        case NIVEGATE_TO_RACK:
+        {
+            /* 进入这个状态后,执行寻路到达RACK点的动作 */
+            taskENTER_CRITICAL(); 
+            chassis_route_point_add(&chassis_route_traj, CHASSIS_RACK_3_X, CHASSIS_RACK_Y, CHASSIS_RACK_W, 0);
+            taskEXIT_CRITICAL();
+
+            MC_bb.mc_mission_state = RACK_PICK; 
+            MC_bb.R2_MC_timer_ms = 0;
+            return BT_RUNNING;
+        }
+        case RACK_PICK:
+        {
+            /* 进入这个状态后,执行夹爪抓取矛头的动作 */
+            if(chassis_if_arrived(CHASSIS_RACK_3_X, CHASSIS_RACK_Y, CHASSIS_RACK_W))
+            {
+                MC_bb.RACK_POS_STABLE_TIMES++; // 增加位置稳定计数
+                if(  MC_bb.RACK_POS_STABLE_TIMES > RACK_STABLE_TIMES_CONDITION)
+                {
+                    clamp.retractable_flag = 1; // 同时发出夹爪伸出指令
+                    if(abs_int32(m3508_fdcan2[1].Angle_Sum-CLAMP_EXTEND_MAX_POSITION)<1000 ) //保证夹爪伸出到位且位置稳定后才发出抓取指令，避免提前触发后续动作
+                    {
+                        clamp.catch_flag = 1; // 同时发出夹爪抓取指令
+                        osDelay(300);
+
+                        if(MC_bb.RACK_PICK_SUCCESS == 1) //通过微动开关的触发来判断是否成功夹取矛头，成功则进入下一个阶段
+                        {
+                            clamp.rotate_flag = 1;
+
+                            MC_bb.mc_mission_state = DOCKING;
+                        
+                            MC_bb.R2_MC_timer_ms = 0;
+                        }
+                        else //如果没有成功夹取矛头，则换下一个矛头位置
+                        {
+                            clamp.retractable_flag = 0; // 先收回夹爪，准备下一个位置的夹取 
+                            clamp.catch_flag = 0; // 先放开夹爪，准备下一个位置的夹取   
+                            taskENTER_CRITICAL();
+                            chassis_route_point_add(&chassis_route_traj, CHASSIS_RACK_2_X, CHASSIS_RACK_Y, CHASSIS_RACK_W, 0);
+                            taskEXIT_CRITICAL();
+                            
+                            MC_bb.mc_mission_state = RACK_FAILED_1;
+                            MC_bb.RACK_POS_STABLE_TIMES = 0; // 重置位置稳定计数
+                            MC_bb.R2_MC_timer_ms = 0;
+                        }    
+                    }
+                }
+            }
+            else if (++MC_bb.R2_MC_timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS) {
+                return BT_FAILURE; 
+            }
+            return BT_RUNNING;
+        }
+        case RACK_FAILED_1:
+        {
+            /* 如果第一次夹取失败，换第二个位置继续夹取 */
+            if(chassis_if_arrived(CHASSIS_RACK_2_X, CHASSIS_RACK_Y, CHASSIS_RACK_W))
+            {
+                MC_bb.RACK_POS_STABLE_TIMES++; // 增加位置稳定计数 
+                if( MC_bb.RACK_POS_STABLE_TIMES > RACK_STABLE_TIMES_CONDITION)
+                { 
+                clamp.retractable_flag = 1; // 同时发出夹爪伸出指令
+                if(abs_int32(m3508_fdcan2[1].Angle_Sum-CLAMP_EXTEND_MAX_POSITION)<500 ) //保证夹爪伸出到位且位置稳定后才发出抓取指令，避免提前触发后续动作
+                {
+                    clamp.catch_flag = 1; // 同时发出夹爪抓取指令
+                    osDelay(1000);
+
+                    if(MC_bb.RACK_PICK_SUCCESS == 1) //通过微动开关的触发来判断是否成功夹取矛头，成功则进入下一个阶段
+                    {
+                        clamp.rotate_flag = 1; 
+
+                        MC_bb.mc_mission_state = DOCKING;
+                        
+                        MC_bb.R2_MC_timer_ms = 0;
+                    }
+                    else //如果第二次仍然没有成功夹取矛头，则换第三个位置
+                    {
+                        clamp.retractable_flag = 0; // 先收回夹爪，准备下一个位置的夹取     
+                        clamp.catch_flag = 0; // 先放开夹爪，准备下一个位置的夹取   
+                        taskENTER_CRITICAL();
+                        chassis_route_point_add(&chassis_route_traj, CHASSIS_RACK_1_X, CHASSIS_RACK_Y, CHASSIS_RACK_W, 0);
+                        taskEXIT_CRITICAL();
+
+                        MC_bb.mc_mission_state = RACK_FAILED_2;
+                        MC_bb.R2_MC_timer_ms = 0;
+                        MC_bb.RACK_POS_STABLE_TIMES = 0; // 重置位置稳定计数
+                    }
+                }        
+                }  
+            }
+            else if (++MC_bb.R2_MC_timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS) {
+                return BT_FAILURE; 
+            }   
+            return BT_RUNNING;
+        }
+        case RACK_FAILED_2:
+        {
+             /* 如果第二次夹取失败，换第三个位置继续夹取 */
+            if(chassis_if_arrived(CHASSIS_RACK_1_X, CHASSIS_RACK_Y, CHASSIS_RACK_W))    
+            {
+                MC_bb.RACK_POS_STABLE_TIMES++; // 增加位置稳定计数 
+                if(MC_bb.RACK_POS_STABLE_TIMES > RACK_STABLE_TIMES_CONDITION)
+                { 
+                clamp.retractable_flag = 1; // 同时发出夹爪伸出指令
+                if(abs_int32(m3508_fdcan2[1].Angle_Sum-CLAMP_EXTEND_MAX_POSITION)<500 ) //保证夹爪伸出到位且位置稳定后才发出抓取指令，避免提前触发后续动作
+                {
+                    clamp.catch_flag = 1; // 同时发出夹爪抓取指令
+                    osDelay(1000);
+
+                    if(MC_bb.RACK_PICK_SUCCESS == 1) //通过微动开关的触发来判断是否成功夹取矛头，成功则进入下一个阶段
+                    {
+                        clamp.rotate_flag = 1; 
+
+                        MC_bb.mc_mission_state = DOCKING;
+                        MC_bb.R2_MC_timer_ms = 0;
+                    }
+                    else //如果第三次仍然没有成功夹取矛头，则换第四个位置
+                    {
+                        clamp.retractable_flag = 0; // 先收回夹爪，准备下一个位置的夹取     
+                        clamp.catch_flag = 0; // 先放开夹爪，准备下一个位置的夹取   
+                        taskENTER_CRITICAL();
+                        chassis_route_point_add(&chassis_route_traj, CHASSIS_RACK_4_X, CHASSIS_RACK_Y, CHASSIS_RACK_W, 0);
+                        taskEXIT_CRITICAL();
+
+                        MC_bb.mc_mission_state = RACK_FAILED_3;
+                        MC_bb.R2_MC_timer_ms = 0;
+                        MC_bb.RACK_POS_STABLE_TIMES = 0; // 重置位置稳定计数
+                    }
+                }
+            }
+            }
+            else if(++MC_bb.R2_MC_timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS) {
+                return BT_FAILURE; 
+            }   
+            return BT_RUNNING;
+        }
+        case RACK_FAILED_3:
+        {
+            /* 如果第三次夹取失败，换第四个位置继续夹取 */
+            if(chassis_if_arrived(CHASSIS_RACK_4_X, CHASSIS_RACK_Y, CHASSIS_RACK_W))    
+            {
+                MC_bb.RACK_POS_STABLE_TIMES++; // 增加位置稳定计数
+               if(MC_bb.RACK_POS_STABLE_TIMES > RACK_STABLE_TIMES_CONDITION)
+                { 
+                clamp.retractable_flag = 1; // 同时发出夹爪伸出指令
+                if(abs_int32(m3508_fdcan2[1].Angle_Sum-CLAMP_EXTEND_MAX_POSITION)<500 ) //保证夹爪伸出到位且位置稳定后才发出抓取指令，避免提前触发后续动作
+                {
+                    clamp.catch_flag = 1; // 同时发出夹爪抓取指令
+                    osDelay(1000);
+
+                    if(MC_bb.RACK_PICK_SUCCESS == 1) //通过微动开关的触发来判断是否成功夹取矛头，成功则进入下一个阶段
+                    {
+                        clamp.rotate_flag = 1; 
+    
+                        MC_bb.mc_mission_state = DOCKING;
+                        MC_bb.R2_MC_timer_ms = 0;
+                    }
+                    else //如果第四次没有然没有成功夹取矛头，则换第五个位置
+                    {
+                        clamp.retractable_flag = 0; // 先收回夹爪，准备下一个位置的夹取     
+                        clamp.catch_flag = 0; // 先放开夹爪，准备下一个位置的夹取   
+                        taskENTER_CRITICAL();
+                        chassis_route_point_add(&chassis_route_traj, CHASSIS_RACK_5_X, CHASSIS_RACK_Y, CHASSIS_RACK_W, 0);
+                        taskEXIT_CRITICAL();
+
+                        MC_bb.mc_mission_state = RACK_FAILED_4 ;
+                        MC_bb.R2_MC_timer_ms = 0;
+                        MC_bb.RACK_POS_STABLE_TIMES = 0; // 重置位置稳定计数
+                    }
+                }
+            }
+            }
+            else if(++MC_bb.R2_MC_timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS) {
+                return BT_FAILURE; 
+            }   
+            return BT_RUNNING;
+        }
+        case RACK_FAILED_4:
+        {
+             /* 如果第四次夹取失败，换第五个位置继续夹取 */ 
+            if(chassis_if_arrived(CHASSIS_RACK_5_X, CHASSIS_RACK_Y, CHASSIS_RACK_W))                                                                    
+            {
+                MC_bb.RACK_POS_STABLE_TIMES++; // 增加位置稳定计数
+               if(MC_bb.RACK_POS_STABLE_TIMES > RACK_STABLE_TIMES_CONDITION)
+                { 
+                clamp.retractable_flag = 1; // 同时发出夹爪伸出指令
+                if(abs_int32(m3508_fdcan2[1].Angle_Sum-CLAMP_EXTEND_MAX_POSITION)<500 ) //保证夹爪伸出到位且位置稳定后才发出抓取指令，避免提前触发后续动作
+                {
+                    clamp.catch_flag = 1; // 同时发出夹爪抓取指令
+                    osDelay(1000);
+
+                    if(MC_bb.RACK_PICK_SUCCESS == 1) //通过微动开关的触发来判断是否成功夹取矛头，成功则进入下一个阶段
+                    {
+                        clamp.rotate_flag = 1; 
+    
+                        MC_bb.mc_mission_state = DOCKING;
+                        MC_bb.R2_MC_timer_ms = 0;
+                    }
+                    else //如果第五次没有成功，则换最后一个位置
+                    {
+                        clamp.retractable_flag = 0; // 先收回夹爪，准备下一个位置的夹取     
+                        clamp.catch_flag = 0; // 先放开夹爪，准备下一个位置的夹取   
+                        taskENTER_CRITICAL();
+                        chassis_route_point_add(&chassis_route_traj, CHASSIS_RACK_6_X, CHASSIS_RACK_Y, CHASSIS_RACK_W, 0);
+                        taskEXIT_CRITICAL();
+
+                        MC_bb.mc_mission_state = RACK_FAILED_5;
+                        MC_bb.R2_MC_timer_ms = 0;
+                        MC_bb.RACK_POS_STABLE_TIMES = 0; // 重置位置稳定计数
+                    }
+                }
+            }
+            }
+            else if(++MC_bb.R2_MC_timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS) {
+                return BT_FAILURE; 
+            }   
+            return BT_RUNNING;
+        }
+        case RACK_FAILED_5:
+        {
+            /* 如果第五次夹取失败，换第六个位置继续夹取 */ 
+            if(chassis_if_arrived(CHASSIS_RACK_6_X, CHASSIS_RACK_Y, CHASSIS_RACK_W))                                                                    
+            {
+                MC_bb.RACK_POS_STABLE_TIMES++; // 增加位置稳定计数
+                if( MC_bb.RACK_POS_STABLE_TIMES > RACK_STABLE_TIMES_CONDITION)
+                { 
+                clamp.retractable_flag = 1; // 同时发出夹爪伸出指令
+                if(abs_int32(m3508_fdcan2[1].Angle_Sum-CLAMP_EXTEND_MAX_POSITION)<500 ) //保证夹爪伸出到位且位置稳定后才发出抓取指令，避免提前触发后续动作
+                {
+                    clamp.catch_flag = 1; // 同时发出夹爪抓取指令
+                    osDelay(1000);
+
+                    if(MC_bb.RACK_PICK_SUCCESS == 1) //通过微动开关的触发来判断是否成功夹取矛头，成功则进入下一个阶段
+                    {
+                        clamp.rotate_flag = 1; 
+    
+                        MC_bb.mc_mission_state = DOCKING;
+                        MC_bb.R2_MC_timer_ms = 0;
+                    }
+                    else //如果第六次仍然没有成功夹取矛头，一般不会有这种情况，出现的话从第一个夹取位置开始
+                    {
+                        clamp.retractable_flag = 0; // 先收回夹爪，准备下一个位置的夹取     
+                        clamp.catch_flag = 0; // 先放开夹爪，准备下一个位置的夹取   
+                        taskENTER_CRITICAL();
+                        chassis_route_point_add(&chassis_route_traj, CHASSIS_RACK_3_X,CHASSIS_RACK_Y,CHASSIS_RACK_W,0);
+                        taskEXIT_CRITICAL();
+
+                        MC_bb.mc_mission_state = RACK_PICK;
+                        MC_bb.R2_MC_timer_ms = 0;
+                        MC_bb.RACK_POS_STABLE_TIMES = 0;
+                    }
+                }
+            }
+            }
+            else if (++MC_bb.R2_MC_timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS) {
+                return BT_FAILURE; 
+            }   
+            return BT_RUNNING;
+        }
+        case DOCKING:
+        {
+            /* 进入这个状态后,执行寻路到达对接点的动作*/
+            taskENTER_CRITICAL();
+            chassis_route_point_add(&chassis_route_traj, CHASSIS_DOCKING_X, CHASSIS_DOCKING_Y, CHASSIS_DOCKING_W, 0);
+            taskEXIT_CRITICAL();
+
+            MC_bb.mc_mission_state = WAIT_DOCKING_COMPLETE;
+            MC_bb.R2_MC_timer_ms = 0;
+            return BT_RUNNING;
+        }
+        case WAIT_DOCKING_COMPLETE:
+        {
+            /* 进入这个状态后,等待对接完成的动作*/
+            if(MC_bb.DOCKING_SUCCESS == 1)
+            {
+                clamp.catch_flag = 0; // 对接完成后放开夹爪
+
+                MC_bb.mc_mission_state = WAIT_MF_INSTRUCTION;
+                MC_bb.R2_MC_timer_ms = 0;
+            }
+            else if(++MC_bb.R2_MC_timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS) {
+                return BT_FAILURE; 
+            }
+            return BT_RUNNING;
+        }
+        case WAIT_MF_INSTRUCTION:
+        {
+            /* 进入这个状态后,等待R1发出进入MF的指令，暂定为一个flag */
+            if(MC_bb.MF_ENTRY_INSTRUCTION == 1)
+            {
+                MC_bb.MF_MISSION_Req = 1;
+
+                MC_bb.mc_mission_state = MC_IDLE; //任务完成，回到初始状态等待下一次触发
+                MC_bb.R2_MC_timer_ms = 0;
+                return BT_SUCCESS;
+            }
+            else if(++MC_bb.R2_MC_timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS) {
+                return BT_FAILURE; 
+            }
+            return BT_RUNNING;  
+        }
+        default:
+        {
+            return BT_FAILURE;
+        }
+    }
+}
+ 
+/**
+ * @brief [动作节点]一区任务完成后的收尾清理动作，重置黑板状态和 Sequence 记忆
+*/
+static BT_Status Act_R2_MC_FinishCleanup(void)
+{
+    MC_bb.req_pick = 0; //清除任务请求标志，等待下一次触发  
+    MC_bb.RACK_POS_STABLE_TIMES = 0; //重置矛头位置稳定计数器   
+    MC_bb.mc_mission_state = MC_IDLE; //重置任务状态机状态，准备下一次任务流程  
+    return BT_SUCCESS;
+}
+
+/**
+ * @brief 综合工作流行为树 Root 根节点
+ * @note 使用 Memory Sequence (带有记忆功能的顺序执行器)。其特点是：它会按数组顺序逐个执行节点。
+*/
+static BT_Status BT_R2_MC_Tree_Root(void)
+{
+    static const BT_NodeFunc seq[] = {
+        Cond_Has_R2_MC_Mission_Request, // 1. 判断是否被触发启动
+        Act_R2_MC_Mission,              // 2. 执行一区任务的主体流程（包含寻路、夹取、对接等多个阶段）
+        Act_R2_MC_FinishCleanup         // 3. 任务完成后的状态清理
+    };
+
+    /* (uint8_t)(sizeof(seq) / sizeof(seq[0])) = 3 (一共有 3 个子节点) */
+    return BT_Sequence_Memory(seq, (uint8_t)(sizeof(seq) / sizeof(seq[0])), &MC_bb.seq_mem_idx_combined);
+}
+
+/**
+ * @brief MC任务的外部初始化函数
+*/
+void BT_Init_R2_MC_Mission(void)
+{
+    MC_bb.req_pick = 0; // 初始化时没有任务请求
+    MC_bb.mc_mission_state = MC_IDLE; // 任务状态机回到初始状态
+    MC_bb.seq_mem_idx_combined = 0; // 初始化行为树记忆索引
+    MC_bb.R2_MC_timer_ms = 0; // 初始化任务计时器   
+    MC_bb.RACK_POS_STABLE_TIMES = 0; // 初始化矛头位置稳定计数器
+    MC_bb.RACK_PICK_SUCCESS = 0; // 初始化夹取成功标志  
+    MC_bb.DOCKING_SUCCESS = 0; // 初始化对接成功标志    
+    MC_bb.MF_ENTRY_INSTRUCTION = 0; // 初始化等待MF指令标志 
+    MC_bb.MF_MISSION_Req = 0; // 初始化MF任务重置标志   
+}
+
+/**
+ * @brief 武馆任务外部函数：将启动一区任务标志位置为1 
+*/
+void BT_Start_R2_MC_Mission(void)
+{
+    MC_bb.req_pick = 1;
+}
+
+/**
+ * @brief 武馆任务 
+ * @note 挂置于 FreeRTOS 任务调度器的主 Tick 执行入口 (设定 1ms 任务中周期调用)
+*/
+void BT_Customized_Tick1ms_R2_MC(void)
+{
+    /* 使用 10 ms 的时间片来调度行为树以节省 CPU 算力资源 */
+    static uint8_t div10 = 0;
+    div10++;
+    if (div10 < 10) return; 
+    div10 = 0;
+    
+    /* 运行顶层的行为树控制器 */
+    BT_Status status = BT_R2_MC_Tree_Root();
+    
+    /* [异常自愈机制] : 若在执行过程中不幸卡死在某个阶段，导致底层 FSM 抛出了纯粹的 BT_FAILURE 给最外层，Memory Sequence 树由于抛出 FAILURE 会被彻底击碎打断。为了避免卡死再也起不来，我们须立刻手动执行状态清理，并干掉记忆位置 `seq_mem_idx_r2_mc = 0`。 */
+    if (status == BT_FAILURE) {
+        Act_R2_MC_FinishCleanup();
+        MC_bb.seq_mem_idx_combined = 0; 
+    }
+}                   
+
+
 
 
 
@@ -769,7 +1181,6 @@ void BT_Customized_Tick1ms_Combined(void)
 /* ================================================ MF 规划行为树 ================================================ */
 /* ================================================ MF 规划行为树 ================================================ */
 /* ================================================ MF 规划行为树 ================================================ */
-
 
 
 
@@ -896,7 +1307,7 @@ static void mf_pick_stand_position(uint8_t kfs_row, uint8_t kfs_col,
  */
 static BT_Status Cond_Has_MF_Request(void)
 {
-    return mf_task_request_flag ? BT_SUCCESS : BT_FAILURE;
+    return MC_bb.MF_MISSION_Req ? BT_SUCCESS : BT_FAILURE;
 }
 
 /* ================= 3. 动作节点 ================= */
@@ -972,6 +1383,12 @@ static BT_Status Act_MF_Execute_Action(void)
     /* IDLE 状态：读取当前动作，下发对应的底层指令                  */
     /* ============================================================ */
     case MF_EXEC_IDLE:
+
+        // 过滤全0动作（无效动作）
+        if (act.type == MF_ACT_MOVE_FLAT && act.row == 0 && act.col == 0 && act.height_pick_diff == 0 && act.dir == MF_DIR_NORTH) {
+            MFPlanner_AdvanceAction(&mf_planner_ctx);
+            return BT_RUNNING;  /* mf_exec_state 保持 IDLE */
+        }
 
         /* ======================== 根据动作类型下发指令 ======================== */
         switch (act.type) {
@@ -1105,21 +1522,28 @@ static BT_Status Act_MF_Execute_Action(void)
                 arm_queue_add_point(&arm_traj, PICK_N200_APR_X_1, PICK_N200_APR_Y_1, 0, 0, ARM_SUCK_OFF);   // 预抓取点1
                 arm_queue_add_point(&arm_traj, PICK_N200_APR_X_2, PICK_N200_APR_Y_2, 0, 0, ARM_SUCK_OFF);   // 预抓取点2
                 arm_queue_add_point(&arm_traj, PICK_N200_TARGET_X, PICK_N200_TARGET_Y, 0, 0, ARM_SUCK_ON);  // 最终抓取点
-                arm_queue_add_point(&arm_traj, PICK_HANDS_UP_X, PICK_HANDS_UP_Y, 0, 2000, ARM_SUCK_ON);                // 此处应换成放置点坐标，用待机位置做占位
+                arm_queue_add_point(&arm_traj, PICK_REST_X, PICK_REST_Y, 0, 2000, ARM_SUCK_ON);                // 此处应换成放置点坐标，用待机位置做占位
             }
             if(act.height_pick_diff == 200)     // KFS 在 R2 上方 200mm
             {
                 arm_queue_add_point(&arm_traj, PICK_P200_APR_X_1, PICK_P200_APR_Y_1, 0, 0, ARM_SUCK_OFF);   // 预抓取点1
                 arm_queue_add_point(&arm_traj, PICK_P200_APR_X_2, PICK_P200_APR_Y_2, 0, 0, ARM_SUCK_OFF);   // 预抓取点2
                 arm_queue_add_point(&arm_traj, PICK_P200_TARGET_X, PICK_P200_TARGET_Y, 0, 0, ARM_SUCK_ON);  // 最终抓取点
-                arm_queue_add_point(&arm_traj, PICK_HANDS_UP_X, PICK_HANDS_UP_Y, 0, 2000, ARM_SUCK_ON);                // 此处应换成放置点坐标，用待机位置做占位
+                arm_queue_add_point(&arm_traj, PICK_REST_X, PICK_REST_Y, 0, 2000, ARM_SUCK_ON);                // 此处应换成放置点坐标，用待机位置做占位
             }
             if(act.height_pick_diff == 400)    // KFS 在 R2 上方 400mm
             {
                 arm_queue_add_point(&arm_traj, PICK_P400_APR_X_1, PICK_P400_APR_Y_1, 0, 0, ARM_SUCK_OFF);   // 预抓取点1
                 arm_queue_add_point(&arm_traj, PICK_P400_APR_X_2, PICK_P400_APR_Y_2, 0, 0, ARM_SUCK_OFF);   // 预抓取点2
                 arm_queue_add_point(&arm_traj, PICK_P400_TARGET_X, PICK_P400_TARGET_Y, 0, 0, ARM_SUCK_ON);  // 最终抓取点
-                arm_queue_add_point(&arm_traj, PICK_HANDS_UP_X, PICK_HANDS_UP_Y, 0, 2000, ARM_SUCK_ON);                // 此处应换成放置点坐标，用待机位置做占位
+                arm_queue_add_point(&arm_traj, PICK_REST_X, PICK_REST_Y, 0, 2000, ARM_SUCK_ON);                // 此处应换成放置点坐标，用待机位置做占位
+            }
+            if(act.height_pick_diff == 0)      // KFS 与 R2 同高
+            {
+                arm_queue_add_point(&arm_traj, PICK_0_APR_X_1, PICK_0_APR_Y_1, 0, 0, ARM_SUCK_OFF);   // 预抓取点1
+                arm_queue_add_point(&arm_traj, PICK_0_APR_X_2, PICK_0_APR_Y_2, 0, 0, ARM_SUCK_OFF);   // 预抓取点2
+                arm_queue_add_point(&arm_traj, PICK_0_TARGET_X, PICK_0_TARGET_Y, 0, 0, ARM_SUCK_ON);  // 最终抓取点
+                arm_queue_add_point(&arm_traj, PICK_REST_X, PICK_REST_Y, 0, 2000, ARM_SUCK_ON);                // 此处应换成放置点坐标，用待机位置做占位
             }
 
             taskEXIT_CRITICAL();
@@ -1168,7 +1592,8 @@ static BT_Status Act_MF_Execute_Action(void)
                 MFPlanner_BuildPhase1(&mf_planner_ctx, 0, 1, &mf_picked_phase1);
             } else if (act.row == 1 && act.col == 1) {
                 /* 第二次扫描：在 row1,col1 面朝北，揭示 row3~row4 */
-                MFPlanner_BuildPhase2(&mf_planner_ctx, R2_KFS_ALL_NEED - mf_picked_phase1);
+                // MFPlanner_BuildPhase2(&mf_planner_ctx, R2_KFS_ALL_NEED - mf_picked_phase1);
+                debug_if_reach_MF_phase2_scan = 1; // 用于调试，实际比赛时请替换为 BuildPhase2 调用
             }
 
             /* 
@@ -1403,9 +1828,7 @@ void BT_Customized_Tick1ms_MF(void)
     div10++;
     if (div10 < 10) return;
     div10 = 0;
-
     BT_Status status = BT_MF_Task_Tree_Root();
-
     /* 异常自愈：BT 树崩溃时自动清理 */
     if (status == BT_FAILURE) {
         Act_MF_Finish_Cleanup();
@@ -1481,13 +1904,13 @@ static BT_Status Act_MC_Task_Wrapper(void)
 
     case SUBTASK_IDLE: {
         /* 触发 MC 任务 */
-        BT_Start_Combined_Task();
+        BT_Start_R2_MC_Mission();
         mc_subtask_state = SUBTASK_RUNNING;
         return BT_RUNNING;
     }
     case SUBTASK_RUNNING: {
         /* 运行 MC 行为树 */
-        BT_Status mc_status = BT_Combined_Task_Tree_Root();
+        BT_Status mc_status = BT_R2_MC_Tree_Root();
         if (mc_status == BT_SUCCESS) {
             mc_subtask_state = SUBTASK_DONE;
             return BT_SUCCESS;
@@ -1576,7 +1999,7 @@ static BT_Status Act_MASTER_Finish_Cleanup(void)
     arena_subtask_state = SUBTASK_IDLE;
 
     /* 清理各子任务状态，防止残留 */
-    BT_Init_Combined_Task();
+    BT_Init_R2_MC_Mission();
     BT_MF_Init_Task();
     // BT_ARENA_Init_Task(); 此处如果有 ARENA 任务，也需要调用其初始化函数，如 BT_ARENA_Init_Task();
 
@@ -1600,9 +2023,10 @@ static BT_Status BT_MASTER_Task_Tree_Root(void)
     static const BT_NodeFunc seq[] = {
         Cond_Has_MASTER_Request,       /* 1. 有总任务请求？ */
         Act_MC_Task_Wrapper,           /* 2. MC(武馆) */
-        Act_MF_Task_Wrapper,           /* 3. MF(梅林) */
-        Act_ARENA_Task_Wrapper,        /* 4. ARENA(竞技场) */
-        Act_MASTER_Finish_Cleanup      /* 5. 清理 */
+        Cond_Has_MF_Request,           /* 3. 有 MF 任务请求 */
+        Act_MF_Task_Wrapper,           /* 4. MF(梅林) */
+        Act_ARENA_Task_Wrapper,        /* 5. ARENA(竞技场) */
+        Act_MASTER_Finish_Cleanup      /* 6. 清理 */
     };
 
     return BT_Sequence_Memory(seq,

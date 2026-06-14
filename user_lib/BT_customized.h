@@ -1,4 +1,4 @@
-#ifndef __BT_CUSTOMIZED_H
+﻿#ifndef __BT_CUSTOMIZED_H
 #define __BT_CUSTOMIZED_H
 
 #include "main.h"
@@ -123,9 +123,18 @@ typedef enum
 
 /* ============================== 底盘路径预设可配置参数（按需微调） ============================== */
 
+
+
+
+
+
+/* ================================================ MC 规划行为树接口 ================================================ */
+/* ================================================ MC 规划行为树接口 ================================================ */
+/* ================================================ MC 规划行为树接口 ================================================ */
+
+
 #define CHASSIS_ROUTE_TIMEOUT_MS 30000 /* 底盘路径超时 (ms) */
 
-/* ------------ 下层 FSM 类型与状态 --------------- */
 /* 抓取动作的内部状态机 */
 typedef enum
 {
@@ -187,6 +196,10 @@ void BT_Customized_Tick1ms_Combined(void);
 
 
 
+
+
+/* ================================================ MF 规划行为树接口 ================================================ */
+/* ================================================ MF 规划行为树接口 ================================================ */
 /* ================================================ MF 规划行为树接口 ================================================ */
 
 /* ---------- MF 专用参数宏（需实测调整） ---------- */
@@ -216,39 +229,39 @@ void BT_Customized_Tick1ms_Combined(void);
 #define MF_WAIT_R1_TIMEOUT_MS 10000 /* 🟡 等待 R1 清理的超时，超时后强行跳过 */
 
 /* ============================== 🟡（待定）机械臂预设拾取路径点 ============================== */
-#define PICK_REST_X 0.25f             /* 🟡（待定）机械臂待机位置 X */
-#define PICK_REST_Y 0.25f             /* 🟡（待定）机械臂待机位置 Y */
+#define PICK_REST_X 0.35f             /* 🟡（待定）机械臂待机位置 X */
+#define PICK_REST_Y 0.35f             /* 🟡（待定）机械臂待机位置 Y */
 
 #define PICK_HANDS_UP_X 0.15f       /* 演示用抬手坐标 */
 #define PICK_HANDS_UP_Y 0.9f       /* 演示用抬手坐标 */
 
-#define PICK_N200_APR_X_1 0.5f          /* -200预抓取点1 X */
+#define PICK_N200_APR_X_1 0.3f          /* -200预抓取点1 X */
 #define PICK_N200_APR_Y_1 0.5f          /* -200预抓取点1 Y */
 #define PICK_N200_APR_X_2 0.5f          /* -200预抓取点2 X */
 #define PICK_N200_APR_Y_2 0.5f          /* -200预抓取点2 Y */
 #define PICK_N200_TARGET_X 0.5f         /* -200抓取点 X */
-#define PICK_N200_TARGET_Y 0.5f         /* -200抓取点 Y */
+#define PICK_N200_TARGET_Y 0.4f         /* -200抓取点 Y */
 
-#define PICK_P200_APR_X_1 0.5f     /* +200预抓取点1 X */
+#define PICK_P200_APR_X_1 0.3f     /* +200预抓取点1 X */
 #define PICK_P200_APR_Y_1 0.5f     /* +200预抓取点1 Y */
 #define PICK_P200_APR_X_2 0.5f     /* +200预抓取点2 X */
 #define PICK_P200_APR_Y_2 0.5f     /* +200预抓取点2 Y */
 #define PICK_P200_TARGET_X 0.5f         /* +200抓取点 X */
-#define PICK_P200_TARGET_Y 0.5f         /* +200抓取点 Y */
+#define PICK_P200_TARGET_Y 0.4f         /* +200抓取点 Y */
 
-#define PICK_P400_APR_X_1 0.5f     /* +400预抓取点1 X */
+#define PICK_P400_APR_X_1 0.3f     /* +400预抓取点1 X */
 #define PICK_P400_APR_Y_1 0.5f     /* +400预抓取点1 Y */
 #define PICK_P400_APR_X_2 0.5f     /* +400预抓取点2 X */
 #define PICK_P400_APR_Y_2 0.5f     /* +400预抓取点2 Y */
 #define PICK_P400_TARGET_X 0.5f         /* +400抓取点 X */
-#define PICK_P400_TARGET_Y 0.5f         /* +400抓取点 Y */
+#define PICK_P400_TARGET_Y 0.4f         /* +400抓取点 Y */
 
-#define PICK_0_APR_X_1 0.5f             /* 0预抓取点1 X */
+#define PICK_0_APR_X_1 0.3f             /* 0预抓取点1 X */
 #define PICK_0_APR_Y_1 0.5f             /* 0预抓取点1 Y */
 #define PICK_0_APR_X_2 0.5f             /* 0预抓取点2 X */
 #define PICK_0_APR_Y_2 0.5f             /* 0预抓取点2 Y */
 #define PICK_0_TARGET_X 0.5f            /* 0抓取点 X */
-#define PICK_0_TARGET_Y 0.5f            /* 0抓取点 Y */
+#define PICK_0_TARGET_Y 0.4f            /* 0抓取点 Y */
 /* ============================== 🟡（待定）机械臂预设拾取路径点 ============================== */
 
 
@@ -271,8 +284,6 @@ void BT_MF_Start_Task(void);
 void BT_MF_Init_Task(void);
 void BT_Customized_Tick1ms_MF(void);
 
-/* ================================================ MF 规划行为树接口 ================================================ */
-void CZ_Test(uint8_t mode);
 
 
 
