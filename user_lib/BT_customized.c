@@ -681,7 +681,7 @@ static BT_Status Act_R2_MC_Mission(void)
              if(  MC_bb.RACK_POS_STABLE_TIMES > RACK_STABLE_TIMES_CONDITION)
                 {
                 clamp.retractable_flag = 1; // 同时发出夹爪伸出指令
-                if(abs_int32(m3508_fdcan2[1].Angle_Sum-CLAMP_EXTEND_MAX_POSITION)<500 ) //保证夹爪伸出到位且位置稳定后才发出抓取指令，避免提前触发后续动作
+                if(abs_int32(m3508_fdcan2[1].Angle_Sum-CLAMP_EXTEND_MAX_POSITION)<1000 ) //保证夹爪伸出到位且位置稳定后才发出抓取指令，避免提前触发后续动作
                 {
                     clamp.catch_flag = 1; // 同时发出夹爪抓取指令
                     osDelay(1000);

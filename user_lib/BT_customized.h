@@ -56,7 +56,7 @@
 #define CHASSIS_RACK_6_X 1590.0f /* 武馆区域 第六个矛头位置 X (mm) */
 #define CHASSIS_RACK_Y 560.0f    /* 武馆区域 取矛头位置 Y (mm) */
 #define CHASSIS_RACK_W -180.0f      /* 武馆区域 取矛头位置 W (deg) */
-#define RACK_STABLE_TIMES_CONDITION 200 /*取矛头时到达目标位置次数，保证稳定抓取*/
+#define RACK_STABLE_TIMES_CONDITION 150 /*取矛头时到达目标位置次数，保证稳定抓取*/
 // 与R1的对接位置（暂定该位置，后续可重设）
 #define CHASSIS_DOCKING_X 1200.0f /* 武馆区域 对接位置 X (mm) */
 #define CHASSIS_DOCKING_Y 1400.0f /* 武馆区域 对接位置 Y (mm) */
@@ -138,7 +138,7 @@ typedef struct
     uint8_t seq_mem_idx; 
     uint8_t seq_mem_idx_combined; 
     uint8_t R2_MC_timer_ms ; //以 BT tick (10ms为周期) 计数，或在 Tick1ms 中累加 
-    uint8_t RACK_POS_STABLE_TIMES; // 矛架位置稳定的计数器，达到一定次数后认为矛架位置稳定，准备执行夹取
+    uint16_t RACK_POS_STABLE_TIMES; // 矛架位置稳定的计数器，达到一定次数后认为矛架位置稳定，准备执行夹取
     uint8_t RACK_PICK_SUCCESS ; //是否成功检夹取矛头的标志，由微动开关触发
     uint8_t DOCKING_SUCCESS ; //是否成功完成对接的标志，由R1发送指令控制 
     uint8_t MF_ENTRY_INSTRUCTION  ; //是否收到R1发送的进入MF指令的标志，由R1发送指令控制，收到后进入MF任务流程 

@@ -25,6 +25,7 @@ float chassis_velocity_lpf(float current_value, float last_filtered_value, float
     float filter_speed = 0.0f;
     if (last_filtered_value == 0.0f) filter_speed = CHASSIS_ZERO_MUTATION_ALPHA * current_value + (1.0f - CHASSIS_ZERO_MUTATION_ALPHA) * last_filtered_value;
     else filter_speed = alpha * current_value + (1.0f - alpha) * last_filtered_value;
+//    filter_speed = alpha * current_value + (1.0f - alpha) * last_filtered_value;
     
     return filter_speed;
 }

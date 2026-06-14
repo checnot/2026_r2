@@ -128,7 +128,6 @@ int main(void)
   MX_USART6_UART_Init();
   MX_USART10_UART_Init();
   MX_UART7_Init();
-  MX_UART7_Init();
   /* USER CODE BEGIN 2 */
   
 //FDCAN初始化，配置过滤器并开启CAN
