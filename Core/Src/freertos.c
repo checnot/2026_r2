@@ -280,7 +280,8 @@ void entry_robotic_arm(void const * argument)
   arm.effector_pitch_target = 0.0f;
   // arm.theta_target[4] = 0.0f;
 
-  // 向机械臂添加默认路径点，替代之前的单位置环上电复位
+  // 初始化机械臂工作区域
+  arm.mode = ARM_MODE_FRONT;
 
   /* Infinite loop */
   for (;;)
@@ -316,34 +317,22 @@ void entry_robotic_arm(void const * argument)
       Traj_Adaptive_Update(&arm_traj.traj_y, arm.y0_now, 0.001f);
       Traj_Adaptive_Update(&arm_traj.traj_w, m8010_bus_1.motors[0].measure.Pos, 0.001f);
 
-      // 3. 将影子坐标交接给逆解器
-      // ==============4月28日更新：去除遥控模式=====================
+      // 3. 将影子坐标交接给逆解器（当工作区不处于过渡模式时）
+      if(arm.mode == ARM_MODE_FRONT || arm.mode == ARM_MODE_BACK)
+      {
+        arm.x0_target = arm_traj.traj_x.out_pos;
+        arm.y0_target = arm_traj.traj_y.out_pos;
+        arm.theta_target[0] = arm_traj.traj_w.out_pos;
+      }
 
-      arm.x0_target = arm_traj.traj_x.out_pos;
-      arm.y0_target = arm_traj.traj_y.out_pos;
-      arm.theta_target[0] = arm_traj.traj_w.out_pos;
+//       // 4. 开始逆向解算出各个 theta_target，并转换成电机位置环
+//       arm_route_point_calculate(&arm);
+// //      arm_route_execute(&arm, 3.5f, 0.35f); // 位置环控制
+//       arm_route_execute(&arm, 0.0f, 0.0f, 0.0f, 0.0f);  // 不控制
+//       // arm_gravity_comp(); // 重力补偿
 
-      // 4. 开始逆向解算出各个 theta_target，并转换成电机位置环
-      arm_route_point_calculate(&arm);
-      // 兜底：检测将要下发的位姿是否合法，若包含死点、反折点、越界：
-      // if(arm_route_reachable_check(&arm) != IK_REACHABLE)
-      // {
-      //     // 清空非法轨迹残留
-      //     arm_traj.traj_queue_x.count = 0;
-      //     arm_traj.traj_queue_y.count = 0;
-      //     arm_traj.traj_queue_w.count = 0;
-      //     // 将“影子进度”拽回到当前物理世界真正的坐标身上去！
-      //     arm_trajectory_init(&arm_traj, &arm);
-      //     // 下发真实位置重新解算：机械臂进入阻尼缓下落模式
-      //     arm.x0_target = arm.x0_now;
-      //     arm.y0_target = arm.y0_now;
-      //     arm.theta_target[0] = m8010_bus_1.motors[0].measure.Pos;
-      //     arm_route_point_calculate(&arm);
-      // }
-
-//      arm_route_execute(&arm, 3.5f, 0.35f); // 位置环控制
-      arm_route_execute(&arm, 0.0f, 0.0f);  // 不控制
-      // arm_gravity_comp(); // 重力补偿
+    // 4. 逆解算出各关节的 theta_target ，并转换成电机位置环
+      arm_mode_update_execute(&arm, &arm_traj, 0.0f, 0.0f, 0.0f, 0.0f);
 
     }
     osDelay(1);
@@ -553,7 +542,7 @@ void entry_cmd_task(void const * argument)
 /* USER CODE END Header_entry_m8010_task */
 void entry_m8010_task(void const * argument)
 {
-  /* USER CODE BEGIN entry_m8010_task */\
+  /* USER CODE BEGIN entry_m8010_task */
 	
   m8010_bus_1.motors[0].target.id = 1;
   m8010_bus_1.motors[0].target.mode = 1;

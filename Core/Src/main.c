@@ -135,10 +135,7 @@ int main(void)
   // FDCAN初始化，配置过滤器并开启CAN
   FDCan_Start(&FDCAN_Default_FilterConfig_1);
 
-  // uart1-a1
-  //  memset(a1_usart1_raw_recv.RX_pData, 0, sizeof(a1_usart1_raw_recv.RX_pData));
-  //  HAL_UARTEx_ReceiveToIdle_DMA(&huart1, a1_usart1_raw_recv.RX_pData, RX_LEN1);
-  //  __HAL_DMA_DISABLE_IT(&hdma_usart1_rx, DMA_IT_HT);
+
   // uart9-a1
   //  memset(a1_usart9_raw_recv.RX_pData, 0, sizeof(a1_usart9_raw_recv.RX_pData));
   //  HAL_UARTEx_ReceiveToIdle_DMA(&huart9, a1_usart9_raw_recv.RX_pData, RX_LEN1);
@@ -151,6 +148,11 @@ int main(void)
   //  memset(ht10a_buffer, 0, sizeof(ht10a_buffer));
   //  HAL_UARTEx_ReceiveToIdle_DMA(&huart6, ht10a_buffer, sizeof(ht10a_buffer));
   //  __HAL_DMA_DISABLE_IT(&hdma_usart6_rx, DMA_IT_HT);
+
+  // uart1-a1
+   memset(a1_usart6_raw_recv.RX_pData, 0, sizeof(a1_usart6_raw_recv.RX_pData));
+   HAL_UARTEx_ReceiveToIdle_DMA(&huart6, a1_usart6_raw_recv.RX_pData, RX_LEN1);
+   __HAL_DMA_DISABLE_IT(&hdma_usart6_rx, DMA_IT_HT);
 
   // uart10 - hi14
   memset(dma_rx_buf, 0, sizeof(dma_rx_buf));
@@ -175,11 +177,12 @@ int main(void)
 
   // go_m8010电机总线初始化
   m8010_bus_init(&m8010_bus_1, &huart3, &htim6);
-  m8010_bus_init(&m8010_bus_2, &huart6, &htim6);
+  // m8010_bus_init(&m8010_bus_2, &huart6, &htim6);
   m8010_bus_init(&m8010_bus_3, &huart4, &htim6);
 
-  // A1_Motor_Parameter_Init(&A1_debug_485_2[0], 0, 0, 0, 0);
-  // A1_Motor_Parameter_Init(&A1_debug_485_2[1], 1, 0, 0, 0);
+  A1_Motor_Parameter_Init(&A1_debug_485_2[0], 0, 10, 0, 0);
+  A1_Motor_Parameter_Init(&A1_debug_485_2[1], 1, 10, 0, 0);
+  A1_Motor_Parameter_Init(&A1_debug_485_2[2], 2, 10, 0, 0);
 
   // clamp_position_init(&m3508_fdcan2[1],&m3508_fdcan2[3],&m3508_fdcan2[2]);
   /* USER CODE END 2 */
@@ -340,6 +343,16 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   if (htim->Instance == TIM2)
   {
     timer_ms++;
+
+    switch(timer_a1_flag)
+     {
+     	// case 0:{A1_Motor_Send_Data(&A1_debug_485_1[0], &huart1); break;}
+     	// case 1:{A1_Motor_Send_Data(&A1_debug_485_1[1], &huart1); break;}
+      case 0:{A1_Motor_Send_Data(&A1_debug_485_2[0], &huart6); break;}
+     	case 1:{A1_Motor_Send_Data(&A1_debug_485_2[1], &huart6); break;}
+     }
+     timer_a1_flag++;
+     if (timer_a1_flag > 1)	timer_a1_flag = 0;
   }
 	
   // TIM6定时发送数据控制m8010电机，0.5ms会发送一次，每次发送一个电机的数据，依次循环4个电机
@@ -347,10 +360,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   {
     //  switch(timer_a1_flag)
     //  {
-    //  	// case 0:{A1_Motor_Send_Data(&A1_debug_485_1[0], &huart1); break;}
-    //  	// case 1:{A1_Motor_Send_Data(&A1_debug_485_1[1], &huart1); break;}
-    //   // case 2:{A1_Motor_Send_Data(&A1_debug_485_2[0], &huart9); break;}
-    //  	// case 3:{A1_Motor_Send_Data(&A1_debug_485_2[1], &huart9); break;}
+    //  	case 0:{A1_Motor_Send_Data(&A1_debug_485_1[0], &huart1); break;}
+    //  	case 1:{A1_Motor_Send_Data(&A1_debug_485_1[1], &huart1); break;}
+    //   case 2:{A1_Motor_Send_Data(&A1_debug_485_2[0], &huart9); break;}
+    //  	case 3:{A1_Motor_Send_Data(&A1_debug_485_2[1], &huart9); break;}
     //  }
     //  timer_a1_flag++;
     //  if (timer_a1_flag > 3)	timer_a1_flag = 0;

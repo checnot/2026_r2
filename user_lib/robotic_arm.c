@@ -3,6 +3,7 @@
 robotic_arm_stu arm;    //机械臂实例
 robotic_arm_traj_stu arm_traj; //机械臂轨迹实例
 
+
 // 实际测试从最上掰到最下转子经过了105800单位，末端在机械上实际经过240deg，即pi*4/3 rad，所以转化比约为 105800/(PI*4/3) = 25258
 // 为实机测量角度映射关系，该数值代表转子转过rate个单位，机械臂末端转过1rad
 static float rate = 25258.0f;
@@ -97,6 +98,26 @@ IK_Reach_Status_enum arm_route_reachable_check(robotic_arm_stu *arm)
 }
 
 /**
+ * @brief 用于检测目标路径点是否可到达（背后/存块工作区模式），推荐在目标点解算前以及完毕后调用
+*/
+IK_Reach_Status_enum arm_route_reachable_check_back(robotic_arm_stu *arm)
+{
+    if(sqrtf(arm->x0_target*arm->x0_target + arm->y0_target*arm->y0_target) > 0.95f || sqrtf(arm->x0_target*arm->x0_target + arm->y0_target*arm->y0_target) < 0.15f) 
+    {
+        return IK_LENGTH_OUT_OF_RANGE;//末端位置超出机械臂工作范围
+    }
+    // 大臂：30°~170° (向后工作区)
+    if(arm->theta_target[1] < 30.0f/180.0f*PI || arm->theta_target[1] > 170.0f/180.0f*PI)
+        return IK_ANGLE_OUT_OF_RANGE;
+
+    // 小臂：180°~330°，即 [PI, 11*PI/6]（排除±30°死区）
+    if(arm->theta_target[2] < PI || arm->theta_target[2] > 11.0f*PI/6.0f)
+        return IK_ANGLE_OUT_OF_RANGE;
+
+    return IK_REACHABLE;
+}
+
+/**
  * @brief 机械臂点逆解算函数，输入目标末端位置，输出目标关节角
  * @warning 目前仅支持二连杆末端位置的计算
 */
@@ -125,19 +146,49 @@ void arm_route_point_calculate(robotic_arm_stu *arm)
     }
 }
 
+/**
+ * @brief 机械臂点逆解算函数，输入目标末端位置，输出目标关节角（背后/存块工作区模式，从正常构型到此处需要经过位置环过渡）
+ * @note 该函数与 arm_route_point_calculate 的区别在于肘部朝下构型（theta1更靠后/更高，theta2夹角更大），适用于机械臂背后/存块工作区的情况
+*/
+void arm_route_point_calculate_back(robotic_arm_stu *arm)
+{
+    float x = arm->x0_target;
+    float y = arm->y0_target;
+    float l1 = arm->joint_parameters[2].a; // 0.55
+    float l2 = arm->joint_parameters[3].a; // 0.45
+    float l0 = sqrtf(x*x + y*y);
+
+    if(l0 > 0.15f)
+    {
+        float temp_cos_angle0, temp_cos_angle1;
+        temp_cos_angle0 = (l1*l1 + l0*l0 - l2*l2) / (2.0f*l1*l0);
+        temp_cos_angle1 = (l1*l1 + l2*l2 - l0*l0) / (2.0f*l1*l2);
+        if(temp_cos_angle0 > 1.0f) temp_cos_angle0 = 1.0f;
+        else if(temp_cos_angle0 < -1.0f) temp_cos_angle0 = -1.0f;
+        if(temp_cos_angle1 > 1.0f) temp_cos_angle1 = 1.0f;
+        else if(temp_cos_angle1 < -1.0f) temp_cos_angle1 = -1.0f;
+
+        // 肘部朝下构型：
+        // theta1 = atan2(y,x) - acos(...)  （大臂更靠后/更高）
+        // theta2 = 2*PI - acos(...)        （小臂夹角 > 180°，电机返回正值）
+        arm->theta_target[1] = atan2f(y, x) - acosf(temp_cos_angle0);
+        arm->theta_target[2] = 2.0f * PI - acosf(temp_cos_angle1);
+    }
+}
+
 
 /**
  * @brief 将关节夹角控制至指定位置，利用arm_route_point_calculate计算的关节夹角来执行各关节电机的位置环控制，输入关节夹角(rad)，经过内置单位转换后输出到电机
- * @warning m8010位置环参数需要根据测试进行调整
+ * @warning a1, m8010 位置环参数需要根据测试进行调整
 */
-void arm_route_execute(robotic_arm_stu *arm, float kp, float kw)
+void arm_route_execute(robotic_arm_stu *arm, float m8010_kp, float m8010_kw, float a1_kp, float a1_kw)
 {
     // A1_Motor_Position_Control(&A1_debug_485_2[0], arm->theta_target[0], a1_kw/3.0f, a1_kp/3.0f);                    //云台(由于云台旋转负载小，所以参数调小一些)
     // A1_Motor_Position_Control(&A1_debug_485_2[1], PI*11.0f/12.0f - arm->theta_target[1], a1_kw, a1_kp);             //大臂
     // m3508_anglesum_control(&m3508_fdcan1[0], (int32_t)((arm->theta_target[2]-PI/12.0f)/(PI/2.0f)*100000.0f), 12000);//小臂
-    m8010_position_control(&m8010_bus_1.motors[0], arm->theta_target[0], kp/6.0f, kw/6.0f);                    //云台(由于云台旋转负载小，所以参数调小一些)
-    m8010_position_control(&m8010_bus_1.motors[1], (UPPERARM_OFFSET_DEG/180.0f*PI - arm->theta_target[1]), kp, kw);             //大臂
-    m8010_position_control(&m8010_bus_1.motors[2], (arm->theta_target[2] - FOREARM_OFFSET_DEG/180.0f*PI), kp, kw);             //小臂
+    m8010_position_control(&m8010_bus_1.motors[0], arm->theta_target[0], m8010_kp/6.0f, m8010_kw/6.0f);                    //云台(由于云台旋转负载小，所以参数调小一些)
+    m8010_position_control(&m8010_bus_1.motors[1], (UPPERARM_OFFSET_DEG/180.0f*PI - arm->theta_target[1]), m8010_kp, m8010_kw);             //大臂
+    m8010_position_control(&m8010_bus_1.motors[2], (arm->theta_target[2] - FOREARM_OFFSET_DEG/180.0f*PI), m8010_kp, m8010_kw);             //小臂
 }
 
 
@@ -367,6 +418,122 @@ void arm_queue_add_point(robotic_arm_traj_stu *arm_traj, float target_x, float t
     Traj_Path_Queue_AddPoint(&arm_traj->traj_queue_y, target_y);
 }
 
+
+
+
+/* ============================================= 以下为工作区切换部分 ============================================= */
+
+/**
+ * @brief 将机械臂模式切换到过渡模式
+ * @param dir 过渡方向
+ * @note 用于发起过渡
+ */
+void arm_mode_switch_to_transition(robotic_arm_stu *arm, robotic_arm_traj_stu *arm_traj, ArmTransDir_enum dir)
+{
+    // 1. 清空所有轨迹队列（丢弃未完成的路径点）
+    Traj_Path_Queue_Init(&arm_traj->traj_queue_x, 0.025f);
+    Traj_Path_Queue_Init(&arm_traj->traj_queue_y, 0.025f);
+    Traj_Path_Queue_Init(&arm_traj->traj_queue_w, PI/72.0f);
+    
+    // 2. 重置延时/气泵状态
+    arm_traj->target_delay_ms = 0;
+    arm_traj->wait_counter = 0;
+    
+    // 3. 设定过渡方向
+    arm->trans_dir = dir;
+    
+    // 4. 根据方向设定过渡目标关节角
+    if (dir == ARM_TRANS_FRONT_TO_BACK) {
+        arm->trans_theta1_target = TRANS_F2B_THETA1_TARGET;
+        arm->trans_theta2_target = TRANS_F2B_THETA2_TARGET;
+    } else {
+        arm->trans_theta1_target = TRANS_B2F_THETA1_TARGET;
+        arm->trans_theta2_target = TRANS_B2F_THETA2_TARGET;
+    }
+    
+    // 5. 云台保持当前角度不动
+    arm->theta_target[0] = arm->joint_parameters[0].theta;
+    
+    // 6. 切换到过渡模式
+    arm->mode = ARM_MODE_TRANSITION;
+}
+
+
+/**
+ * @brief 更新机械臂工作模式，根据当前模式执行相应的控制逻辑，包括前向工作模式、过渡模式和后向工作模式
+ * @note m8010参数推荐：kp=3, kw=0.3
+ * @note a1参数推荐：kp=0.25, kw=7.5
+ * @note ==============================================
+ * @note 这是你放在 1ms 任务中最核心的调度函数
+ * @note m8010和a1的参数大小关系不同
+ * @note 过渡模式的位置和参数需要根据实际测试进行调整
+ * @warning 代替了原有 task 中最后的 arm_route_execute 和 arm_route_point_calculate 的调用
+ */
+void arm_mode_update_execute(robotic_arm_stu *arm, robotic_arm_traj_stu *arm_traj, float m8010_kp, float m8010_kw, float a1_kp, float a1_kw)
+{
+    float err1, err2;
+
+    switch (arm->mode) {
+        
+    // ========== 前向工作模式 ==========
+    case ARM_MODE_FRONT:
+        // 正常流程：轨迹规划 → 逆解算 → 可到达检查 → 执行
+        arm_route_point_calculate(arm);
+        if (arm_route_reachable_check(arm) == IK_REACHABLE) {
+            // 轨迹更新后，用逆解算结果驱动位置环
+            arm_route_execute(arm, m8010_kp, m8010_kw, a1_kp, a1_kw);
+        }
+        // 注意：从 FRONT 切到 TRANSITION 由上层（行为树/手动指令）触发
+        break;
+        
+    // ========== 过渡模式 ==========
+    case ARM_MODE_TRANSITION:
+        // 纯位置环驱动，不走逆解算，不走轨迹规划
+        arm->theta_target[0] = arm->joint_parameters[0].theta;  // 云台锁住不动
+        arm->theta_target[1] = arm->trans_theta1_target;         // 大臂目标
+        arm->theta_target[2] = arm->trans_theta2_target;         // 小臂目标
+        arm_route_execute(arm, m8010_kp, m8010_kw, a1_kp, a1_kw);   // 位置环执行
+        
+        // 判断是否到达过渡目标
+        err1 = fabsf(arm->joint_parameters[1].theta - arm->trans_theta1_target);
+        err2 = fabsf(arm->joint_parameters[2].theta - arm->trans_theta2_target);
+        if (err1 < 0.05f && err2 < 0.05f) {  // 约 3° 误差内判定到达
+            // 过渡完成，切换到目标模式
+            if (arm->trans_dir == ARM_TRANS_FRONT_TO_BACK) {
+                arm->mode = ARM_MODE_BACK;
+            } else {
+                arm->mode = ARM_MODE_FRONT;
+            }
+            // 以当前位置重新初始化轨迹规划器
+            arm_trajectory_init(arm_traj, arm);
+        }
+        break;
+        
+    // ========== 后向工作模式 ==========
+    case ARM_MODE_BACK:
+        // 反向逆解算 → 可到达检查 → 轨迹规划 → 执行
+        arm_route_point_calculate_back(arm);
+        if (arm_route_reachable_check_back(arm) == IK_REACHABLE) {
+            arm_route_execute(arm, m8010_kp, m8010_kw, a1_kp, a1_kw);
+        }
+        break;
+    }
+}
+
+
+
+
+
+
+
+
+/* ============================================= 以下为弃用部分 ============================================= */
+/* ============================================= 以下为弃用部分 ============================================= */
+/* ============================================= 以下为弃用部分 ============================================= */
+/* ============================================= 以下为弃用部分 ============================================= */
+/* ============================================= 以下为弃用部分 ============================================= */
+
+
 /**
  * @brief 机械臂添加单个路径点，坐标使用车身下的直角坐标系
  * @note 输入车身坐标系下的目标点，输出柱坐标目标点给内部arm_queue_add_point使用
@@ -454,63 +621,60 @@ void arm_load_test_waypoints_custom(void)
 /**
  * @brief 使用ht10a遥控器进行机械臂控制的函数，内含判断逻辑，仅用于精简代码
 */
-void arm_remote_control(void)
-{
-    //遥控器控制执行器预期位置，测试用
-    // if(HT10A.right_x !=0 || HT10A.right_y != 0 || HT10A.left_x != 0 || HT10A.switch_a != 0 || HT10A.knob_a != HT10A.last_status.knob_a_last
-    //      )
-    // {
-      //执行器位置部分
-      if(HT10A.right_x !=0 || HT10A.right_y != 0)
-      {
-        float last_x0_target = arm.x0_target;
-        float last_y0_target = arm.y0_target;
-        arm.x0_target += 0.0001f * arm_cos_f32(atan2f((float)HT10A.right_y, (float)HT10A.right_x));
-        arm.y0_target += 0.0001f * arm_sin_f32(atan2f((float)HT10A.right_y, (float)HT10A.right_x));
-        arm.x0_target = limit_float(arm.x0_target, 0.1f, 0.95f);
-        arm.y0_target = limit_float(arm.y0_target, -0.4f, 0.95f);
-        if(arm_route_reachable_check(&arm) == IK_LENGTH_OUT_OF_RANGE)
-        {
-          arm.x0_target = last_x0_target;
-          arm.y0_target = last_y0_target;
-        }
-      }
-      //云台部分
-      if(HT10A.left_x != 0)
-      {
-        if(HT10A.left_x > 0){arm.theta_target[0] -= 0.0003f;}
-        else{arm.theta_target[0] += 0.0003f;}
-      }
-
-      //执行器转角部分
-      arm.effector_pitch_target += -0.0004f * (float)HT10A.switch_a;
-      if(arm.effector_pitch_target > PI*7.0f/12.0f) arm.effector_pitch_target = PI*7.0f/12.0f;
-      else if(arm.effector_pitch_target < -PI*7.0f/12.0f) arm.effector_pitch_target = -PI*7.0f/12.0f;
-      
-      arm.theta_target[4] = (float)(HT10A.knob_a+8000)/16000.0f*PI;
-      if(arm.theta_target[4] > PI) arm.theta_target[4] = PI;
-      else if(arm.theta_target[4] < -PI) arm.theta_target[4] = -PI;
-    // }
-
-    if(HT10A.switch_b == 1 )
-    {
-        //吸块，关节力矩需调大
-        // HAL_GPIO_WritePin(ARM_AIR_PUMP_GPIO_Port, ARM_AIR_PUMP_Pin, GPIO_PIN_SET);
-        if(arm_route_reachable_check(&arm) == IK_REACHABLE)
-        {
-        arm_route_execute(&arm, 12.0f, 0.037f);
-        }
-    }
-    else
-    {
-        //不吸，关节力矩需偏小
-        // HAL_GPIO_WritePin(ARM_AIR_PUMP_GPIO_Port, ARM_AIR_PUMP_Pin, GPIO_PIN_RESET);
-        if(arm_route_reachable_check(&arm) == IK_REACHABLE)
-        {
-        arm_route_execute(&arm, 12.0f, 0.030f);
-        }
-    }
-}
+// void arm_remote_control(void)
+// {
+//     //遥控器控制执行器预期位置，测试用
+//     // if(HT10A.right_x !=0 || HT10A.right_y != 0 || HT10A.left_x != 0 || HT10A.switch_a != 0 || HT10A.knob_a != HT10A.last_status.knob_a_last
+//     //      )
+//     // {
+//       //执行器位置部分
+//       if(HT10A.right_x !=0 || HT10A.right_y != 0)
+//       {
+//         float last_x0_target = arm.x0_target;
+//         float last_y0_target = arm.y0_target;
+//         arm.x0_target += 0.0001f * arm_cos_f32(atan2f((float)HT10A.right_y, (float)HT10A.right_x));
+//         arm.y0_target += 0.0001f * arm_sin_f32(atan2f((float)HT10A.right_y, (float)HT10A.right_x));
+//         arm.x0_target = limit_float(arm.x0_target, 0.1f, 0.95f);
+//         arm.y0_target = limit_float(arm.y0_target, -0.4f, 0.95f);
+//         if(arm_route_reachable_check(&arm) == IK_LENGTH_OUT_OF_RANGE)
+//         {
+//           arm.x0_target = last_x0_target;
+//           arm.y0_target = last_y0_target;
+//         }
+//       }
+//       //云台部分
+//       if(HT10A.left_x != 0)
+//       {
+//         if(HT10A.left_x > 0){arm.theta_target[0] -= 0.0003f;}
+//         else{arm.theta_target[0] += 0.0003f;}
+//       }
+//       //执行器转角部分
+//       arm.effector_pitch_target += -0.0004f * (float)HT10A.switch_a;
+//       if(arm.effector_pitch_target > PI*7.0f/12.0f) arm.effector_pitch_target = PI*7.0f/12.0f;
+//       else if(arm.effector_pitch_target < -PI*7.0f/12.0f) arm.effector_pitch_target = -PI*7.0f/12.0f;
+//       arm.theta_target[4] = (float)(HT10A.knob_a+8000)/16000.0f*PI;
+//       if(arm.theta_target[4] > PI) arm.theta_target[4] = PI;
+//       else if(arm.theta_target[4] < -PI) arm.theta_target[4] = -PI;
+//     // }
+//     if(HT10A.switch_b == 1 )
+//     {
+//         //吸块，关节力矩需调大
+//         // HAL_GPIO_WritePin(ARM_AIR_PUMP_GPIO_Port, ARM_AIR_PUMP_Pin, GPIO_PIN_SET);
+//         if(arm_route_reachable_check(&arm) == IK_REACHABLE)
+//         {
+//         arm_route_execute(&arm, 12.0f, 0.037f);
+//         }
+//     }
+//     else
+//     {
+//         //不吸，关节力矩需偏小
+//         // HAL_GPIO_WritePin(ARM_AIR_PUMP_GPIO_Port, ARM_AIR_PUMP_Pin, GPIO_PIN_RESET);
+//         if(arm_route_reachable_check(&arm) == IK_REACHABLE)
+//         {
+//         arm_route_execute(&arm, 12.0f, 0.030f);
+//         }
+//     }
+// }
 //================================ 遥控器手动控制 ======================================================
 
 

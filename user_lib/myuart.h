@@ -39,8 +39,8 @@ extern DMA_HandleTypeDef hdma_uart5_rx;
 extern DMA_HandleTypeDef hdma_uart3_tx;
 extern DMA_HandleTypeDef hdma_uart3_rx;
 //引入uart6供 485bus2
-extern DMA_HandleTypeDef hdma_uart6_tx;
-extern DMA_HandleTypeDef hdma_uart6_rx;
+extern DMA_HandleTypeDef hdma_usart6_tx;
+extern DMA_HandleTypeDef hdma_usart6_rx;
 //引入uart4供 485bus3
 extern DMA_HandleTypeDef hdma_uart4_tx;
 extern DMA_HandleTypeDef hdma_uart4_rx;
@@ -51,4 +51,4 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size);
 void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart);
 
 
-#endif /* MYUART_H */
+#endif

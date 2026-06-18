@@ -7,10 +7,10 @@ A1_Motor_Struct A1_debug_485_1[3];//第一组485对应的a1电机
 A1_Motor_Struct A1_debug_485_2[3];//第二组485对应的a1电机
 
 MOTOR_send a1_motor_send;   //电机发送公共缓冲区
-MOTOR_recv a1_motor_recv_1[3]; //属于串口1的a1电机接收缓冲区
+MOTOR_recv a1_motor_recv_6[3]; //属于串口6的a1电机接收缓冲区
 MOTOR_recv a1_motor_recv_9[3]; //属于串口9的a1电机接收缓冲区
 
-A1_USART_RECEIVETYPE a1_usart1_raw_recv;
+A1_USART_RECEIVETYPE a1_usart6_raw_recv;
 A1_USART_RECEIVETYPE a1_usart9_raw_recv;
 
 
@@ -94,15 +94,15 @@ void A1_Motor_Send_Data(A1_Motor_Struct *p_send_data, UART_HandleTypeDef *huart)
 
     modify_data(&a1_motor_send);
     
-    GPIO_TypeDef *gpio = GPIOH;
-    uint16_t gpio_pin = GPIO_PIN_3;
+    GPIO_TypeDef *gpio;
+    uint16_t gpio_pin;
     
 /* ========================== 此处复用需要更改 ========================== */
-    // if(huart == &huart1)
-    // {
-    //     gpio = GPIOD;
-    //     gpio_pin = GPIO_PIN_8;
-    // }
+    if(huart == &huart6)
+    {
+        gpio = RS485_2_RE_GPIO_Port;
+        gpio_pin = RS485_2_RE_Pin;
+    }
     // if(huart == &huart9)
     // {
     //     gpio = GPIOC;
