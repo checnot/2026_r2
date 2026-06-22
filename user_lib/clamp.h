@@ -7,10 +7,10 @@
 #include "own_lib.h"
 #include "m3508.h"
 
-#define CLAMP_LIFT_MAX_POSITION -895000      // 上升最大位置
-#define CLAMP_LIFT_SPECIAL_POSITION1 11000 // 抓取矛头位置
-#define CLAMP_LIFT_SPECIAL_POSITION2 -890000 // 抓取矛头后抬起位置
-#define CLAMP_LIFT_SPECIAL_POSITION3 -100000  // 暂定对杆位置
+//#define CLAMP_LIFT_MAX_POSITION -895000      // 上升最大位置
+#define CLAMP_LIFT_SPECIAL_POSITION1 0 // 抓取矛头位置
+#define CLAMP_LIFT_SPECIAL_POSITION2 230000 //  暂定对杆位置
+
 #define CLAMP_ROTATE_MAX_POSITION -98000    // 旋转最大角度位置，水平放置为0
 #define CLAMP_EXTEND_MAX_POSITION -445000    // 伸缩最大位置
 

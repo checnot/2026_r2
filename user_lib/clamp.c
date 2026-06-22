@@ -11,20 +11,20 @@ void clamp_lift_control(uint8_t lift_flag, M3508_Motor_Struct *motor)
     int32_t target_position;
     if (lift_flag == 0)
     {
-        target_position = 0; // 复位位置
+        target_position = CLAMP_LIFT_SPECIAL_POSITION1; // 复位位置
     }
     else if (lift_flag == 1)
     {
-        target_position = CLAMP_LIFT_SPECIAL_POSITION1; // 抓矛头位置
+        target_position = CLAMP_LIFT_SPECIAL_POSITION2; // 暂定对杆位置
     }
-    else if (lift_flag == 2)
-    {
-        target_position = CLAMP_LIFT_SPECIAL_POSITION2; // 抓矛头后抬起位置
-    }
-    else if (lift_flag == 3)
-    {
-        target_position = CLAMP_LIFT_SPECIAL_POSITION3; // 暂定对杆位置
-    }
+    // else if (lift_flag == 2)
+    // {
+    //     target_position = CLAMP_LIFT_SPECIAL_POSITION2; // 抓矛头后抬起位置
+    // }
+    // else if (lift_flag == 3)
+    // {
+    //     target_position = CLAMP_LIFT_SPECIAL_POSITION3; // 暂定对杆位置
+    // }
     float position_error = target_position - motor->Angle_Sum; // 计算位置误差
     if (abs_float(position_error) < 10000.f)                   // 位置pid精准控制
     {

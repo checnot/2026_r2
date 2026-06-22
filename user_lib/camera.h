@@ -11,5 +11,5 @@
 
 extern char Camera_Rec_Data[128];
 void MF_Scan_Command_Send(uint8_t Command_Number);
-void parse_full_table(const char *data);
+void Camera_Scan_Data_Progress(uint8_t buf[]);
 #endif

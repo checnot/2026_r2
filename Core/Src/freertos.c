@@ -239,8 +239,8 @@ void StartDefaultTask(void const * argument)
     // data_send_vofa[5] = Radar_Pos.radar_x_filtered;
     // data_send_vofa[6] = m3508_fdcan3[0].Now_Speed;
     // data_send_vofa[7] = m3508_fdcan3[0].M3508_Speed_PID.Target;
-    data_send_vofa[0] = m3508_fdcan3[0].Now_Speed;
-    data_send_vofa[1] = m3508_fdcan3[0].M3508_Speed_PID.Target;
+    data_send_vofa[0] = Radar_Pos.reliable_x;
+    data_send_vofa[1] = Radar_Pos.radar_x;
     data_send_vofa[2] = m3508_fdcan3[1].Now_Speed;
     data_send_vofa[3] = m3508_fdcan3[1].M3508_Speed_PID.Target;
     data_send_vofa[4] = m3508_fdcan3[2].Now_Speed;
@@ -364,8 +364,8 @@ void entry_chassis(void const * argument)
   // 3508参数初始化
   m3508_parameter_init(&m3508_fdcan3[0], 17.0f, 0.00f, 3.0f, 0.0f, 0.0f, 0.0f);
   m3508_parameter_init(&m3508_fdcan3[1], 15.0f, 0.00f, 3.0f, 0.0f, 0.0f, 0.0f);
-  m3508_parameter_init(&m3508_fdcan3[2], 15.0f, 0.00f, 5.0f, 0.0f, 0.0f, 0.0f);
-  m3508_parameter_init(&m3508_fdcan3[3], 16.0f, 0.00f, 3.0f, 0.0f, 0.0f, 0.0f);
+  m3508_parameter_init(&m3508_fdcan3[2], 15.0f, 0.00f, 3.0f, 0.0f, 0.0f, 0.0f);
+  m3508_parameter_init(&m3508_fdcan3[3], 15.0f, 0.00f, 3.0f, 0.0f, 0.0f, 0.0f);
 	//抬升机构辅助轮电机初始化
 	m3508_parameter_init(&m3508_fdcan1[1], 15.0f, 0.00f, 2.0f, 0.0f, 0.0f, 0.0f);
   m3508_parameter_init(&m3508_fdcan1[2], 15.0f, 0.00f, 2.0f, 0.0f, 0.0f, 0.0f);
@@ -374,7 +374,7 @@ void entry_chassis(void const * argument)
   // chassis_r2.lift_back = 0;
   // chassis_lift_front_control(chassis_r2.lift_front);
   // chassis_lift_back_control(chassis_r2.lift_back);
-  chassis_route_traj_init();
+  // chassis_route_traj_init();
   /* Infinite loop */
   for (;;)
   {
@@ -424,10 +424,12 @@ void entry_chassis(void const * argument)
 
 
       // 多段-单段-坐标系变换-底盘解算 路径执行部分
+      if(traj_init_flag_chassis == 1){
       chassis_multi_route_scheduler(&chassis_route_traj, &Radar_Pos);
       chassis_single_route_scheduler(&Radar_Pos, &chassis_route_traj, 1);
       chassis_world_to_robot_velocity(&chassis_r2, chassis_route_traj.traj_vx.out_vel, chassis_route_traj.traj_vy.out_vel, chassis_route_traj.traj_vw.out_vel, Radar_Pos.reliable_yaw);
       omni_chassis_calculate(&chassis_r2, chassis_r2.vx, chassis_r2.vy, chassis_r2.vw);
+      }
     }
 
     /* ========================= 抬升部分 ========================= */
@@ -513,7 +515,8 @@ void entry_clamp(void const * argument)
       // 夹爪伸缩部分
       clamp_extend_control(clamp.retractable_flag * CLAMP_EXTEND_MAX_POSITION, &m3508_fdcan2[1]);
       // // 夹爪升降部分
-      // clamp_lift_control(clamp.lift_flag, &m3508_fdcan2[0]);
+			clamp_lift_control(clamp.lift_flag, &m3508_fdcan2[0]);
+       //m3508_anglesum_control(&m3508_fdcan2[0],rotate_target_angle,8000);
     }
     osDelay(1);
   }
@@ -532,11 +535,16 @@ void entry_cmd_task(void const * argument)
   /* USER CODE BEGIN entry_cmd_task */
 
   BT_MASTER_Init_Task();  // 初始化行为树任务
-  BT_MASTER_Start_Task(); // 启动行为树主控任务
+//  BT_MASTER_Start_Task(); // 启动行为树主控任务
 
   /* Infinite loop */
   for (;;)
   {
+    if(task_flag== 1)
+    {
+      BT_MASTER_Start_Task();
+      task_flag=0;
+    }
     BT_MASTER_Tick();     // 每1ms调用，内部降频10ms，行为树主控任务周期调用
 
     osDelay(1);

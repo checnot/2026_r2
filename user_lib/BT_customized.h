@@ -56,15 +56,15 @@
 #define CHASSIS_RACK_6_X 1590.0f /* 武馆区域 第六个矛头位置 X (mm) */
 #define CHASSIS_RACK_Y 560.0f    /* 武馆区域 取矛头位置 Y (mm) */
 #define CHASSIS_RACK_W -180.0f      /* 武馆区域 取矛头位置 W (deg) */
-#define RACK_STABLE_TIMES_CONDITION 150 /*取矛头时到达目标位置次数，保证稳定抓取*/
+#define RACK_STABLE_TIMES_CONDITION 100 /*取矛头时到达目标位置次数，保证稳定抓取*/
 // 与R1的对接位置（暂定该位置，后续可重设）
 #define CHASSIS_DOCKING_X 1200.0f /* 武馆区域 对接位置 X (mm) */
 #define CHASSIS_DOCKING_Y 1400.0f /* 武馆区域 对接位置 Y (mm) */
 #define CHASSIS_DOCKING_W 0.0f  /* 武馆区域 对接位置 W (deg) */
 // 使用相机扫描梅林位置（暂定该位置，后续可重设）
-#define CHASSIS_SCANNING_X 2000.0f /* 武馆区域 扫描位置 X (mm) */
+#define CHASSIS_SCANNING_X 1600.0f /* 武馆区域 扫描位置 X (mm) */
 #define CHASSIS_SCANNING_Y 3000.0f /* 武馆区域 扫描位置 Y (mm) */
-#define CHASSIS_SCANNING_W 90.0f   /* 武馆区域 扫描位置 W (deg) */
+#define CHASSIS_SCANNING_W 0.0f   /* 武馆区域 扫描位置 W (deg) */
 // 梅林入口区域地面的三个预设位置，供底盘在扫描后前往，等待机械臂拾取
 #define CHASSIS_ENTRY_1_X 2600.0f /* 武馆到梅林区域 入口位置1 X (mm) */
 #define CHASSIS_ENTRY_1_Y 4200.0f /* 武馆到梅林区域 入口位置1 Y (mm) */
@@ -162,6 +162,8 @@ typedef enum
     DOCKING,
     WAIT_DOCKING_COMPLETE, // 等待对接完成
     WAIT_MF_INSTRUCTION,   // 等待进入梅林指令
+    CAMERA_SCAN,   //二区扫描
+    MF_TASK_FLAG  //发送二区任务请求
 } R2_MC_MISSION_STATE;    
 
 typedef struct

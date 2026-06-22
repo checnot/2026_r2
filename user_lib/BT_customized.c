@@ -1,4 +1,4 @@
-﻿#include "BT_customized.h"
+#include "BT_customized.h"
 
 /* ================= 万能小变量 ================= */
 uint8_t debug_if_reach_MF_phase2_scan = 0; // 用于调试是否达到 MF 区第二次扫描的条件，实际比赛时请删除或替换为 BuildPhase2 调用
@@ -67,8 +67,8 @@ static inline uint8_t chassis_if_arrived(float tx, float ty, float tw)
 {
     float dx = fabsf(Radar_Pos.reliable_x - tx);
     float dy = fabsf(Radar_Pos.reliable_y - ty);
-    float dw = fabsf(Radar_Pos.reliable_yaw - tw);
-    return (dx < CHASSIS_ROUTE_ARRIVAL_THRESHOLD && dy < CHASSIS_ROUTE_ARRIVAL_THRESHOLD && dw < CHASSIS_ANGLE_ARRIVAL_THRESHOLD && chassis_route_traj.traj_queue_vx.count == 0);
+    float dw = fabsf(chassis_angle_edge_protection(tw, Radar_Pos.reliable_yaw));
+    return ((dx < CHASSIS_ROUTE_ARRIVAL_THRESHOLD )&& (dy < CHASSIS_ROUTE_ARRIVAL_THRESHOLD )&& (dw < CHASSIS_ANGLE_ARRIVAL_THRESHOLD) && (chassis_route_traj.traj_queue_vx.count == 0));
 }
 /*================================ 条件 节点 ================================*/
 
@@ -1056,6 +1056,7 @@ static BT_Status Act_R2_MC_Mission(void)
             taskENTER_CRITICAL();
             chassis_route_point_add(&chassis_route_traj, CHASSIS_DOCKING_X, CHASSIS_DOCKING_Y, CHASSIS_DOCKING_W, 0);
             taskEXIT_CRITICAL();
+//            clamp.lift_flag = 1;
 
             MC_bb.mc_mission_state = WAIT_DOCKING_COMPLETE;
             MC_bb.R2_MC_timer_ms = 0;
@@ -1081,17 +1082,45 @@ static BT_Status Act_R2_MC_Mission(void)
             /* 进入这个状态后,等待R1发出进入MF的指令，暂定为一个flag */
             if(MC_bb.MF_ENTRY_INSTRUCTION == 1)
             {
-                MC_bb.MF_MISSION_Req = 1;
-
-                MC_bb.mc_mission_state = MC_IDLE; //任务完成，回到初始状态等待下一次触发
-                MC_bb.R2_MC_timer_ms = 0;
-                return BT_SUCCESS;
+                //发送去扫描点的任务
+              taskENTER_CRITICAL();
+              chassis_route_point_add(&chassis_route_traj, CHASSIS_SCANNING_X, CHASSIS_SCANNING_Y, CHASSIS_SCANNING_W, 0);
+              taskEXIT_CRITICAL();
+              clamp.retractable_flag = 0;
+              clamp.rotate_flag = 0;
+			  MC_bb.mc_mission_state = CAMERA_SCAN;
+              MC_bb.R2_MC_timer_ms = 0;
+              return BT_SUCCESS;
             }
             else if(++MC_bb.R2_MC_timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS) {
                 return BT_FAILURE; 
             }
             return BT_RUNNING;  
         }
+        case CAMERA_SCAN:
+        {
+            if (chassis_if_arrived(CHASSIS_SCANNING_X, CHASSIS_SCANNING_Y, CHASSIS_SCANNING_W))
+            {
+                /* 暂定立马完成扫描*/
+                MC_bb.mc_mission_state = MF_TASK_FLAG;
+                MC_bb.R2_MC_timer_ms = 0;
+					  		return BT_SUCCESS;
+
+            }
+            else if(++MC_bb.R2_MC_timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS) {
+                return BT_FAILURE; 
+            }
+            return BT_RUNNING;
+        }
+        case MF_TASK_FLAG:
+        {
+            MC_bb.MF_MISSION_Req = 1;
+            MC_bb.mc_mission_state = MC_IDLE; //任务完成，回到初始状态等待下一次触发
+            MC_bb.R2_MC_timer_ms = 0;
+            return BT_SUCCESS;
+
+        }
+
         default:
         {
             return BT_FAILURE;
