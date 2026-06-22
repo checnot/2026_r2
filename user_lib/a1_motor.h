@@ -230,9 +230,9 @@ typedef struct
 extern A1_Motor_Struct A1_debug_485_1[3];
 extern A1_Motor_Struct A1_debug_485_2[3];
 // extern MOTOR_send a1_motor_send;
-extern MOTOR_recv a1_motor_recv_1[3];
+extern MOTOR_recv a1_motor_recv_6[3];
 extern MOTOR_recv a1_motor_recv_9[3];
-extern A1_USART_RECEIVETYPE a1_usart1_raw_recv;
+extern A1_USART_RECEIVETYPE a1_usart6_raw_recv;
 extern A1_USART_RECEIVETYPE a1_usart9_raw_recv;
 
 int modify_data(MOTOR_send* motor);    //将数据处理为stm32需求的格式

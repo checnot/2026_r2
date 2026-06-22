@@ -260,7 +260,6 @@ void chassis_single_route_velocity_update(Traj_Single_struct * traj,float now_po
     //     // 让当前速度按照最大减速度逼近 0
     //     expected_vel = fabsf(traj->out_vel) - traj->a_max * dt;
     //     if (expected_vel < 0.0f) expected_vel = 0.0f; 
-        
     //     // 维持之前的方向极性，只是把速度降下来
     //     traj->out_vel = expected_vel * traj_sign2(traj->out_vel); 
     // }
@@ -466,7 +465,7 @@ void chassis_single_route_scheduler(RADAR_POSITION * chassis_real_position, chas
     // float rate_vx = (dist_to_actual_vx + 0.001f) / (dis_total + 0.003f); // 加小常数避免除零
     // float rate_vy = (dist_to_actual_vy + 0.001f) / (dis_total + 0.003f);
     // float rate_vw = (dist_to_actual_vw * DISTANCE_WHEEL_CENTER*1000.0f + 0.001f) / (dis_total + 0.003f);
-float dis_total =  sqrtf(dist_to_actual_vx * dist_to_actual_vx + dist_to_actual_vy * dist_to_actual_vy);
+    float dis_total =  sqrtf(dist_to_actual_vx * dist_to_actual_vx + dist_to_actual_vy * dist_to_actual_vy);
     float rate_vx = (dist_to_actual_vx + 0.001f) / (dis_total + 0.002f); // 加小常数避免除零
     float rate_vy = (dist_to_actual_vy + 0.001f) / (dis_total + 0.002f);
     
