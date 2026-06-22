@@ -503,8 +503,8 @@ chassis_lift_traj_stu chassis_lift_traj;
 void chassis_lift_fk_update(chassis_stu *chassis)
 {
     // 这里的正负号和机械结构有关，可能需要根据实际情况调整
-    chassis->lift_front_current = -m8010_bus_3.motors[0].measure.Pos*CHASSIS_LIFT_RATE;
-    chassis->lift_back_current = m8010_bus_3.motors[1].measure.Pos*CHASSIS_LIFT_RATE;
+    chassis->lift_front_current = m8010_bus_3.motors[0].measure.Pos*CHASSIS_LIFT_RATE;
+    chassis->lift_back_current = -m8010_bus_3.motors[1].measure.Pos*CHASSIS_LIFT_RATE;
 }
 
 /**
@@ -513,8 +513,8 @@ void chassis_lift_fk_update(chassis_stu *chassis)
 */
 void chassis_lift_ik_update(chassis_stu *chassis)
 {
-    m8010_bus_3.motors[0].target.Pos = -chassis->lift_front_target/CHASSIS_LIFT_RATE;
-    m8010_bus_3.motors[1].target.Pos = chassis->lift_back_target/CHASSIS_LIFT_RATE;
+    m8010_bus_3.motors[0].target.Pos = chassis->lift_front_target/CHASSIS_LIFT_RATE;
+    m8010_bus_3.motors[1].target.Pos = -chassis->lift_back_target/CHASSIS_LIFT_RATE;
 }
 
 /**

@@ -2,15 +2,12 @@
 
 robotic_arm_stu arm;    //机械臂实例
 robotic_arm_traj_stu arm_traj; //机械臂轨迹实例
-
+robotic_arm_trans_traj_stu arm_trans_traj; //机械臂过渡轨迹实例
 
 // 实际测试从最上掰到最下转子经过了105800单位，末端在机械上实际经过240deg，即pi*4/3 rad，所以转化比约为 105800/(PI*4/3) = 25258
 // 为实机测量角度映射关系，该数值代表转子转过rate个单位，机械臂末端转过1rad
 static float rate = 25258.0f;
 
-#define UPPERARM_OFFSET_DEG (180.0f-41.5f) //实测大臂与云台平面的夹角约为"41~42度"
-#define FOREARM_OFFSET_DEG (30.0f) //实测小臂与大臂的夹角约为30度
-#define WRIST_OFFSET_DEG (180.0f-66.38f) //实测末端执行器与小臂的夹角约为"66.38度"
 
 /**
  * @brief 机械臂参数初始化函数，在机械臂任务开始时调用，进行机械臂物理参数的初始化
@@ -63,31 +60,32 @@ void arm_joint_state_update(robotic_arm_stu *arm)
 
 
 // 云台朝向角    
-    arm->joint_parameters[0].theta = m8010_bus_1.motors[0].measure.Pos;        
+    // arm->joint_parameters[0].theta = m8010_bus_1.motors[0].measure.Pos;        
+    arm->joint_parameters[0].theta = 0.0f;
 // 根据各关节处电机的测量位置更新机械臂的关节角状态，对二连杆末端位置进行正解算
-    arm->joint_parameters[1].theta = -m8010_bus_1.motors[1].measure.Pos + UPPERARM_OFFSET_DEG/180.0f*PI;  //（实测41~42deg）大臂与云台平面的夹角
-    arm->joint_parameters[2].theta = m8010_bus_1.motors[2].measure.Pos + FOREARM_OFFSET_DEG/180.0f*PI;        //（实测30deg）小臂与大臂的夹角
+    arm->joint_parameters[1].theta = -A1_debug_485_2[0].measure.Pos + UPPERARM_OFFSET_DEG/180.0f*PI;    // 大臂与云台平面的夹角
+    arm->joint_parameters[2].theta = m8010_bus_1.motors[2].measure.Pos + FOREARM_OFFSET_DEG/180.0f*PI;  // 小臂与大臂的夹角
     arm->joint_pitch[0] = arm->joint_parameters[1].theta;
     arm->joint_pitch[1] = -PI + arm->joint_pitch[0] + arm->joint_parameters[2].theta;
     arm->x0_now = 0.55f*arm_cos_f32(arm->joint_pitch[0]) + 0.45f*arm_cos_f32(arm->joint_pitch[1]);
     arm->y0_now = 0.55f*arm_sin_f32(arm->joint_pitch[0]) + 0.45f*arm_sin_f32(arm->joint_pitch[1]);
 // 末端机构解算
 
-    arm->joint_parameters[3].theta = -m3508_fdcan1[0].Angle_Sum/rate + WRIST_OFFSET_DEG/180.0f*PI;   //（实测66.38deg）末端与小臂的夹角
+    arm->joint_parameters[3].theta = -m3508_fdcan1[0].Angle_Sum/rate + WRIST_OFFSET_DEG/180.0f*PI;   //（实测56.4deg）末端与小臂的夹角
     arm->joint_pitch[2] = arm->joint_pitch[1] + arm->joint_parameters[3].theta;
 }
 
 
 /**
- * @brief 用于检测目标路径点是否可到达，推荐在目标点解算前以及完毕后调用
+ * @brief 用于检测目标路径点是否可到达（前面/常规工作区模式），推荐在目标点解算前以及完毕后调用
 */
-IK_Reach_Status_enum arm_route_reachable_check(robotic_arm_stu *arm)
+IK_Reach_Status_enum arm_route_reachable_check_front(robotic_arm_stu *arm)
 {
     if(sqrtf(arm->x0_target*arm->x0_target + arm->y0_target*arm->y0_target) > 0.95f || sqrtf(arm->x0_target*arm->x0_target + arm->y0_target*arm->y0_target) < 0.15f) 
     {
         return IK_LENGTH_OUT_OF_RANGE;//末端位置超出机械臂工作范围
     }
-    else if(arm->theta_target[1]<0.0f || arm->theta_target[1]>PI*3.0f/4.0f || arm->theta_target[2]<PI/6.0f || arm->theta_target[2]>PI)
+    else if(arm->theta_target[1]<UPPERARM_LIMIT_DEG_MIN/180.0f*PI || arm->theta_target[1]>UPPERARM_LIMIT_DEG_MAX/180.0f*PI || arm->theta_target[2]<FOREARM_LIMIT_DEG_MIN/180.0f*PI || arm->theta_target[2]>FOREARM_LIMIT_DEG_MAX/180.0f*PI)
     {
         return IK_ANGLE_OUT_OF_RANGE;//关节角超出物理限位
     }
@@ -121,7 +119,7 @@ IK_Reach_Status_enum arm_route_reachable_check_back(robotic_arm_stu *arm)
  * @brief 机械臂点逆解算函数，输入目标末端位置，输出目标关节角
  * @warning 目前仅支持二连杆末端位置的计算
 */
-void arm_route_point_calculate(robotic_arm_stu *arm)
+void arm_route_point_calculate_front(robotic_arm_stu *arm)
 {
     float x = arm->x0_target;
     float y = arm->y0_target;
@@ -191,6 +189,25 @@ void arm_route_execute(robotic_arm_stu *arm, float m8010_kp, float m8010_kw, flo
     m8010_position_control(&m8010_bus_1.motors[2], (arm->theta_target[2] - FOREARM_OFFSET_DEG/180.0f*PI), m8010_kp, m8010_kw);             //小臂
 }
 
+/**
+ * @brief 检查末端执行器的pitch角是否在可达范围内
+ * @param arm 机械臂实例
+ * @param target_pitch 目标pitch角
+ * @return 1表示可达，0表示不可达
+ */
+uint8_t arm_effector_pitch_reachable_check(robotic_arm_stu *arm, float target_pitch)
+{
+    float theta3_cmd = target_pitch - arm->joint_pitch[1];
+
+    float theta3_min = WRIST_LIMIT_DEG_MIN / 180.0f * PI;
+    float theta3_max = WRIST_LIMIT_DEG_MAX / 180.0f * PI;
+
+    if (theta3_cmd < theta3_min || theta3_cmd > theta3_max) {
+        return 0;
+    }
+
+    return 1;
+}
 
 /**
  * @brief 机械臂末端执行器稳定控制函数，输入末端执行器的目标pitch与自转角来控制末端执行器的姿态稳定，输入单位为rad
@@ -215,7 +232,7 @@ void arm_actuator_stable_control(robotic_arm_stu *arm, float target_pitch, float
     arm->theta_target[3] = target_pitch - arm->joint_pitch[1];
 // 末端执行器的自转角控制
 // 根据实际机械限位修改
-    arm->theta_target[3] = limit_float(arm->theta_target[3], (WRIST_OFFSET_DEG/180.0f*PI-4.0f/3.0f*PI), WRIST_OFFSET_DEG/180.0f*PI);
+    arm->theta_target[3] = limit_float(arm->theta_target[3], WRIST_LIMIT_DEG_MIN/180.0f*PI, WRIST_LIMIT_DEG_MAX/180.0f*PI);
     m3508_anglesum_control(&m3508_fdcan1[0], (-arm->theta_target[3] + WRIST_OFFSET_DEG/180.0f*PI) * rate, 8192);
 }
 
@@ -428,7 +445,7 @@ void arm_queue_add_point(robotic_arm_traj_stu *arm_traj, float target_x, float t
  * @param dir 过渡方向
  * @note 用于发起过渡
  */
-void arm_mode_switch_to_transition(robotic_arm_stu *arm, robotic_arm_traj_stu *arm_traj, ArmTransDir_enum dir)
+void arm_mode_switch_to_transition(robotic_arm_stu *arm, robotic_arm_traj_stu *arm_traj, robotic_arm_trans_traj_stu *arm_trans_traj, ArmTransDir_enum dir)
 {
     // 1. 清空所有轨迹队列（丢弃未完成的路径点）
     Traj_Path_Queue_Init(&arm_traj->traj_queue_x, 0.025f);
@@ -444,15 +461,54 @@ void arm_mode_switch_to_transition(robotic_arm_stu *arm, robotic_arm_traj_stu *a
     
     // 4. 根据方向设定过渡目标关节角
     if (dir == ARM_TRANS_FRONT_TO_BACK) {
-        arm->trans_theta1_target = TRANS_F2B_THETA1_TARGET;
-        arm->trans_theta2_target = TRANS_F2B_THETA2_TARGET;
+        arm->trans_target_theta1 = TRANS_F2B_THETA1_TARGET;
+        arm->trans_target_theta2 = TRANS_F2B_THETA2_TARGET;
+        arm->trans_target_pitch = TRANS_F2B_PITCH_TARGET;
     } else {
-        arm->trans_theta1_target = TRANS_B2F_THETA1_TARGET;
-        arm->trans_theta2_target = TRANS_B2F_THETA2_TARGET;
+        arm->trans_target_theta1 = TRANS_B2F_THETA1_TARGET;
+        arm->trans_target_theta2 = TRANS_B2F_THETA2_TARGET;
+        arm->trans_target_pitch = TRANS_B2F_PITCH_TARGET;
     }
     
-    // 5. 云台保持当前角度不动
-    arm->theta_target[0] = arm->joint_parameters[0].theta;
+    if (!arm_effector_pitch_reachable_check(arm, arm->trans_target_pitch)) {
+        /*
+        * 这里有两种处理方式：
+        * 1. 直接 return，不进入过渡
+        * 2. 将 trans_pitch_target 修正成当前 pitch，保证腕部不乱动
+        *
+        * 调试阶段建议先用第 2 种，更安全。
+        */
+        // arm->trans_target_pitch = arm->joint_pitch[2];
+    }
+
+    // 初始化过渡轨迹
+    Traj_Adaptive_Init(
+        &arm_trans_traj->traj_theta1,
+        arm->joint_parameters[1].theta,
+        arm->trans_target_theta1,
+        TRANS_V_MAX,          // 最大速度：60 deg/s，可根据实机调
+        TRANS_A_MAX,                 // 最大加速度：180 deg/s^2
+        PI / 36.0f          // 最大跟随误差：5 deg
+    );
+    Traj_Adaptive_Init(
+        &arm_trans_traj->traj_theta2,
+        arm->joint_parameters[2].theta,
+        arm->trans_target_theta2,
+        TRANS_V_MAX,
+        TRANS_A_MAX,
+        PI / 36.0f
+    );
+    Traj_Adaptive_Init(
+        &arm_trans_traj->traj_pitch,
+        arm->joint_pitch[2],
+        arm->trans_target_pitch,
+        TRANS_V_MAX,
+        TRANS_A_MAX,
+        PI / 36.0f
+    );
+
+    // // 5. 云台保持当前角度不动
+    // arm->theta_target[0] = arm->joint_parameters[0].theta;
     
     // 6. 切换到过渡模式
     arm->mode = ARM_MODE_TRANSITION;
@@ -469,17 +525,15 @@ void arm_mode_switch_to_transition(robotic_arm_stu *arm, robotic_arm_traj_stu *a
  * @note 过渡模式的位置和参数需要根据实际测试进行调整
  * @warning 代替了原有 task 中最后的 arm_route_execute 和 arm_route_point_calculate 的调用
  */
-void arm_mode_update_execute(robotic_arm_stu *arm, robotic_arm_traj_stu *arm_traj, float m8010_kp, float m8010_kw, float a1_kp, float a1_kw)
+void arm_mode_update_execute(robotic_arm_stu *arm, robotic_arm_traj_stu *arm_traj, robotic_arm_trans_traj_stu *arm_trans_traj, float m8010_kp, float m8010_kw, float a1_kp, float a1_kw)
 {
-    float err1, err2;
-
     switch (arm->mode) {
         
     // ========== 前向工作模式 ==========
     case ARM_MODE_FRONT:
         // 正常流程：轨迹规划 → 逆解算 → 可到达检查 → 执行
-        arm_route_point_calculate(arm);
-        if (arm_route_reachable_check(arm) == IK_REACHABLE) {
+        arm_route_point_calculate_front(arm);
+        if (arm_route_reachable_check_front(arm) == IK_REACHABLE) {
             // 轨迹更新后，用逆解算结果驱动位置环
             arm_route_execute(arm, m8010_kp, m8010_kw, a1_kp, a1_kw);
         }
@@ -488,26 +542,59 @@ void arm_mode_update_execute(robotic_arm_stu *arm, robotic_arm_traj_stu *arm_tra
         
     // ========== 过渡模式 ==========
     case ARM_MODE_TRANSITION:
-        // 纯位置环驱动，不走逆解算，不走轨迹规划
-        arm->theta_target[0] = arm->joint_parameters[0].theta;  // 云台锁住不动
-        arm->theta_target[1] = arm->trans_theta1_target;         // 大臂目标
-        arm->theta_target[2] = arm->trans_theta2_target;         // 小臂目标
-        arm_route_execute(arm, m8010_kp, m8010_kw, a1_kp, a1_kw);   // 位置环执行
-        
-        // 判断是否到达过渡目标
-        err1 = fabsf(arm->joint_parameters[1].theta - arm->trans_theta1_target);
-        err2 = fabsf(arm->joint_parameters[2].theta - arm->trans_theta2_target);
-        if (err1 < 0.05f && err2 < 0.05f) {  // 约 3° 误差内判定到达
-            // 过渡完成，切换到目标模式
+    {
+        // 1. 云台锁住当前角度
+        arm->theta_target[0] = arm->joint_parameters[0].theta;
+
+        // 2. 推演三条过渡轨迹
+        Traj_Adaptive_Update(&arm_trans_traj->traj_theta1, arm->joint_parameters[1].theta, 0.001f);
+        Traj_Adaptive_Update(&arm_trans_traj->traj_theta2, arm->joint_parameters[2].theta, 0.001f);
+        Traj_Adaptive_Update(&arm_trans_traj->traj_pitch, arm->joint_pitch[2], 0.001f);
+
+        // 3. 下发大臂、小臂轨迹输出
+        arm->theta_target[1] = arm_trans_traj->traj_theta1.out_pos;
+        arm->theta_target[2] = arm_trans_traj->traj_theta2.out_pos;
+
+        // 4. 检查当前 pitch 轨迹输出在当前小臂姿态下是否腕部可达
+        if (arm_effector_pitch_reachable_check(arm, arm_trans_traj->traj_pitch.out_pos)) {
+            arm_actuator_stable_control(arm,
+                                        arm_trans_traj->traj_pitch.out_pos,
+                                        arm->theta_target[4]);
+        } else {
+            /*
+            * 安全策略：
+            * 如果某一瞬间不可达，不要继续强行给不可达 pitch。
+            * 这里有两个选择：
+            * A. 保持当前末端 pitch：
+            *    arm_actuator_stable_control(arm, arm->joint_pitch[2], arm->theta_target[4]);
+            * B. 保持当前腕部相对角，不调用 stable_control。
+            * 推荐调试阶段用 A。
+            */
+            arm_actuator_stable_control(arm,
+                                        arm->joint_pitch[2],
+                                        arm->theta_target[4]);
+        }
+
+        // 5. 执行大臂、小臂位置环
+        arm_route_execute(arm, m8010_kp, m8010_kw, a1_kp, a1_kw);
+
+        // 6. 三条轨迹都完成，才允许切换模式
+        if (arm_trans_traj->traj_theta1.is_finished &&
+            arm_trans_traj->traj_theta2.is_finished &&
+            arm_trans_traj->traj_pitch.is_finished) 
+        {
+            arm->effector_pitch_target = arm->trans_target_pitch; // 更新末端执行器目标 pitch（过渡结束后保持这个值不变）
             if (arm->trans_dir == ARM_TRANS_FRONT_TO_BACK) {
                 arm->mode = ARM_MODE_BACK;
             } else {
                 arm->mode = ARM_MODE_FRONT;
             }
-            // 以当前位置重新初始化轨迹规划器
+            // 以当前位置重新初始化笛卡尔轨迹规划器
             arm_trajectory_init(arm_traj, arm);
         }
+
         break;
+    }
         
     // ========== 后向工作模式 ==========
     case ARM_MODE_BACK:

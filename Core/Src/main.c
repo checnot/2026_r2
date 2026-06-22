@@ -64,9 +64,11 @@
 
 extern osSemaphoreId bisem_m8010Handle; // ← 新增（v1 中类型名可能是 osSemaphoreId）
 
-uint8_t timer_a1_flag = 0; // 用于使定时器中对A1电机依次发送的标志位，0-3分别对应4个电机
+// uint8_t timer_a1_flag = 0; // 用于使定时器中对A1电机依次发送的标志位，0-3分别对应4个电机
 
 uint32_t timer_ms = 0; // 定时器计时变量，单位ms
+
+volatile uint8_t a1_send_request = 0; // a1电机发送请求标志位，由定时器中断设置
 
 // uint8_t m3508_send_flag = 0;//用于使定时器中对M3508电机依次发送的标志位
 /* USER CODE END PV */
@@ -344,15 +346,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   {
     timer_ms++;
 
-    switch(timer_a1_flag)
-     {
-     	// case 0:{A1_Motor_Send_Data(&A1_debug_485_1[0], &huart1); break;}
-     	// case 1:{A1_Motor_Send_Data(&A1_debug_485_1[1], &huart1); break;}
-      case 0:{A1_Motor_Send_Data(&A1_debug_485_2[0], &huart6); break;}
-     	case 1:{A1_Motor_Send_Data(&A1_debug_485_2[1], &huart6); break;}
-     }
-     timer_a1_flag++;
-     if (timer_a1_flag > 1)	timer_a1_flag = 0;
+    if(a1_send_request == 0) // 如果没有发送请求，则每10ms设置一次发送请求
+    {
+        a1_send_request = 1; // 设置发送请求标志位
+    }
   }
 	
   // TIM6定时发送数据控制m8010电机，0.5ms会发送一次，每次发送一个电机的数据，依次循环4个电机

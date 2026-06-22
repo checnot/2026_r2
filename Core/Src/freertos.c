@@ -83,6 +83,8 @@ float debug_speed; // 用于测试的速度变量
 uint8_t traj_init_flag_arm = 0;  // 机械臂轨迹初始化标志位
 uint8_t traj_init_flag_lift = 0; // 抬升轨迹初始化标志位
 uint8_t traj_init_flag_chassis = 0; // 底盘轨迹初始化标志位
+
+extern volatile uint8_t a1_send_request;
 /* USER CODE END Variables */
 osThreadId defaultTaskHandle;
 osThreadId roboticarm_taskHandle;
@@ -90,6 +92,7 @@ osThreadId chassis_taskHandle;
 osThreadId clamp_taskHandle;
 osThreadId cmd_taskHandle;
 osThreadId m8010_taskHandle;
+osThreadId a1_taskHandle;
 osSemaphoreId bisem_m8010Handle;
 osStaticSemaphoreDef_t bisem_m8010ControlBlock;
 
@@ -106,6 +109,7 @@ void entry_chassis(void const * argument);
 void entry_clamp(void const * argument);
 void entry_cmd_task(void const * argument);
 void entry_m8010_task(void const * argument);
+void entry_a1_task(void const * argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -184,6 +188,10 @@ void MX_FREERTOS_Init(void) {
   /* definition and creation of m8010_task */
   osThreadDef(m8010_task, entry_m8010_task, osPriorityNormal, 0, 128);
   m8010_taskHandle = osThreadCreate(osThread(m8010_task), NULL);
+
+  /* definition and creation of a1_task */
+  osThreadDef(a1_task, entry_a1_task, osPriorityNormal, 0, 128);
+  a1_taskHandle = osThreadCreate(osThread(a1_task), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -287,7 +295,7 @@ void entry_robotic_arm(void const * argument)
   for (;;)
   {
     arm_joint_state_update(&arm);
-    arm_route_point_calculate(&arm);
+    arm_route_point_calculate_front(&arm);
 
     if (traj_init_flag_arm == 0)
     {
@@ -304,7 +312,7 @@ void entry_robotic_arm(void const * argument)
         m8010_bus_1.motors[2].measure.Pos_init_flag == 200)
     {
       // 保持执行器水平
-      if (m3508_fdcan1[0].Initial_flag == 200)
+      if (m3508_fdcan1[0].Initial_flag == 200 && arm.mode != ARM_MODE_TRANSITION)
       {
         arm_actuator_stable_control(&arm, arm.effector_pitch_target, arm.theta_target[4]);
       }
@@ -332,7 +340,8 @@ void entry_robotic_arm(void const * argument)
 //       // arm_gravity_comp(); // 重力补偿
 
     // 4. 逆解算出各关节的 theta_target ，并转换成电机位置环
-      arm_mode_update_execute(&arm, &arm_traj, 0.0f, 0.0f, 0.0f, 0.0f);
+      // arm_mode_update_execute(&arm, &arm_traj, &arm_trans_traj, 3.5f, 0.35f, 0.175f, 4.5f); // 位置环控制
+      arm_mode_update_execute(&arm, &arm_traj, &arm_trans_traj, 0.0f, 0.0f, 0.0f, 0.0f);
 
     }
     osDelay(1);
@@ -351,13 +360,19 @@ void entry_chassis(void const * argument)
 {
   /* USER CODE BEGIN entry_chassis */
   // 3508参数初始化
-  m3508_parameter_init(&m3508_fdcan3[0], 17.0f, 0.00f, 3.0f, 0.0f, 0.0f, 0.0f);
-  m3508_parameter_init(&m3508_fdcan3[1], 15.0f, 0.00f, 3.0f, 0.0f, 0.0f, 0.0f);
-  m3508_parameter_init(&m3508_fdcan3[2], 15.0f, 0.00f, 5.0f, 0.0f, 0.0f, 0.0f);
-  m3508_parameter_init(&m3508_fdcan3[3], 16.0f, 0.00f, 3.0f, 0.0f, 0.0f, 0.0f);
+  // m3508_parameter_init(&m3508_fdcan3[0], 17.0f, 0.00f, 3.0f, 0.0f, 0.0f, 0.0f);
+  // m3508_parameter_init(&m3508_fdcan3[1], 15.0f, 0.00f, 3.0f, 0.0f, 0.0f, 0.0f);
+  // m3508_parameter_init(&m3508_fdcan3[2], 15.0f, 0.00f, 5.0f, 0.0f, 0.0f, 0.0f);
+  // m3508_parameter_init(&m3508_fdcan3[3], 16.0f, 0.00f, 3.0f, 0.0f, 0.0f, 0.0f);
+  m3508_parameter_init(&m3508_fdcan3[0], 0.0f, 0.00f, 0.0f, 0.0f, 0.0f, 0.0f);
+  m3508_parameter_init(&m3508_fdcan3[1], 0.0f, 0.00f, 0.0f, 0.0f, 0.0f, 0.0f);
+  m3508_parameter_init(&m3508_fdcan3[2], 0.0f, 0.00f, 0.0f, 0.0f, 0.0f, 0.0f);
+  m3508_parameter_init(&m3508_fdcan3[3], 0.0f, 0.00f, 0.0f, 0.0f, 0.0f, 0.0f);
 	//抬升机构辅助轮电机初始化
-	m3508_parameter_init(&m3508_fdcan1[1], 15.0f, 0.00f, 2.0f, 0.0f, 0.0f, 0.0f);
-  m3508_parameter_init(&m3508_fdcan1[2], 15.0f, 0.00f, 2.0f, 0.0f, 0.0f, 0.0f);
+	// m3508_parameter_init(&m3508_fdcan1[1], 15.0f, 0.00f, 2.0f, 0.0f, 0.0f, 0.0f);
+  // m3508_parameter_init(&m3508_fdcan1[2], 15.0f, 0.00f, 2.0f, 0.0f, 0.0f, 0.0f);
+	m3508_parameter_init(&m3508_fdcan1[1], 0.0f, 0.00f, 0.0f, 0.0f, 0.0f, 0.0f);
+  m3508_parameter_init(&m3508_fdcan1[2], 0.0f, 0.00f, 0.0f, 0.0f, 0.0f, 0.0f);
   // 底盘升降初始化为收回状态
   // chassis_r2.lift_front = 0;
   // chassis_r2.lift_back = 0;
@@ -479,9 +494,12 @@ void entry_clamp(void const * argument)
   /* USER CODE BEGIN entry_clamp */
 
   // 夹爪电机初始化
-  m3508_parameter_init(&m3508_fdcan2[0], 5.0f, 0.0f, 2.0f, 0.5f, 0.0f, 0.2f);
-  m3508_parameter_init(&m3508_fdcan2[1], 5.0f, 0.0f, 2.0f, 0.5f, 0.0f, 0.2f);
-  m3508_parameter_init(&m3508_fdcan2[2], 5.0f, 0.0f, 2.0f, 0.5f, 0.0f, 0.2f);
+  // m3508_parameter_init(&m3508_fdcan2[0], 5.0f, 0.0f, 2.0f, 0.5f, 0.0f, 0.2f);
+  // m3508_parameter_init(&m3508_fdcan2[1], 5.0f, 0.0f, 2.0f, 0.5f, 0.0f, 0.2f);
+  // m3508_parameter_init(&m3508_fdcan2[2], 5.0f, 0.0f, 2.0f, 0.5f, 0.0f, 0.2f);
+  m3508_parameter_init(&m3508_fdcan2[0], 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+  m3508_parameter_init(&m3508_fdcan2[1], 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+  m3508_parameter_init(&m3508_fdcan2[2], 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
 
   // 标志位初始化
   clamp.catch_flag = 0;
@@ -521,7 +539,7 @@ void entry_cmd_task(void const * argument)
   /* USER CODE BEGIN entry_cmd_task */
 
   BT_MASTER_Init_Task();  // 初始化行为树任务
-  BT_MASTER_Start_Task(); // 启动行为树主控任务
+  // BT_MASTER_Start_Task(); // 启动行为树主控任务
 
   /* Infinite loop */
   for (;;)
@@ -570,6 +588,43 @@ void entry_m8010_task(void const * argument)
     osDelay(1);
   }
   /* USER CODE END entry_m8010_task */
+}
+
+/* USER CODE BEGIN Header_entry_a1_task */
+/**
+* @brief Function implementing the a1_task thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_entry_a1_task */
+void entry_a1_task(void const * argument)
+{
+  /* USER CODE BEGIN entry_a1_task */
+  uint8_t timer_a1_flag = 0;
+  /* Infinite loop */
+  for(;;)
+  {
+    if (a1_send_request)
+    {
+      a1_send_request = 0;
+
+      switch(timer_a1_flag)
+      {
+        case 0:
+          A1_Motor_Send_Data(&A1_debug_485_2[0], &huart6);
+          break;
+        case 1:
+          A1_Motor_Send_Data(&A1_debug_485_2[1], &huart6);
+          break;
+      }
+
+      timer_a1_flag++;
+      if (timer_a1_flag > 1) timer_a1_flag = 0;
+    }
+
+    osDelay(1);
+  }
+  /* USER CODE END entry_a1_task */
 }
 
 /* Private application code --------------------------------------------------*/
