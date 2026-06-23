@@ -266,26 +266,7 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
-{
-  uint32_t status_value;
-  status_value = taskENTER_CRITICAL_FROM_ISR();
 
-  if (GPIO_Pin == GPIO_PIN_5)
-  {
-    if (HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_5) == 1)
-    {
-     // osDelay(20);
-      if (HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_5) == 1)
-      {
-        MC_bb.RACK_PICK_SUCCESS = 1;
-      }
-    }
-    else
-      MC_bb.RACK_PICK_SUCCESS = 0;
-  }
-  taskEXIT_CRITICAL_FROM_ISR(status_value); // 退出临界段
-}
 
 /* USER CODE END 4 */
 

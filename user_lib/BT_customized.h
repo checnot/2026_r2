@@ -1,4 +1,4 @@
-﻿#ifndef __BT_CUSTOMIZED_H
+#ifndef __BT_CUSTOMIZED_H
 #define __BT_CUSTOMIZED_H
 
 #include "main.h"
@@ -41,7 +41,10 @@
 /* ------------ 机械臂预设可配置参数（按需微调） ------------ */
 
 /* ============================== 底盘路径预设可配置参数（按需微调） ============================== */
-
+/************************************************************************************
+ * ***
+ * ***蓝区Y为正，红区Y为负，以各自底角为原点
+*************************************************************************************/
 #define CHASSIS_HOME_MC_X 400.0f  /* 武馆区域 底盘 HOME 位置 X (mm) */
 #define CHASSIS_HOME_MC_Y 1400.0f /* 武馆区域 底盘 HOME 位置 Y (mm) */
 #define CHASSIS_HOME_MC_W -180.0f    /* 武馆区域 底盘 HOME 位置 W (deg) */
@@ -54,16 +57,16 @@
 #define CHASSIS_RACK_4_X 1190.0f /* 武馆区域 第四个矛头位置 X (mm) */
 #define CHASSIS_RACK_5_X 1390.0f /* 武馆区域 第五个矛头位置 X (mm) */
 #define CHASSIS_RACK_6_X 1590.0f /* 武馆区域 第六个矛头位置 X (mm) */
-#define CHASSIS_RACK_Y 560.0f    /* 武馆区域 取矛头位置 Y (mm) */
-#define CHASSIS_RACK_W -180.0f      /* 武馆区域 取矛头位置 W (deg) */
+#define CHASSIS_RACK_Y -560.0f    /* 武馆区域 取矛头位置 Y (mm) */
+#define CHASSIS_RACK_W 0.0f      /* 武馆区域 取矛头位置 W (deg) */
 #define RACK_STABLE_TIMES_CONDITION 100 /*取矛头时到达目标位置次数，保证稳定抓取*/
 // 与R1的对接位置（暂定该位置，后续可重设）
 #define CHASSIS_DOCKING_X 1200.0f /* 武馆区域 对接位置 X (mm) */
-#define CHASSIS_DOCKING_Y 1400.0f /* 武馆区域 对接位置 Y (mm) */
+#define CHASSIS_DOCKING_Y -1400.0f /* 武馆区域 对接位置 Y (mm) */
 #define CHASSIS_DOCKING_W 0.0f  /* 武馆区域 对接位置 W (deg) */
 // 使用相机扫描梅林位置（暂定该位置，后续可重设）
 #define CHASSIS_SCANNING_X 1600.0f /* 武馆区域 扫描位置 X (mm) */
-#define CHASSIS_SCANNING_Y 3000.0f /* 武馆区域 扫描位置 Y (mm) */
+#define CHASSIS_SCANNING_Y -3000.0f /* 武馆区域 扫描位置 Y (mm) */
 #define CHASSIS_SCANNING_W 0.0f   /* 武馆区域 扫描位置 W (deg) */
 // 梅林入口区域地面的三个预设位置，供底盘在扫描后前往，等待机械臂拾取
 #define CHASSIS_ENTRY_1_X 2600.0f /* 武馆到梅林区域 入口位置1 X (mm) */
@@ -88,9 +91,9 @@
 #define CHASSIS_SLOPE_END_X 11000.0f /*梅林进入对抗区 坡道终点 X (mm)*/
 #define CHASSIS_SLOPE_END_Y 5250.0f /*梅林进入对抗区 坡道终点 Y (mm)*/
 #define CHASSIS_SLOPE_END_W 180.0f /*梅林进入对抗区 坡道终点 W (deg)*/
-#define CHASSIS_CZ_INIT_X 11400.0f /*对抗区重试区 X (mm)*/
+#define CHASSIS_CZ_INIT_X 11500.0f /*对抗区重试区 X (mm)*/
 #define CHASSIS_CZ_INIT_Y 5500.0f /*对抗区重试区 Y (mm)*/
-#define CHASSIS_CZ_INIT_W -90.0f /*对抗区重试区 W (deg)*/
+#define CHASSIS_CZ_INIT_W 90.0f /*对抗区重试区 W (deg)*/
 #define CHASSIS_SUDUKU_1_X 11290.0f /*九宫格第一列 X (mm) */
 #define CHASSIS_SUDUKU_1_Y 350.0f /*九宫格第一列 Y (mm) */
 #define CHASSIS_SUDUKU_1_W 90.0f /*九宫格第一列 W (deg) */
@@ -152,6 +155,7 @@ typedef enum
 typedef enum
 {   
     MC_IDLE,
+    CLAMP_INIT,      //夹爪位置初始化
     NIVEGATE_TO_RACK,// 从起点导航到第3个矛架位置
     RACK_PICK,       // 在第3个矛架位置执行拾取动作
     RACK_FAILED_1,   // 第3个矛架位置拾取失败的第一次重试   

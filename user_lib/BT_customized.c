@@ -1,4 +1,4 @@
-#include "BT_customized.h"
+﻿#include "BT_customized.h"
 
 /* ================= 万能小变量 ================= */
 uint8_t debug_if_reach_MF_phase2_scan = 0; // 用于调试是否达到 MF 区第二次扫描的条件，实际比赛时请删除或替换为 BuildPhase2 调用
@@ -786,13 +786,23 @@ static BT_Status Act_R2_MC_Mission(void)
         case MC_IDLE:
         {
             //  空任务状态，等待触发进入MC任务流程，进入后直接推进状态机到第一个阶段
-            MC_bb.mc_mission_state = NIVEGATE_TO_RACK; 
+
+            MC_bb.mc_mission_state = CLAMP_INIT; 
             MC_bb.R2_MC_timer_ms = 0; // 重置计时器
             return BT_RUNNING;
         }
-
+        case CLAMP_INIT:
+        {
+            //夹爪位置初始化指令
+            clamp.lift_flag = 1;
+            MC_bb.mc_mission_state = NIVEGATE_TO_RACK;
+            MC_bb.R2_MC_timer_ms = 0;
+            return BT_RUNNING;
+        }
         case NIVEGATE_TO_RACK:
         {
+            if(abs_int32(m3508_fdcan2[0].Angle_Sum - CLAMP_LIFT_SPECIAL_POSITION2) < 1000)
+            {
             /* 进入这个状态后,执行寻路到达RACK点的动作 */
             taskENTER_CRITICAL(); 
             chassis_route_point_add(&chassis_route_traj, CHASSIS_RACK_3_X, CHASSIS_RACK_Y, CHASSIS_RACK_W, 0);
@@ -800,6 +810,10 @@ static BT_Status Act_R2_MC_Mission(void)
 
             MC_bb.mc_mission_state = RACK_PICK; 
             MC_bb.R2_MC_timer_ms = 0;
+            }
+            else if (++MC_bb.R2_MC_timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS) {
+                return BT_FAILURE; 
+            }
             return BT_RUNNING;
         }
         case RACK_PICK:
