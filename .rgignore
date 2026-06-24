@@ -1,0 +1,51 @@
+# Build output directories
+Debug/
+Release/
+build/
+cmake-build-*/
+
+# VCS / editor state
+.git/
+.vscode/
+.idea/
+
+# Keil/MDK generated output directories
+MDK-ARM/2026_r2_v1/
+MDK-ARM/DebugConfig/
+MDK-ARM/RTE/
+
+# Object and binary outputs
+*.o
+*.obj
+*.elf
+*.axf
+*.bin
+*.hex
+*.map
+*.lst
+*.list
+
+# Compiler/intermediate/dependency outputs
+*.crf
+*.d
+*.dep
+*.su
+*.htm
+*.html
+
+# Logs, backups, user-local IDE state
+*.bak
+*.log
+*.tmp
+*.uvguix.*
+*.uvoptx
+*.uvprojx.user
+*.scvd
+*.dbgconf
+
+# Archives and large generated files
+*.zip
+*.7z
+*.rar
+*.tar
+*.gz

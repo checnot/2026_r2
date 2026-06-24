@@ -247,14 +247,22 @@ void StartDefaultTask(void const * argument)
     // data_send_vofa[5] = Radar_Pos.radar_x_filtered;
     // data_send_vofa[6] = m3508_fdcan3[0].Now_Speed;
     // data_send_vofa[7] = m3508_fdcan3[0].M3508_Speed_PID.Target;
-    data_send_vofa[0] = m3508_fdcan3[0].Now_Speed;
-    data_send_vofa[1] = m3508_fdcan3[0].M3508_Speed_PID.Target;
-    data_send_vofa[2] = m3508_fdcan3[1].Now_Speed;
-    data_send_vofa[3] = m3508_fdcan3[1].M3508_Speed_PID.Target;
-    data_send_vofa[4] = m3508_fdcan3[2].Now_Speed;
-    data_send_vofa[5] = m3508_fdcan3[2].M3508_Speed_PID.Target;
-    data_send_vofa[6] = m3508_fdcan3[3].Now_Speed;
-    data_send_vofa[7] = m3508_fdcan3[3].M3508_Speed_PID.Target;
+    // data_send_vofa[0] = m3508_fdcan3[0].Now_Speed;
+    // data_send_vofa[1] = m3508_fdcan3[0].M3508_Speed_PID.Target;
+    // data_send_vofa[2] = m3508_fdcan3[1].Now_Speed;
+    // data_send_vofa[3] = m3508_fdcan3[1].M3508_Speed_PID.Target;
+    // data_send_vofa[4] = m3508_fdcan3[2].Now_Speed;
+    // data_send_vofa[5] = m3508_fdcan3[2].M3508_Speed_PID.Target;
+    // data_send_vofa[6] = m3508_fdcan3[3].Now_Speed;
+    // data_send_vofa[7] = m3508_fdcan3[3].M3508_Speed_PID.Target;
+    data_send_vofa[0] = arm.theta_target[0];
+    data_send_vofa[1] = arm.joint_parameters[1].theta;
+    data_send_vofa[2] = arm.theta_target[1];
+    data_send_vofa[3] = arm.joint_parameters[2].theta;
+    data_send_vofa[4] = arm.x0_now;
+    data_send_vofa[5] = arm_traj.traj_x.out_pos;
+    data_send_vofa[6] = arm.y0_now;
+    data_send_vofa[7] = arm_traj.traj_y.out_pos;
     vofa_send_to_show_justfloat(&huart7, data_send_vofa);
 
     // vofa显示调试信息
@@ -281,8 +289,8 @@ void entry_robotic_arm(void const * argument)
   arm_joint_parameter_init(&arm);
 
   // 机械臂上的3508参数初始化
-  //  m3508_parameter_init(&m3508_fdcan1[0], 1.0f, 1.0f, 1.5f, 12.5f);
-  m3508_parameter_init(&m3508_fdcan1[0], 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+   m3508_parameter_init(&m3508_fdcan1[0], 1.0f, 0.0f, 1.0f, 1.5f, 0.0f, 12.5f);
+  // m3508_parameter_init(&m3508_fdcan1[0], 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
 
   // 末端执行器默认目标姿态
   arm.effector_pitch_target = 0.0f;
@@ -297,20 +305,42 @@ void entry_robotic_arm(void const * argument)
     arm_joint_state_update(&arm);
     arm_route_point_calculate_front(&arm);
 
-    if (traj_init_flag_arm == 0)
-    {
-      arm_trajectory_init(&arm_traj, &arm);   // 以当前位置初始化轨迹系统
-      arm_queue_add_point(&arm_traj, PICK_REST_X, PICK_REST_Y, 0.0f, 500, 0);
-//      arm_queue_add_point(&arm_traj, 0.4f, 0.4f, 0.0f, 0, 0);
-
-      traj_init_flag_arm = 1;
+  /* 调试相关代码，实际使用需要被注释掉 */
+    if(debug_flag == 1){
+      debug_flag = 0;
+      arm_mode_switch_to_transition(&arm, &arm_traj, &arm_trans_traj, ARM_TRANS_FRONT_TO_BACK);
+    }
+    if(debug_flag == 2){
+      debug_flag = 0;
+      arm_mode_switch_to_transition(&arm, &arm_traj, &arm_trans_traj, ARM_TRANS_BACK_TO_FRONT);
+    }
+    if(debug_flag == 3){
+      debug_flag = 0;
+      arm_queue_add_point(&arm_traj, 0.4, 0.4, 0.0f, 500, 0);
+    }
+    if(debug_flag == 4){
+      debug_flag = 0;
+      arm_queue_add_point(&arm_traj, 0.5, 0.5, 0.0f, 500, 0);
+    }
+    if(debug_flag == 5){
+      debug_flag = 0;
+      arm_queue_add_point(&arm_traj, -0.4, 0.4, 0.0f, 500, 0);
+    }
+    if(debug_flag == 6){
+      debug_flag = 0;
+      arm_queue_add_point(&arm_traj, -0.5, 0.5, 0.0f, 500, 0);
     }
 
     // 等待初始化完成
-    if (m8010_bus_1.motors[0].measure.Pos_init_flag == 200 &&
-        m8010_bus_1.motors[1].measure.Pos_init_flag == 200 &&
-        m8010_bus_1.motors[2].measure.Pos_init_flag == 200)
+    if(A1_debug_485_2[0].Pos_init_flag == 200 && m8010_bus_1.motors[2].measure.Pos_init_flag == 200)
     {
+      if (traj_init_flag_arm == 0)
+      {
+        arm_trajectory_init(&arm_traj, &arm);   // 以当前位置初始化轨迹系统
+        arm_queue_add_point(&arm_traj, 0.4, 0.5, 0.0f, 500, 0);
+        traj_init_flag_arm = 1;
+      }
+
       // 保持执行器水平
       if (m3508_fdcan1[0].Initial_flag == 200 && arm.mode != ARM_MODE_TRANSITION)
       {
@@ -323,14 +353,14 @@ void entry_robotic_arm(void const * argument)
       // 2. 分别推演 X 和 Y 的单段物理影子 (0.001f 代表 1ms)
       Traj_Adaptive_Update(&arm_traj.traj_x, arm.x0_now, 0.001f);
       Traj_Adaptive_Update(&arm_traj.traj_y, arm.y0_now, 0.001f);
-      Traj_Adaptive_Update(&arm_traj.traj_w, m8010_bus_1.motors[0].measure.Pos, 0.001f);
+      // Traj_Adaptive_Update(&arm_traj.traj_w, m8010_bus_1.motors[0].measure.Pos, 0.001f);
 
       // 3. 将影子坐标交接给逆解器（当工作区不处于过渡模式时）
       if(arm.mode == ARM_MODE_FRONT || arm.mode == ARM_MODE_BACK)
       {
         arm.x0_target = arm_traj.traj_x.out_pos;
         arm.y0_target = arm_traj.traj_y.out_pos;
-        arm.theta_target[0] = arm_traj.traj_w.out_pos;
+        // arm.theta_target[0] = arm_traj.traj_w.out_pos;
       }
 
 //       // 4. 开始逆向解算出各个 theta_target，并转换成电机位置环
@@ -339,9 +369,9 @@ void entry_robotic_arm(void const * argument)
 //       arm_route_execute(&arm, 0.0f, 0.0f, 0.0f, 0.0f);  // 不控制
 //       // arm_gravity_comp(); // 重力补偿
 
-    // 4. 逆解算出各关节的 theta_target ，并转换成电机位置环
-      // arm_mode_update_execute(&arm, &arm_traj, &arm_trans_traj, 3.5f, 0.35f, 0.175f, 4.5f); // 位置环控制
-      arm_mode_update_execute(&arm, &arm_traj, &arm_trans_traj, 0.0f, 0.0f, 0.0f, 0.0f);
+      // 4. 逆解算出各关节的 theta_target ，并转换成电机位置环
+      arm_mode_update_execute(&arm, &arm_traj, &arm_trans_traj, 5.0f, 0.2f, 0.3f, 3.5f); // 位置环控制
+      // arm_mode_update_execute(&arm, &arm_traj, &arm_trans_traj, 0.0f, 0.0f, 0.0f, 0.0f);
 
     }
     osDelay(1);
@@ -448,16 +478,16 @@ void entry_chassis(void const * argument)
         chassis_lift_queue_add_point(&chassis_lift_traj, 0.220f, 0.020f, 0);
         traj_init_flag_lift = 1;
       }
-      if (debug_flag == 1)
-      {
-        chassis_lift_queue_add_point(&chassis_lift_traj, -0.025f, -0.225f, 0);
-        debug_flag = 0;
-      }
-      if (debug_flag == 2)
-      {
-        chassis_lift_queue_add_point(&chassis_lift_traj, 0.230f, 0.030f, 0);
-        debug_flag = 0;
-      }
+      // if (debug_flag == 1)
+      // {
+      //   chassis_lift_queue_add_point(&chassis_lift_traj, -0.025f, -0.225f, 0);
+      //   debug_flag = 0;
+      // }
+      // if (debug_flag == 2)
+      // {
+      //   chassis_lift_queue_add_point(&chassis_lift_traj, 0.230f, 0.030f, 0);
+      //   debug_flag = 0;
+      // }
       // 2. 多段路径调度器：当前段完成→从队列出队下一个目标
       chassis_lift_linear_interpolation_update(&chassis_r2, &chassis_lift_traj, CHASSIS_LIFT_QUEUE_BLEND_RADIUS);
       // 3. 单段轨迹推演（影子位置 + 速度 + 自动判敛）
@@ -544,7 +574,7 @@ void entry_cmd_task(void const * argument)
   /* Infinite loop */
   for (;;)
   {
-    BT_MASTER_Tick();     // 每1ms调用，内部降频10ms，行为树主控任务周期调用
+    // BT_MASTER_Tick();     // 每1ms调用，内部降频10ms，行为树主控任务周期调用
 
     osDelay(1);
   }
