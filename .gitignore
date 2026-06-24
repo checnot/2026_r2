@@ -13,6 +13,8 @@
 *.crf
 *.lst
 *.iex
+*.__i
+*._ia
 *.hex
 */DebugConfig/*
 */RTE/*

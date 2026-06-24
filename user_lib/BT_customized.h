@@ -50,18 +50,18 @@
 #define CHASSIS_HOME_MC_W -180.0f    /* 武馆区域 底盘 HOME 位置 W (deg) */
 
 // 矛头位置：最靠近坐标系原点的第一个矛头为1，依次递增
-#define CLAMP_TO_CHASSIS_CENTER_DIST 120.0f /* 夹爪中心到底盘中心的X方向距离 (mm) */
-#define CHASSIS_RACK_1_X 638.0f  /* 武馆区域 第一个矛头位置 X (mm) */
+#define CLAMP_TO_CHASSIS_CENTER_DIST 132.0f /* 夹爪中心到底盘中心的X方向距离 (mm) */
+#define CHASSIS_RACK_1_X 425.0f  /* 武馆区域 第一个矛头位置 X (mm) */
 #define CHASSIS_RACK_2_X 650.0f -CLAMP_TO_CHASSIS_CENTER_DIST /* 武馆区域 第二个矛头位置 X (mm) */
 #define CHASSIS_RACK_3_X 850.0f -CLAMP_TO_CHASSIS_CENTER_DIST /* 武馆区域 第三个矛头位置 X (mm) */
 #define CHASSIS_RACK_4_X 1050.0f-CLAMP_TO_CHASSIS_CENTER_DIST /* 武馆区域 第四个矛头位置 X (mm) */
 #define CHASSIS_RACK_5_X 1250.0f -CLAMP_TO_CHASSIS_CENTER_DIST/* 武馆区域 第五个矛头位置 X (mm) */
 #define CHASSIS_RACK_6_X 1450.0f-CLAMP_TO_CHASSIS_CENTER_DIST /* 武馆区域 第六个矛头位置 X (mm) */
-#define CHASSIS_RACK_Y -600.0f    /* 武馆区域 取矛头位置 Y (mm) */
-#define CHASSIS_RACK_Y_1 -576.0f    /* 武馆区域 取第一个矛头位置 Y (mm) */
-#define CHASSIS_RACK_W_1 30.0f      /* 武馆区域 取第一个矛头位置 W (deg) */
+#define CHASSIS_RACK_Y -607.0f    /* 武馆区域 取矛头位置 Y (mm) */
+#define CHASSIS_RACK_Y_1 -605.0f    /* 武馆区域 取第一个矛头位置 Y (mm) */
+#define CHASSIS_RACK_W_1 10.0f      /* 武馆区域 取第一个矛头位置 W (deg) */
 #define CHASSIS_RACK_W 0.0f      /* 武馆区域 取矛头位置 W (deg) */
-#define RACK_STABLE_TIMES_CONDITION 50 /*取矛头时到达目标位置次数，保证稳定抓取*/
+#define RACK_STABLE_TIMES_CONDITION 80 /*取矛头时到达目标位置次数，保证稳定抓取*/
 // 与R1的对接位置（暂定该位置，后续可重设）
 #define CHASSIS_DOCKING_X 1200.0f /* 武馆区域 对接位置 X (mm) */
 #define CHASSIS_DOCKING_Y -1400.0f /* 武馆区域 对接位置 Y (mm) */
@@ -87,12 +87,12 @@
 #define CHASSIS_EXIT_2_Y 4200.0f /*出梅林 出口位置2 Y (mm)*/
 #define CHASSIS_EXIT_2_W 0.0f /*出梅林 出口位置2 W (deg)*/
 #define CHASSIS_SLOPE_START_X 8650.0f /*梅林进入对抗区 坡道起点 X (mm)*/
-#define CHASSIS_SLOPE_START_Y 5250.0f /*梅林进入对抗区 坡道起点 Y (mm)*/
+#define CHASSIS_SLOPE_START_Y -5500.0f /*梅林进入对抗区 坡道起点 Y (mm)*/
 #define CHASSIS_SLOPE_START_W 0.0f /*梅林进入对抗区 坡道起点 W (deg)*/
 //对抗区路径点位
-#define CHASSIS_SLOPE_END_X 11000.0f /*梅林进入对抗区 坡道终点 X (mm)*/
-#define CHASSIS_SLOPE_END_Y 5250.0f /*梅林进入对抗区 坡道终点 Y (mm)*/
-#define CHASSIS_SLOPE_END_W 180.0f /*梅林进入对抗区 坡道终点 W (deg)*/
+#define CHASSIS_SLOPE_END_X 11500.0f /*梅林进入对抗区 坡道终点 X (mm)*/
+#define CHASSIS_SLOPE_END_Y -5500.0f /*梅林进入对抗区 坡道终点 Y (mm)*/
+#define CHASSIS_SLOPE_END_W 0.0f /*梅林进入对抗区 坡道终点 W (deg)*/
 #define CHASSIS_CZ_INIT_X 11500.0f /*对抗区重试区 X (mm)*/
 #define CHASSIS_CZ_INIT_Y -5500.0f /*对抗区重试区 Y (mm)*/
 #define CHASSIS_CZ_INIT_W 90.0f /*对抗区重试区 W (deg)*/

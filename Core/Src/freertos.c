@@ -73,6 +73,19 @@ uint8_t point_add = 0;           // 测试用：是否添加路径点的标志�
 uint8_t point_add1 = 0;          // 测试用：是否添加路径点的标志位
 uint8_t kalman_update_times = 0; // 卡尔曼滤波更新次数统计
 uint8_t kalman_init_flag = 0;    // 卡尔曼滤波初始化flag
+
+/* 自适应一阶低通滤波变量（与卡尔曼对照） */
+// 静止时深滤波（alpha小），运动时浅滤波（alpha大），解决静止雷达抖动
+#define LOWPASS_ALPHA_STATIC     0.002f   // 静止：截止频率≈0.3Hz，强去噪
+#define LOWPASS_ALPHA_MOVING     0.1f     // 运动：截止频率≈16Hz，快速跟踪
+#define LOWPASS_SPEED_THRESH     50.0f    // 线速度阈值
+#define LOWPASS_ANGULAR_THRESH   50.0f     // 角速度阈值 
+
+float radar_x_lowpass = 0.0f;
+float radar_y_lowpass = 0.0f;
+float radar_z_lowpass = 0.0f;
+uint8_t lowpass_init_flag = 0;   // 低通初始化标志
+
 float vx, vy, vw = 0.0f;         // 用于测试的底盘速度变量
 float speed = 0.0f;              // 用于测试的速度变量
 uint8_t catch_flag = 0;          // 测试用：夹爪开合标志位
@@ -239,14 +252,15 @@ void StartDefaultTask(void const *argument)
     // data_send_vofa[5] = Radar_Pos.radar_x_filtered;
     // data_send_vofa[6] = m3508_fdcan3[0].Now_Speed;
     // data_send_vofa[7] = m3508_fdcan3[0].M3508_Speed_PID.Target;
-    data_send_vofa[0] = Radar_Pos.reliable_x;
-    data_send_vofa[1] = Radar_Pos.radar_x;
-    data_send_vofa[2] = m3508_fdcan3[1].Now_Speed;
-    data_send_vofa[3] = m3508_fdcan3[1].M3508_Speed_PID.Target;
-    data_send_vofa[4] = m3508_fdcan3[2].Now_Speed;
-    data_send_vofa[5] = m3508_fdcan3[2].M3508_Speed_PID.Target;
-    data_send_vofa[6] = m3508_fdcan3[3].Now_Speed;
-    data_send_vofa[7] = m3508_fdcan3[3].M3508_Speed_PID.Target;
+    // Vofa 10通道：卡尔曼 vs 低通对比视图
+    data_send_vofa[0] = Radar_Pos.radar_x;            // ch0: 雷达原始X
+    data_send_vofa[1] = Radar_Pos.radar_x_filtered;   // ch1: 卡尔曼滤波X
+    data_send_vofa[2] = radar_x_lowpass;              // ch2: 一阶低通X
+    data_send_vofa[3] = Radar_Pos.reliable_x;         // ch3: 最终使用X
+    data_send_vofa[4] = chassis_route_traj.traj_vx.out_vel;          // ch4: 雷达原始Y
+    data_send_vofa[5] = Radar_Pos.radar_y_filtered;   // ch5: 卡尔曼滤波Y
+    data_send_vofa[6] = radar_y_lowpass;              // ch6: 一阶低通Y
+    data_send_vofa[7] = Radar_Pos.reliable_y;         // ch7: 最终使用Y
     vofa_send_to_show_justfloat(&huart7, data_send_vofa);
 
     // vofa显示调试信息
@@ -350,7 +364,7 @@ void entry_chassis(void const *argument)
 {
   /* USER CODE BEGIN entry_chassis */
   // 3508参数初始化
-  m3508_parameter_init(&m3508_fdcan3[0], 17.0f, 0.00f, 3.0f, 0.0f, 0.0f, 0.0f);
+  m3508_parameter_init(&m3508_fdcan3[0], 15.0f, 0.00f, 3.0f, 0.0f, 0.0f, 0.0f);
   m3508_parameter_init(&m3508_fdcan3[1], 15.0f, 0.00f, 3.0f, 0.0f, 0.0f, 0.0f);
   m3508_parameter_init(&m3508_fdcan3[2], 15.0f, 0.00f, 3.0f, 0.0f, 0.0f, 0.0f);
   m3508_parameter_init(&m3508_fdcan3[3], 15.0f, 0.00f, 3.0f, 0.0f, 0.0f, 0.0f);
@@ -368,57 +382,100 @@ void entry_chassis(void const *argument)
   {
     if (m3508_fdcan3[0].Initial_flag == 200 && m3508_fdcan3[1].Initial_flag == 200 && m3508_fdcan3[2].Initial_flag == 200 && m3508_fdcan3[3].Initial_flag == 200)
     {
-     // 测试用添加路径点
+     //测试用添加路径点
      if (point_add == 1)
      {
-       chassis_route_point_add(&chassis_route_traj, CHASSIS_CZ_INIT_X, -CHASSIS_CZ_INIT_Y, CHASSIS_CZ_INIT_W, 0);
+       chassis_route_point_add(&chassis_route_traj, CHASSIS_CZ_INIT_X, CHASSIS_CZ_INIT_Y, CHASSIS_CZ_INIT_W, 0);
        point_add = 0;
      }
      if (point_add == 2)
      {
-       chassis_route_point_add(&chassis_route_traj, CHASSIS_SUDUKU_1_X, -CHASSIS_SUDUKU_1_Y, CHASSIS_SUDUKU_1_W, 0);
+       chassis_route_point_add(&chassis_route_traj, CHASSIS_SUDUKU_1_X, CHASSIS_SUDUKU_1_Y, CHASSIS_SUDUKU_1_W, 0);
        point_add = 0;
      }
      if (point_add == 3)
      {
-       chassis_route_point_add(&chassis_route_traj, CHASSIS_SUDUKU_2_X, -CHASSIS_SUDUKU_2_Y, CHASSIS_SUDUKU_2_W, 0);
+       chassis_route_point_add(&chassis_route_traj, CHASSIS_SUDUKU_2_X, CHASSIS_SUDUKU_2_Y, CHASSIS_SUDUKU_2_W, 0);
        point_add = 0;
      }
      if (point_add == 4)
      {
-       chassis_route_point_add(&chassis_route_traj, CHASSIS_SUDUKU_3_X, -CHASSIS_SUDUKU_3_Y, CHASSIS_SUDUKU_3_W, 0);
+       chassis_route_point_add(&chassis_route_traj, CHASSIS_SUDUKU_3_X, CHASSIS_SUDUKU_3_Y, CHASSIS_SUDUKU_3_W, 0);
        point_add = 0;
      }
      
      if (point_add1 == 1)
      {
-       chassis_route_point_add(&chassis_route_traj, 10250.0f, -3000.0f, 90.0f, 0);
+       chassis_route_point_add(&chassis_route_traj, 11100.0f, -3000.0f, 90.0f, 0);
        point_add1 = 0;
      }
+    //  if (point_add == 1)
+    //  {
+    //    chassis_route_point_add(&chassis_route_traj, CHASSIS_SLOPE_START_X, CHASSIS_SLOPE_START_Y, CHASSIS_SLOPE_START_W, 0);
+    //    point_add = 0;
+    //  }
+    //  if (point_add == 2)
+    //  {
+    //    chassis_route_point_add(&chassis_route_traj, CHASSIS_CZ_INIT_X, CHASSIS_CZ_INIT_Y, 0, 0);
+    //    point_add = 0;
+    //  }
 
       // 滤波后的雷达数据更新
       Radar_Pos.radar_x_filtered = Kalman_Update(&Radar_Kalman_X, Radar_Pos.radar_x);
       Radar_Pos.radar_y_filtered = Kalman_Update(&Radar_Kalman_Y, Radar_Pos.radar_y);
       Radar_Pos.radar_z_filtered = Kalman_Update(&Radar_Kalman_Z, Radar_Pos.radar_z);
+
+      // 一阶低通滤波（与卡尔曼对照）
+      if (lowpass_init_flag == 0)
+      {
+          radar_x_lowpass = Radar_Pos.radar_x;
+          radar_y_lowpass = Radar_Pos.radar_y;
+          radar_z_lowpass = Radar_Pos.radar_z;
+          lowpass_init_flag = 1;
+      }
+
       // 利用电机速度计算底盘实际速度（逆解算）
       omni_chassis_inverse_calculate(&chassis_r2, m3508_fdcan3);
 
-      // 当底盘实际速度足够小时，认为雷达数据不可靠，使用滤波后的雷达数据
-      if (abs_float(Radar_Pos.radar_x_filtered - Radar_Pos.radar_x) < 5 && abs_float(Radar_Pos.radar_y_filtered - Radar_Pos.radar_y) < 5 && abs_float(chassis_route_traj.traj_vy.target_pos - Radar_Pos.radar_y_filtered) < 10 && abs_float(chassis_route_traj.traj_vx.target_pos - Radar_Pos.radar_x_filtered) < 20 && abs_float(chassis_route_traj.traj_vx.target_pos - Radar_Pos.radar_x) < 10 && abs_float(chassis_route_traj.traj_vy.target_pos - Radar_Pos.radar_y) < 10)
+      // 自适应 alpha + 速度前馈预测：静止时深滤波去抖，运动时预测+浅滤波消滞后
       {
-        Radar_Pos.reliable_x = Radar_Pos.radar_x_filtered;
-        Radar_Pos.reliable_y = Radar_Pos.radar_y_filtered;
-        Radar_Pos.reliable_z = Radar_Pos.radar_z_filtered;
-        Radar_Pos.reliable_yaw = Radar_Pos.hi14_yaw; // 直接使用hi14的yaw数据，替代雷达的yaw数据
+          float linear_speed = sqrtf(chassis_r2.real_vx * chassis_r2.real_vx + chassis_r2.real_vy * chassis_r2.real_vy);
+          uint8_t is_static = (linear_speed < LOWPASS_SPEED_THRESH) && (abs_float(chassis_r2.real_vw) < LOWPASS_ANGULAR_THRESH);
+          float alpha = is_static ? LOWPASS_ALPHA_STATIC : LOWPASS_ALPHA_MOVING;
+
+          if (!is_static)
+          {
+              // 仅运动时做速度前馈预测（dt=0.001s），静止跳过防止电机速度毛刺注入
+              radar_x_lowpass += chassis_r2.real_vx * 0.001f;
+              radar_y_lowpass += chassis_r2.real_vy * 0.001f;
+          }
+          // 测量修正：雷达观测值拉回预测误差
+          radar_x_lowpass += alpha * (Radar_Pos.radar_x - radar_x_lowpass);
+          radar_y_lowpass += alpha * (Radar_Pos.radar_y - radar_y_lowpass);
+          radar_z_lowpass += alpha * (Radar_Pos.radar_z - radar_z_lowpass);
       }
-      // 否则认为雷达数据可靠，直接使用原始雷达数据
-      else
+
+      // 输出可靠位置：静止死区锁定防抖，运动速度前馈无滞后
       {
-        Radar_Pos.reliable_x = Radar_Pos.radar_x;
-        Radar_Pos.reliable_y = Radar_Pos.radar_y;
-        Radar_Pos.reliable_z = Radar_Pos.radar_z;
-        Radar_Pos.reliable_yaw = Radar_Pos.hi14_yaw;
+          float linear_speed = sqrtf(chassis_r2.real_vx * chassis_r2.real_vx + chassis_r2.real_vy * chassis_r2.real_vy);
+          uint8_t is_static = (linear_speed < LOWPASS_SPEED_THRESH) && (abs_float(chassis_r2.real_vw) < LOWPASS_ANGULAR_THRESH);
+
+          // 静止且 X/Y 都在死区内 → 锁定，不更新（抑制震荡）
+          if (is_static
+              && abs_float(radar_x_lowpass - Radar_Pos.reliable_x) < POS_HOLD_DEADBAND
+              && abs_float(radar_y_lowpass - Radar_Pos.reliable_y) < POS_HOLD_DEADBAND)
+          {
+              ;// 真正锁定：什么都不做，维持上次 reliable 值
+          }
+          else
+          {
+              Radar_Pos.reliable_x = radar_x_lowpass;
+              Radar_Pos.reliable_y = radar_y_lowpass;
+              Radar_Pos.reliable_z = radar_z_lowpass;
+          }
+          Radar_Pos.reliable_yaw = Radar_Pos.hi14_yaw;
       }
+
       if (traj_init_flag_chassis == 0)
       {
         // 以当前坐标初始化底盘路径系统
@@ -434,7 +491,7 @@ void entry_chassis(void const *argument)
         chassis_world_to_robot_velocity(&chassis_r2, chassis_route_traj.traj_vx.out_vel, chassis_route_traj.traj_vy.out_vel, chassis_route_traj.traj_vw.out_vel, Radar_Pos.reliable_yaw);
         omni_chassis_calculate(&chassis_r2, chassis_r2.vx, chassis_r2.vy, chassis_r2.vw);
       }
-    }
+     }
 
     /* ========================= 抬升部分 ========================= */
 
@@ -518,7 +575,7 @@ void entry_clamp(void const *argument)
       // 夹爪伸缩部分
      clamp_extend_control(clamp.retractable_flag * CLAMP_EXTEND_MAX_POSITION, &m3508_fdcan2[1]);
       // // 夹爪升降部分
-      clamp_lift_control(clamp.lift_flag, &m3508_fdcan2[0]);
+     clamp_lift_control(clamp.lift_flag, &m3508_fdcan2[0]);
       // m3508_anglesum_control(&m3508_fdcan2[0],rotate_target_angle,8000);
     }
     osDelay(1);
