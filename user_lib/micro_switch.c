@@ -16,7 +16,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
      // osDelay(20);
 //      if (HAL_GPIO_ReadPin(clamp_weidong_GPIO_Port, clamp_weidong_Pin) == 0)
 //      {
-        MC_bb.RACK_PICK_SUCCESS = 1;
+        // MC_bb.RACK_PICK_SUCCESS = 1;
 			  clamp_catch_flag =1;
 //      }
     }

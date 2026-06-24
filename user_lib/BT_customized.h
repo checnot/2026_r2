@@ -50,20 +50,22 @@
 #define CHASSIS_HOME_MC_W -180.0f    /* 武馆区域 底盘 HOME 位置 W (deg) */
 
 // 矛头位置：最靠近坐标系原点的第一个矛头为1，依次递增
-#define CLAMP_TO_CHASSIS_CENTER_DIST 139.0f /* 夹爪中心到底盘中心的X方向距离 (mm) */
-#define CHASSIS_RACK_1_X 590.0f  /* 武馆区域 第一个矛头位置 X (mm) */
-#define CHASSIS_RACK_2_X 790.0f  /* 武馆区域 第二个矛头位置 X (mm) */
-#define CHASSIS_RACK_3_X 990.0f  /* 武馆区域 第三个矛头位置 X (mm) */
-#define CHASSIS_RACK_4_X 1190.0f /* 武馆区域 第四个矛头位置 X (mm) */
-#define CHASSIS_RACK_5_X 1390.0f /* 武馆区域 第五个矛头位置 X (mm) */
-#define CHASSIS_RACK_6_X 1590.0f /* 武馆区域 第六个矛头位置 X (mm) */
-#define CHASSIS_RACK_Y -560.0f    /* 武馆区域 取矛头位置 Y (mm) */
+#define CLAMP_TO_CHASSIS_CENTER_DIST 120.0f /* 夹爪中心到底盘中心的X方向距离 (mm) */
+#define CHASSIS_RACK_1_X 638.0f  /* 武馆区域 第一个矛头位置 X (mm) */
+#define CHASSIS_RACK_2_X 650.0f -CLAMP_TO_CHASSIS_CENTER_DIST /* 武馆区域 第二个矛头位置 X (mm) */
+#define CHASSIS_RACK_3_X 850.0f -CLAMP_TO_CHASSIS_CENTER_DIST /* 武馆区域 第三个矛头位置 X (mm) */
+#define CHASSIS_RACK_4_X 1050.0f-CLAMP_TO_CHASSIS_CENTER_DIST /* 武馆区域 第四个矛头位置 X (mm) */
+#define CHASSIS_RACK_5_X 1250.0f -CLAMP_TO_CHASSIS_CENTER_DIST/* 武馆区域 第五个矛头位置 X (mm) */
+#define CHASSIS_RACK_6_X 1450.0f-CLAMP_TO_CHASSIS_CENTER_DIST /* 武馆区域 第六个矛头位置 X (mm) */
+#define CHASSIS_RACK_Y -600.0f    /* 武馆区域 取矛头位置 Y (mm) */
+#define CHASSIS_RACK_Y_1 -576.0f    /* 武馆区域 取第一个矛头位置 Y (mm) */
+#define CHASSIS_RACK_W_1 30.0f      /* 武馆区域 取第一个矛头位置 W (deg) */
 #define CHASSIS_RACK_W 0.0f      /* 武馆区域 取矛头位置 W (deg) */
-#define RACK_STABLE_TIMES_CONDITION 100 /*取矛头时到达目标位置次数，保证稳定抓取*/
+#define RACK_STABLE_TIMES_CONDITION 50 /*取矛头时到达目标位置次数，保证稳定抓取*/
 // 与R1的对接位置（暂定该位置，后续可重设）
 #define CHASSIS_DOCKING_X 1200.0f /* 武馆区域 对接位置 X (mm) */
 #define CHASSIS_DOCKING_Y -1400.0f /* 武馆区域 对接位置 Y (mm) */
-#define CHASSIS_DOCKING_W 0.0f  /* 武馆区域 对接位置 W (deg) */
+#define CHASSIS_DOCKING_W -180.0f  /* 武馆区域 对接位置 W (deg) */
 // 使用相机扫描梅林位置（暂定该位置，后续可重设）
 #define CHASSIS_SCANNING_X 1600.0f /* 武馆区域 扫描位置 X (mm) */
 #define CHASSIS_SCANNING_Y -3000.0f /* 武馆区域 扫描位置 Y (mm) */
@@ -92,16 +94,16 @@
 #define CHASSIS_SLOPE_END_Y 5250.0f /*梅林进入对抗区 坡道终点 Y (mm)*/
 #define CHASSIS_SLOPE_END_W 180.0f /*梅林进入对抗区 坡道终点 W (deg)*/
 #define CHASSIS_CZ_INIT_X 11500.0f /*对抗区重试区 X (mm)*/
-#define CHASSIS_CZ_INIT_Y 5500.0f /*对抗区重试区 Y (mm)*/
+#define CHASSIS_CZ_INIT_Y -5500.0f /*对抗区重试区 Y (mm)*/
 #define CHASSIS_CZ_INIT_W 90.0f /*对抗区重试区 W (deg)*/
 #define CHASSIS_SUDUKU_1_X 11290.0f /*九宫格第一列 X (mm) */
-#define CHASSIS_SUDUKU_1_Y 350.0f /*九宫格第一列 Y (mm) */
+#define CHASSIS_SUDUKU_1_Y -600.0f /*九宫格第一列 Y (mm) */
 #define CHASSIS_SUDUKU_1_W 90.0f /*九宫格第一列 W (deg) */
 #define CHASSIS_SUDUKU_2_X 10750.0f /*九宫格第二列 X (mm) */
-#define CHASSIS_SUDUKU_2_Y 350.0f /*九宫格第二列 Y (mm) */
+#define CHASSIS_SUDUKU_2_Y -600.0f /*九宫格第二列 Y (mm) */
 #define CHASSIS_SUDUKU_2_W 90.0f /*九宫格第二列 W (deg) */
 #define CHASSIS_SUDUKU_3_X 10210.0f /*九宫格第三列  X (mm) */
-#define CHASSIS_SUDUKU_3_Y 350.0f /*九宫格第三列  Y (mm) */
+#define CHASSIS_SUDUKU_3_Y -600.0f /*九宫格第三列  Y (mm) */
 #define CHASSIS_SUDUKU_3_W 90.0f /*九宫格第三列  W (deg) */
 /**
  * @brief 综合任务中专属的底盘子状态机。

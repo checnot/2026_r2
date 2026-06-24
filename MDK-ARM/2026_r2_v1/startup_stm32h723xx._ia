@@ -1,0 +1,5 @@
+--cpu Cortex-M7.fp.dp -g --apcs=interwork -I ../Core/Inc -I ../Drivers/STM32H7xx_HAL_Driver/Inc -I ../Drivers/STM32H7xx_HAL_Driver/Inc/Legacy -I ../Middlewares/Third_Party/FreeRTOS/Source/include -I ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS -I ../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F -I ../Drivers/CMSIS/Device/ST/STM32H7xx/Include -I ../Drivers/CMSIS/Include
+-I.\RTE\_2026_r2_v1
+-ID:\keil5\ARM\CMSIS\6.2.0\CMSIS\Core\Include
+--pd "__UVISION_VERSION SETA 543" --pd "STM32H723xx SETA 1" --pd "_RTE_ SETA 1"
+--list startup_stm32h723xx.lst --xref -o 2026_r2_v1\startup_stm32h723xx.o --depend 2026_r2_v1\startup_stm32h723xx.d "startup_stm32h723xx.s"

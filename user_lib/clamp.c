@@ -32,7 +32,7 @@ void clamp_lift_control(uint8_t lift_flag, M3508_Motor_Struct *motor)
     }
     else // 位置误差较大时，先快速接近目标位置
     {
-        int16_t speed = (position_error > 0) ? 3000 : -3000; // 大幅度控制
+        int16_t speed = (position_error > 0) ? 4000 : -4000; // 大幅度控制
         m3508_speed_control(motor, speed, 8192);             // 使用速度PID控制
     }
 }
@@ -66,7 +66,7 @@ void clamp_extend_control(int32_t target_length, M3508_Motor_Struct *motor)
     }
     else // 长度误差较大时，先快速接近目标长度
     {
-        int16_t speed = (length_error > 0) ? 6000 : -6000; // 大幅度控制
+        int16_t speed = (length_error > 0) ? 7000 : -7000; // 大幅度控制
         m3508_speed_control(motor, speed, 8192);           // 使用速度PID控制
     }
 }

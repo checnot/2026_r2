@@ -368,22 +368,33 @@ void entry_chassis(void const *argument)
   {
     if (m3508_fdcan3[0].Initial_flag == 200 && m3508_fdcan3[1].Initial_flag == 200 && m3508_fdcan3[2].Initial_flag == 200 && m3508_fdcan3[3].Initial_flag == 200)
     {
-      // 测试用添加路径点
-      if (point_add == 1)
-      {
-        chassis_route_point_add(&chassis_route_traj, CHASSIS_CZ_INIT_X, -CHASSIS_CZ_INIT_Y, CHASSIS_CZ_INIT_W, 0);
-        point_add = 0;
-      }
-      if (point_add == 2)
-      {
-        chassis_route_point_add(&chassis_route_traj, CHASSIS_SUDUKU_1_X, -CHASSIS_SUDUKU_1_Y, CHASSIS_SUDUKU_1_W, 0);
-        point_add = 0;
-      }
-      if (point_add1 == 1)
-      {
-        chassis_route_point_add(&chassis_route_traj, 10250.0f, -3000.0f, 90.0f, 0);
-        point_add1 = 0;
-      }
+     // 测试用添加路径点
+     if (point_add == 1)
+     {
+       chassis_route_point_add(&chassis_route_traj, CHASSIS_CZ_INIT_X, -CHASSIS_CZ_INIT_Y, CHASSIS_CZ_INIT_W, 0);
+       point_add = 0;
+     }
+     if (point_add == 2)
+     {
+       chassis_route_point_add(&chassis_route_traj, CHASSIS_SUDUKU_1_X, -CHASSIS_SUDUKU_1_Y, CHASSIS_SUDUKU_1_W, 0);
+       point_add = 0;
+     }
+     if (point_add == 3)
+     {
+       chassis_route_point_add(&chassis_route_traj, CHASSIS_SUDUKU_2_X, -CHASSIS_SUDUKU_2_Y, CHASSIS_SUDUKU_2_W, 0);
+       point_add = 0;
+     }
+     if (point_add == 4)
+     {
+       chassis_route_point_add(&chassis_route_traj, CHASSIS_SUDUKU_3_X, -CHASSIS_SUDUKU_3_Y, CHASSIS_SUDUKU_3_W, 0);
+       point_add = 0;
+     }
+     
+     if (point_add1 == 1)
+     {
+       chassis_route_point_add(&chassis_route_traj, 10250.0f, -3000.0f, 90.0f, 0);
+       point_add1 = 0;
+     }
 
       // 滤波后的雷达数据更新
       Radar_Pos.radar_x_filtered = Kalman_Update(&Radar_Kalman_X, Radar_Pos.radar_x);
@@ -485,7 +496,7 @@ void entry_clamp(void const *argument)
 
   // 夹爪电机初始化
   m3508_parameter_init(&m3508_fdcan2[0], 10.0f, 0.0f, 2.0f, 0.5f, 0.0f, 0.2f);
-  m3508_parameter_init(&m3508_fdcan2[1], 5.0f, 0.0f, 2.0f, 0.5f, 0.0f, 0.2f);
+  m3508_parameter_init(&m3508_fdcan2[1], 6.0f, 0.0f, 2.0f, 0.5f, 0.0f, 0.2f);
   m3508_parameter_init(&m3508_fdcan2[2], 5.0f, 0.0f, 2.0f, 0.5f, 0.0f, 0.2f);
 
   // 标志位初始化
@@ -505,7 +516,7 @@ void entry_clamp(void const *argument)
       // 夹爪旋转部分
       clamp_rotate_control(clamp.rotate_flag * CLAMP_ROTATE_MAX_POSITION, &m3508_fdcan2[2]);
       // 夹爪伸缩部分
-      clamp_extend_control(clamp.retractable_flag * CLAMP_EXTEND_MAX_POSITION, &m3508_fdcan2[1]);
+     clamp_extend_control(clamp.retractable_flag * CLAMP_EXTEND_MAX_POSITION, &m3508_fdcan2[1]);
       // // 夹爪升降部分
       clamp_lift_control(clamp.lift_flag, &m3508_fdcan2[0]);
       // m3508_anglesum_control(&m3508_fdcan2[0],rotate_target_angle,8000);

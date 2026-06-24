@@ -828,7 +828,7 @@ static BT_Status Act_R2_MC_Mission(void)
                     if(abs_int32(m3508_fdcan2[1].Angle_Sum-CLAMP_EXTEND_MAX_POSITION)<1000 ) //保证夹爪伸出到位且位置稳定后才发出抓取指令，避免提前触发后续动作
                     {
                         clamp.catch_flag = 1; // 同时发出夹爪抓取指令
-                        osDelay(300);
+                        osDelay(600);
 
                         if(MC_bb.RACK_PICK_SUCCESS == 1) //通过微动开关的触发来判断是否成功夹取矛头，成功则进入下一个阶段
                         {
@@ -840,8 +840,9 @@ static BT_Status Act_R2_MC_Mission(void)
                         }
                         else //如果没有成功夹取矛头，则换下一个矛头位置
                         {
+                             
+                            clamp.catch_flag = 0; // 先放开夹爪，准备下一个位置的夹取  
                             clamp.retractable_flag = 0; // 先收回夹爪，准备下一个位置的夹取 
-                            clamp.catch_flag = 0; // 先放开夹爪，准备下一个位置的夹取   
                             taskENTER_CRITICAL();
                             chassis_route_point_add(&chassis_route_traj, CHASSIS_RACK_2_X, CHASSIS_RACK_Y, CHASSIS_RACK_W, 0);
                             taskEXIT_CRITICAL();
@@ -867,10 +868,10 @@ static BT_Status Act_R2_MC_Mission(void)
                 if( MC_bb.RACK_POS_STABLE_TIMES > RACK_STABLE_TIMES_CONDITION)
                 { 
                 clamp.retractable_flag = 1; // 同时发出夹爪伸出指令
-                if(abs_int32(m3508_fdcan2[1].Angle_Sum-CLAMP_EXTEND_MAX_POSITION)<500 ) //保证夹爪伸出到位且位置稳定后才发出抓取指令，避免提前触发后续动作
+                if(abs_int32(m3508_fdcan2[1].Angle_Sum-CLAMP_EXTEND_MAX_POSITION)<1000 ) //保证夹爪伸出到位且位置稳定后才发出抓取指令，避免提前触发后续动作
                 {
                     clamp.catch_flag = 1; // 同时发出夹爪抓取指令
-                    osDelay(1000);
+                    osDelay(600);
 
                     if(MC_bb.RACK_PICK_SUCCESS == 1) //通过微动开关的触发来判断是否成功夹取矛头，成功则进入下一个阶段
                     {
@@ -882,15 +883,18 @@ static BT_Status Act_R2_MC_Mission(void)
                     }
                     else //如果第二次仍然没有成功夹取矛头，则换第三个位置
                     {
-                        clamp.retractable_flag = 0; // 先收回夹爪，准备下一个位置的夹取     
+                           
                         clamp.catch_flag = 0; // 先放开夹爪，准备下一个位置的夹取   
+                        clamp.retractable_flag = 0; // 先收回夹爪，准备下一个位置的夹取  
+                        osDelay(500);
                         taskENTER_CRITICAL();
-                        chassis_route_point_add(&chassis_route_traj, CHASSIS_RACK_1_X, CHASSIS_RACK_Y, CHASSIS_RACK_W, 0);
+                        chassis_route_point_add(&chassis_route_traj, CHASSIS_RACK_1_X, CHASSIS_RACK_Y_1, CHASSIS_RACK_W_1, 0);
                         taskEXIT_CRITICAL();
 
                         MC_bb.mc_mission_state = RACK_FAILED_2;
                         MC_bb.R2_MC_timer_ms = 0;
                         MC_bb.RACK_POS_STABLE_TIMES = 0; // 重置位置稳定计数
+                        
                     }
                 }        
                 }  
@@ -903,16 +907,16 @@ static BT_Status Act_R2_MC_Mission(void)
         case RACK_FAILED_2:
         {
              /* 如果第二次夹取失败，换第三个位置继续夹取 */
-            if(chassis_if_arrived(CHASSIS_RACK_1_X, CHASSIS_RACK_Y, CHASSIS_RACK_W))    
+            if(chassis_if_arrived(CHASSIS_RACK_1_X, CHASSIS_RACK_Y_1, CHASSIS_RACK_W_1))    
             {
                 MC_bb.RACK_POS_STABLE_TIMES++; // 增加位置稳定计数 
                 if(MC_bb.RACK_POS_STABLE_TIMES > RACK_STABLE_TIMES_CONDITION)
                 { 
                 clamp.retractable_flag = 1; // 同时发出夹爪伸出指令
-                if(abs_int32(m3508_fdcan2[1].Angle_Sum-CLAMP_EXTEND_MAX_POSITION)<500 ) //保证夹爪伸出到位且位置稳定后才发出抓取指令，避免提前触发后续动作
+                if(abs_int32(m3508_fdcan2[1].Angle_Sum-CLAMP_EXTEND_MAX_POSITION)<1000 ) //保证夹爪伸出到位且位置稳定后才发出抓取指令，避免提前触发后续动作
                 {
                     clamp.catch_flag = 1; // 同时发出夹爪抓取指令
-                    osDelay(1000);
+                    osDelay(800);
 
                     if(MC_bb.RACK_PICK_SUCCESS == 1) //通过微动开关的触发来判断是否成功夹取矛头，成功则进入下一个阶段
                     {
@@ -923,8 +927,9 @@ static BT_Status Act_R2_MC_Mission(void)
                     }
                     else //如果第三次仍然没有成功夹取矛头，则换第四个位置
                     {
-                        clamp.retractable_flag = 0; // 先收回夹爪，准备下一个位置的夹取     
-                        clamp.catch_flag = 0; // 先放开夹爪，准备下一个位置的夹取   
+                            
+                        clamp.catch_flag = 0; // 先放开夹爪，准备下一个位置的夹取 
+                        clamp.retractable_flag = 0; // 先收回夹爪，准备下一个位置的夹取   
                         taskENTER_CRITICAL();
                         chassis_route_point_add(&chassis_route_traj, CHASSIS_RACK_4_X, CHASSIS_RACK_Y, CHASSIS_RACK_W, 0);
                         taskEXIT_CRITICAL();
@@ -950,10 +955,10 @@ static BT_Status Act_R2_MC_Mission(void)
                if(MC_bb.RACK_POS_STABLE_TIMES > RACK_STABLE_TIMES_CONDITION)
                 { 
                 clamp.retractable_flag = 1; // 同时发出夹爪伸出指令
-                if(abs_int32(m3508_fdcan2[1].Angle_Sum-CLAMP_EXTEND_MAX_POSITION)<500 ) //保证夹爪伸出到位且位置稳定后才发出抓取指令，避免提前触发后续动作
+                if(abs_int32(m3508_fdcan2[1].Angle_Sum-CLAMP_EXTEND_MAX_POSITION)<1000 ) //保证夹爪伸出到位且位置稳定后才发出抓取指令，避免提前触发后续动作
                 {
                     clamp.catch_flag = 1; // 同时发出夹爪抓取指令
-                    osDelay(1000);
+                    osDelay(800);
 
                     if(MC_bb.RACK_PICK_SUCCESS == 1) //通过微动开关的触发来判断是否成功夹取矛头，成功则进入下一个阶段
                     {
@@ -964,8 +969,9 @@ static BT_Status Act_R2_MC_Mission(void)
                     }
                     else //如果第四次没有然没有成功夹取矛头，则换第五个位置
                     {
-                        clamp.retractable_flag = 0; // 先收回夹爪，准备下一个位置的夹取     
-                        clamp.catch_flag = 0; // 先放开夹爪，准备下一个位置的夹取   
+                            
+                        clamp.catch_flag = 0; // 先放开夹爪，准备下一个位置的夹取 
+                         clamp.retractable_flag = 0; // 先收回夹爪，准备下一个位置的夹取  
                         taskENTER_CRITICAL();
                         chassis_route_point_add(&chassis_route_traj, CHASSIS_RACK_5_X, CHASSIS_RACK_Y, CHASSIS_RACK_W, 0);
                         taskEXIT_CRITICAL();
@@ -991,10 +997,10 @@ static BT_Status Act_R2_MC_Mission(void)
                if(MC_bb.RACK_POS_STABLE_TIMES > RACK_STABLE_TIMES_CONDITION)
                 { 
                 clamp.retractable_flag = 1; // 同时发出夹爪伸出指令
-                if(abs_int32(m3508_fdcan2[1].Angle_Sum-CLAMP_EXTEND_MAX_POSITION)<500 ) //保证夹爪伸出到位且位置稳定后才发出抓取指令，避免提前触发后续动作
+                if(abs_int32(m3508_fdcan2[1].Angle_Sum-CLAMP_EXTEND_MAX_POSITION)<1000 ) //保证夹爪伸出到位且位置稳定后才发出抓取指令，避免提前触发后续动作
                 {
                     clamp.catch_flag = 1; // 同时发出夹爪抓取指令
-                    osDelay(1000);
+                    osDelay(800);
 
                     if(MC_bb.RACK_PICK_SUCCESS == 1) //通过微动开关的触发来判断是否成功夹取矛头，成功则进入下一个阶段
                     {
@@ -1005,8 +1011,9 @@ static BT_Status Act_R2_MC_Mission(void)
                     }
                     else //如果第五次没有成功，则换最后一个位置
                     {
-                        clamp.retractable_flag = 0; // 先收回夹爪，准备下一个位置的夹取     
-                        clamp.catch_flag = 0; // 先放开夹爪，准备下一个位置的夹取   
+                             
+                        clamp.catch_flag = 0; // 先放开夹爪，准备下一个位置的夹取
+                        clamp.retractable_flag = 0; // 先收回夹爪，准备下一个位置的夹取   
                         taskENTER_CRITICAL();
                         chassis_route_point_add(&chassis_route_traj, CHASSIS_RACK_6_X, CHASSIS_RACK_Y, CHASSIS_RACK_W, 0);
                         taskEXIT_CRITICAL();
@@ -1032,10 +1039,10 @@ static BT_Status Act_R2_MC_Mission(void)
                 if( MC_bb.RACK_POS_STABLE_TIMES > RACK_STABLE_TIMES_CONDITION)
                 { 
                 clamp.retractable_flag = 1; // 同时发出夹爪伸出指令
-                if(abs_int32(m3508_fdcan2[1].Angle_Sum-CLAMP_EXTEND_MAX_POSITION)<500 ) //保证夹爪伸出到位且位置稳定后才发出抓取指令，避免提前触发后续动作
+                if(abs_int32(m3508_fdcan2[1].Angle_Sum-CLAMP_EXTEND_MAX_POSITION)<1000 ) //保证夹爪伸出到位且位置稳定后才发出抓取指令，避免提前触发后续动作
                 {
                     clamp.catch_flag = 1; // 同时发出夹爪抓取指令
-                    osDelay(1000);
+                    osDelay(800);
 
                     if(MC_bb.RACK_PICK_SUCCESS == 1) //通过微动开关的触发来判断是否成功夹取矛头，成功则进入下一个阶段
                     {
@@ -1046,8 +1053,9 @@ static BT_Status Act_R2_MC_Mission(void)
                     }
                     else //如果第六次仍然没有成功夹取矛头，一般不会有这种情况，出现的话从第一个夹取位置开始
                     {
-                        clamp.retractable_flag = 0; // 先收回夹爪，准备下一个位置的夹取     
-                        clamp.catch_flag = 0; // 先放开夹爪，准备下一个位置的夹取   
+                             
+                        clamp.catch_flag = 0; // 先放开夹爪，准备下一个位置的夹取
+                        clamp.retractable_flag = 0; // 先收回夹爪，准备下一个位置的夹取   
                         taskENTER_CRITICAL();
                         chassis_route_point_add(&chassis_route_traj, CHASSIS_RACK_3_X,CHASSIS_RACK_Y,CHASSIS_RACK_W,0);
                         taskEXIT_CRITICAL();
