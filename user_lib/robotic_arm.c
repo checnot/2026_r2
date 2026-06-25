@@ -199,9 +199,9 @@ void arm_route_execute(robotic_arm_stu *arm, float m8010_kp, float m8010_kw, flo
 void arm_pump_apply(robotic_arm_stu *arm)
 {
     if (arm->pump_state == ARM_PUMP_SUCK) {
-        // HAL_GPIO_WritePin(ARM_AIR_PUMP_GPIO_Port, ARM_AIR_PUMP_Pin, GPIO_PIN_SET);
+        HAL_GPIO_WritePin(GPIOD, GPIO_PIN_6, GPIO_PIN_SET);
     } else if (arm->pump_state == ARM_PUMP_RELEASE) {
-        // HAL_GPIO_WritePin(ARM_AIR_PUMP_GPIO_Port, ARM_AIR_PUMP_Pin, GPIO_PIN_RESET);
+        HAL_GPIO_WritePin(GPIOD, GPIO_PIN_6, GPIO_PIN_RESET);
     }
 }
 /**
@@ -536,23 +536,23 @@ void arm_mode_switch_to_transition(robotic_arm_stu *arm, robotic_arm_traj_stu *a
         arm->trans_target_theta1,
         TRANS_V_MAX,          // 最大速度：2pi rad/s，可根据实机调
         TRANS_A_MAX,          // 最大加速度：3pi rad/s^2
-        PI / 18.0f            // 最大跟随误差：10 deg
+        PI / 24.0f            // 最大跟随误差：10 deg
     );
     Traj_Adaptive_Init(
         &arm_trans_traj->traj_theta2,
         arm->joint_parameters[2].theta,
         arm->trans_target_theta2,
-        TRANS_V_MAX * 2.0f,  // 小臂速度可以更快一些
-        TRANS_A_MAX * 2.0f,  // 小臂加速度也可以更快一些
-        PI / 12.0f           // 小臂跟随误差可以更大一些
+        TRANS_V_MAX * 1.25f,  // 小臂速度可以更快一些
+        TRANS_A_MAX * 1.25f,  // 小臂加速度也可以更快一些
+        PI / 15.0f           // 小臂跟随误差可以更大一些
     );
     Traj_Adaptive_Init(
         &arm_trans_traj->traj_pitch,
         arm->joint_pitch[2],
         arm->trans_target_pitch,
-        TRANS_V_MAX,
-        TRANS_A_MAX,
-        PI / 18.0f
+        TRANS_V_MAX * 0.75f,    // pitch 速度可以稍微慢一些，防止运动过猛块飞了
+        TRANS_A_MAX * 0.75f,    // pitch 加速度也可以稍微慢一些
+        PI / 9.0f
     );
 
     // // 5. 云台保持当前角度不动

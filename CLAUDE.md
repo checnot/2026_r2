@@ -72,3 +72,15 @@ Ignore these unless the user explicitly asks about build artifacts, Keil project
 ## Communication preference
 
 When discussing code locations, reference files using paths relative to `D:\2026_r2_v1`.
+
+## STM32 project conventions
+
+This is an STM32H723VGT6 robot firmware project developed with CubeMX + Keil + VSCode.
+
+When locating code:
+- Treat `D:\2026_r2_v1` as the project root.
+- Prefer `user_lib/` for robot behavior, chassis, arm, lift, planner, and custom modules.
+- Prefer `Core/Src/` and `Core/Inc/` for CubeMX-generated init code and FreeRTOS task creation.
+- Prefer `.ioc` for peripheral configuration.
+- Check `MDK-ARM/*.uvprojx` only when Keil project inclusion/build configuration is relevant.
+- Ignore build outputs unless explicitly requested.

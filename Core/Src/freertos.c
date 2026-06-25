@@ -46,6 +46,7 @@
 #include "radar.h"
 #include "MF_planner.h"
 #include "go_m8010.h"
+#include "lift.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -255,10 +256,14 @@ void StartDefaultTask(void const * argument)
     // data_send_vofa[5] = m3508_fdcan3[2].M3508_Speed_PID.Target;
     // data_send_vofa[6] = m3508_fdcan3[3].Now_Speed;
     // data_send_vofa[7] = m3508_fdcan3[3].M3508_Speed_PID.Target;
-    data_send_vofa[0] = arm.theta_target[0];
-    data_send_vofa[1] = arm.joint_parameters[1].theta;
-    data_send_vofa[2] = arm.theta_target[1];
-    data_send_vofa[3] = arm.joint_parameters[2].theta;
+    // data_send_vofa[0] = arm.theta_target[1];
+    // data_send_vofa[1] = arm.joint_parameters[1].theta;
+    // data_send_vofa[2] = arm.theta_target[2];
+    // data_send_vofa[3] = arm.joint_parameters[2].theta;
+    data_send_vofa[0] = arm_store_state;
+    data_send_vofa[1] = arm_store_slot;
+		data_send_vofa[2] = arm.mode;
+
     data_send_vofa[4] = arm.x0_now;
     data_send_vofa[5] = arm_traj.traj_x.out_pos;
     data_send_vofa[6] = arm.y0_now;
@@ -289,7 +294,7 @@ void entry_robotic_arm(void const * argument)
   arm_joint_parameter_init(&arm);
 
   // 机械臂上的3508参数初始化
-   m3508_parameter_init(&m3508_fdcan1[0], 1.0f, 0.0f, 1.0f, 1.5f, 0.0f, 12.5f);
+   m3508_parameter_init(&m3508_fdcan1[0], 1.5f, 0.0f, 1.5f, 3.0f, 0.0f, 20.0f);
   // m3508_parameter_init(&m3508_fdcan1[0], 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
 
   // 末端执行器默认目标姿态
@@ -337,7 +342,8 @@ void entry_robotic_arm(void const * argument)
       if (traj_init_flag_arm == 0)
       {
         arm_trajectory_init(&arm_traj, &arm);   // 以当前位置初始化轨迹系统
-        arm_queue_add_point(&arm_traj, 0.4, 0.5, 0.0f, 500, 0);
+        arm_queue_add_point(&arm_traj, PICK_REST_X, PICK_REST_Y, 0.0f, 500, 0);
+        BT_MASTER_Start_Task(); // 启动行为树主控任务
         traj_init_flag_arm = 1;
       }
 
@@ -370,7 +376,7 @@ void entry_robotic_arm(void const * argument)
 //       // arm_gravity_comp(); // 重力补偿
 
       // 4. 逆解算出各关节的 theta_target ，并转换成电机位置环
-      arm_mode_update_execute(&arm, &arm_traj, &arm_trans_traj, 5.0f, 0.2f, 0.3f, 3.5f); // 位置环控制
+      arm_mode_update_execute(&arm, &arm_traj, &arm_trans_traj, 6.0f, 0.25f, 0.3f, 3.5f); // 位置环控制
       // arm_mode_update_execute(&arm, &arm_traj, &arm_trans_traj, 0.0f, 0.0f, 0.0f, 0.0f);
 
     }
@@ -475,7 +481,7 @@ void entry_chassis(void const * argument)
         // 以当前升降高度初始化升降轨迹系统
         chassis_lift_traj_init();
         // 添加一个默认的升降目标点，作为上电复位
-        chassis_lift_queue_add_point(&chassis_lift_traj, 0.220f, 0.020f, 0);
+        chassis_lift_queue_add_point(&chassis_lift_traj, 0.010f, 0.010f, 0);
         traj_init_flag_lift = 1;
       }
       // if (debug_flag == 1)
@@ -500,10 +506,28 @@ void entry_chassis(void const * argument)
       chassis_lift_ik_update(&chassis_r2);
       // 6. 位置环执行
       // chassis_lift_excute(&chassis_r2, 2.0f, 0.2f);
-      chassis_lift_excute(&chassis_r2, 0.0f, 0.0f);
+      // chassis_lift_excute(&chassis_r2, 0.0f, 0.0f);
       // 7. 抬升轮速度执行
       // chassis_lift_wheel_excute(debug_speed, 2.0f, 0.2f);
-      chassis_lift_wheel_excute(debug_speed, 0.0f, 0.0f);
+      // chassis_lift_wheel_excute(debug_speed, 0.0f, 0.0f);
+
+      // 根据 lift FSM 设置的控制模式执行
+      switch (g_lift_ctrl_mode) {
+          case LIFT_CTRL_NONE:
+          case LIFT_CTRL_POSITION:
+              chassis_lift_excute(&chassis_r2, STEP_UP_BRACE_KP, STEP_UP_BRACE_KD);
+              break;
+          case LIFT_CTRL_FORCE_FRONT_REAR:
+              m8010_torque_control(&m8010_bus_3.motors[0], g_lift_front_torque);
+              m8010_torque_control(&m8010_bus_3.motors[1], g_lift_rear_torque);
+              break;
+          case LIFT_CTRL_FORCE_REAR_ONLY:
+              chassis_lift_excute(&chassis_r2, STEP_UP_BRACE_KP, STEP_UP_BRACE_KD);
+              m8010_torque_control(&m8010_bus_3.motors[1], g_lift_rear_torque);
+              break;
+      }
+      // 辅助轮执行
+      chassis_lift_wheel_excute(g_lift_wheel_target, g_lift_wheel_kp, g_lift_wheel_kd);
 
     }
 
@@ -569,12 +593,11 @@ void entry_cmd_task(void const * argument)
   /* USER CODE BEGIN entry_cmd_task */
 
   BT_MASTER_Init_Task();  // 初始化行为树任务
-  // BT_MASTER_Start_Task(); // 启动行为树主控任务
 
   /* Infinite loop */
   for (;;)
   {
-    // BT_MASTER_Tick();     // 每1ms调用，内部降频10ms，行为树主控任务周期调用
+    BT_MASTER_Tick();     // 每1ms调用，内部降频10ms，行为树主控任务周期调用
 
     osDelay(1);
   }
