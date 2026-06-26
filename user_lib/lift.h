@@ -134,32 +134,34 @@ extern float       g_lift_wheel_kd;         /**< 辅助轮速度环 Kd */
 #define STEP_STROKE_200         0.200f
 /** 400mm 台阶的实际支撑柱伸出行程 (m)，负号表示向下 */
 #define STEP_STROKE_400         0.400f
+/* 平时的支撑收回高度 */
+#define LIFT_RETRACT_HEIGHT     0.010f
 
 /* ---------- 上台阶参数 ---------- */
 
 /** 上台阶时辅助轮驱动速度（3508转子单位）*/
-#define STEP_UP_WHEEL_SPEED     300.0f
+#define STEP_UP_WHEEL_SPEED     3000.0f
 /** 上台阶辅助轮速度环 Kp */
-#define STEP_UP_WHEEL_KP        2.0f
+#define STEP_UP_WHEEL_KP        3.0f
 /** 上台阶辅助轮速度环 Kd */
-#define STEP_UP_WHEEL_KD        0.2f
+#define STEP_UP_WHEEL_KD        0.3f
 
 /** 上台阶支撑柱位置环 Kp */
-#define STEP_UP_BRACE_KP        2.5f
+#define STEP_UP_BRACE_KP        1.8f
 /** 上台阶支撑柱位置环 Kd */
-#define STEP_UP_BRACE_KD        0.2f
+#define STEP_UP_BRACE_KD        0.10f
 /* ---------- 下台阶参数 ---------- */
 
 /** 下台阶时辅助轮驱动速度（3508转子单位），比上台阶更慢以保证稳定 */
-#define STEP_DOWN_WHEEL_SPEED   150.0f
+#define STEP_DOWN_WHEEL_SPEED   2000.0f
 /** 下台阶辅助轮速度环 Kp */
-#define STEP_DOWN_WHEEL_KP      2.0f
+#define STEP_DOWN_WHEEL_KP      3.0f
 /** 下台阶辅助轮速度环 Kd */
-#define STEP_DOWN_WHEEL_KD      0.2f
+#define STEP_DOWN_WHEEL_KD      0.3f
 /** 下台阶力控模式下向下的持续扭矩 (Nm)，使支撑柱始终压住台阶面 */
 #define STEP_DOWN_FORCE_TORQUE  0.1f
 /** 判定支撑柱"已脱离台阶面悬空"的位置跳变阈值 (m) */
-#define STEP_DOWN_LEAVE_THRESHOLD 0.015f
+#define STEP_DOWN_LEAVE_THRESHOLD 0.02f
 
 /* ---------- 安全距离 ---------- */
 
@@ -170,14 +172,14 @@ extern float       g_lift_wheel_kd;         /**< 辅助轮速度环 Kd */
 
 /* ---------- 超时参数 ---------- */
 
-/** 上台阶总超时 (ms) */
-#define STEP_UP_TIMEOUT_MS           15000
-/** 下台阶总超时 (ms) */
-#define STEP_DOWN_TIMEOUT_MS         20000
-/** 单个子阶段超时 (ms)，如等待升降到位、等待微动开关触发 */
-#define STEP_SUBSTATE_TIMEOUT_MS     8000
-/** 等待升降到位的超时 (ms) */
-#define STEP_LIFT_TIMEOUT_MS         5000
+/** ！！！！！！（待确定，此处为暂时值）上台阶总超时 (ms) */
+#define STEP_UP_TIMEOUT_MS           60000
+/** ！！！！！！（待确定，此处为暂时值）下台阶总超时 (ms) */
+#define STEP_DOWN_TIMEOUT_MS         60000
+/** ！！！！！！（待确定，此处为暂时值）单个子阶段超时 (ms)，如等待升降到位、等待微动开关触发 */
+#define STEP_SUBSTATE_TIMEOUT_MS     60000
+/** ！！！！！！（待确定，此处为暂时值）等待升降到位的超时 (ms) */
+#define STEP_LIFT_TIMEOUT_MS         60000
 
 /* ---------- 微动开关 GPIO 读取宏 ---------- */
 /**

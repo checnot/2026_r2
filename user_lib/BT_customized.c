@@ -1848,34 +1848,41 @@ static BT_Status Act_MF_Execute_Action(void)
             * 这样可以节省时间（不必等机械臂完全收回再走下一步），也让流程更顺畅。
             */
 
-        if (!arm_store_busy && !arm_store_request &&  !arm_store_payload_done && !arm_store_done && !arm_store_failed)
-        {
-            if (arm_if_arrived_xy(PICK_PRE_TRANS_X, PICK_PRE_TRANS_Y))
-            {
-                /* 拾取完成后请求机械臂存储服务接管 */
-                arm_store_slot = mf_bb.kfs_stored;
-                arm_store_request = 1;
-                mf_exec_timer_ms = 0;
-            }
-            else if (++mf_exec_timer_ms * 10 >= MF_PICK_TIMEOUT_MS)
-            {
-                mf_exec_state = MF_EXEC_FAILED;
-            }
-        }
+        // if (!arm_store_busy && !arm_store_request &&  !arm_store_payload_done && !arm_store_done && !arm_store_failed)
+        // {
+        //     if (arm_if_arrived_xy(PICK_PRE_TRANS_X, PICK_PRE_TRANS_Y))
+        //     {
+        //         /* 拾取完成后请求机械臂存储服务接管 */
+        //         arm_store_slot = mf_bb.kfs_stored;
+        //         arm_store_request = 1;
+        //         mf_exec_timer_ms = 0;
+        //     }
+        //     else if (++mf_exec_timer_ms * 10 >= MF_PICK_TIMEOUT_MS)
+        //     {
+        //         mf_exec_state = MF_EXEC_FAILED;
+        //     }
+        // }
 
-        if (arm_store_payload_done)
-        {
-            arm_store_payload_done = 0;
-            mf_bb.kfs_stored++;
-            MFPlanner_AdvanceAction(&mf_planner_ctx);
-            mf_exec_state = MF_EXEC_IDLE;
-            mf_exec_timer_ms = 0;
-        }
-        else if (arm_store_failed)
-        {
-            arm_store_failed = 0;
-            mf_exec_state = MF_EXEC_FAILED;
-        }
+        // if (arm_store_payload_done)
+        // {
+        //     arm_store_payload_done = 0;
+        //     mf_bb.kfs_stored++;
+        //     MFPlanner_AdvanceAction(&mf_planner_ctx);
+        //     mf_exec_state = MF_EXEC_IDLE;
+        //     mf_exec_timer_ms = 0;
+        // }
+        // else if (arm_store_failed)
+        // {
+        //     arm_store_failed = 0;
+        //     mf_exec_state = MF_EXEC_FAILED;
+        // }
+
+        arm_store_payload_done = 1;
+        mf_bb.kfs_stored++;
+        MFPlanner_AdvanceAction(&mf_planner_ctx);
+        mf_exec_state = MF_EXEC_IDLE;
+        mf_exec_timer_ms = 0;
+
         return BT_RUNNING;
 
     /* ============================================================ */

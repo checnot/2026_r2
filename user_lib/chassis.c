@@ -622,15 +622,14 @@ void chassis_lift_linear_interpolation_update(chassis_stu *chassis, chassis_lift
  * @param back_height  后端目标高度（m）
  * @param delay_ms     到达后延时（ms）
  * @note 带有边界保护，限制在机械行程范围内
- * @note 前抬升最高 0.405m，最低 -0.029m；后抬升最高 0.087m，最低 -0.440m
  */
 void chassis_lift_queue_add_point(chassis_lift_traj_stu *lift_traj, float front_height, float back_height, uint16_t delay_ms)
 {
     // 边界保护--参数待测试
-    if (front_height < LIFTER_FRONT_LOWEST) front_height = LIFTER_FRONT_LOWEST;// 前抬升最低 -0.029m
-    if (front_height > LIFTER_FRONT_HIGHEST) front_height = LIFTER_FRONT_HIGHEST; // 前抬升最高 0.405m
-    if (back_height < LIFTER_BACK_LOWEST) back_height = LIFTER_BACK_LOWEST;  // 后抬升最低 -0.440m
-    if (back_height > LIFTER_BACK_HIGHEST) back_height = LIFTER_BACK_HIGHEST;   // 后抬升最高 0.087m
+    if (front_height < LIFTER_FRONT_LOWEST) front_height = LIFTER_FRONT_LOWEST;// 前抬升最低-0.435m
+    if (front_height > LIFTER_FRONT_HIGHEST) front_height = LIFTER_FRONT_HIGHEST; // 前抬升最高 0.010m
+    if (back_height < LIFTER_BACK_LOWEST) back_height = LIFTER_BACK_LOWEST;  // 后抬升最低 -0.435m
+    if (back_height > LIFTER_BACK_HIGHEST) back_height = LIFTER_BACK_HIGHEST;   // 后抬升最高 0.010m
     if (delay_ms > 3000) delay_ms = 3000;
 
     if (lift_traj->traj_queue_front.count >= TRAJ_MAX_WAYPOINTS) return;
@@ -643,12 +642,20 @@ void chassis_lift_queue_add_point(chassis_lift_traj_stu *lift_traj, float front_
 
 /**
  * @brief 底盘抬升执行函数，并下发电机位置环目各参数
+ * @note 因未知原因前抬升运动速度明显快于后抬升，故对传入的参数进行微调
+ * @note 目前motor[0]为前抬升，motor[1]为后抬升
+ * @note front_en 为 1 时前抬升使能，0 时前抬升不使能
+ * @note back_en 为 1 时后抬升使能，0 时后抬升不使能
  * @warning 位置环目标位置应由 chassis_lift_ik_update 计算，该函数仅负责执行控制，确保调用顺序正确以避免数据不一致
 */
-void chassis_lift_excute(chassis_stu *chassis, float kp, float kw)
+void chassis_lift_excute(float kp, float kw, uint8_t front_en, uint8_t back_en)
 {
-    m8010_position_control(&m8010_bus_3.motors[0], m8010_bus_3.motors[0].target.Pos, kp, kw);
-    m8010_position_control(&m8010_bus_3.motors[1], m8010_bus_3.motors[1].target.Pos, kp, kw);
+    if (front_en == 1) {
+        m8010_position_control(&m8010_bus_3.motors[0], m8010_bus_3.motors[0].target.Pos, kp*0.8f, kw);
+    }
+    if (back_en == 1) {
+        m8010_position_control(&m8010_bus_3.motors[1], m8010_bus_3.motors[1].target.Pos, kp*1.5f, kw*0.1f);
+    }
 }
 
 /**
@@ -658,7 +665,7 @@ void chassis_lift_wheel_excute(float target_speed, float speed_kp, float speed_k
 {
     m3508_parameter_init(&m3508_fdcan1[1], speed_kp, 0.0f, speed_kd, 0.0f, 0.0f, 0.0f);
     m3508_parameter_init(&m3508_fdcan1[2], speed_kp, 0.0f, speed_kd, 0.0f, 0.0f, 0.0f);
-    m3508_speed_control(&m3508_fdcan1[1], (int16_t)target_speed, 3000);
-    m3508_speed_control(&m3508_fdcan1[2], (int16_t)(-target_speed), 3000);
+    m3508_speed_control(&m3508_fdcan1[1], (int16_t)(-target_speed), 10000);
+    m3508_speed_control(&m3508_fdcan1[2], (int16_t)(target_speed), 10000);
 }
 

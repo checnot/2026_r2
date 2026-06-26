@@ -109,7 +109,7 @@ static uint8_t lift_both_arrived(float target)
 static void step_wheel_stop(void)
 {
     g_lift_wheel_target = 0.0f;
-    g_lift_wheel_kp     = 0.0f;
+    g_lift_wheel_kp     = 3.0f;
     g_lift_wheel_kd     = 0.0f;
 }
 
@@ -207,7 +207,7 @@ void chassis_step_fsm_emergency_stop(ChassisStepFSM *fsm)
 
     /* 恢复为正常位控模式，下发收回指令 */
     g_lift_ctrl_mode = LIFT_CTRL_NONE;
-    chassis_lift_queue_add_point(&chassis_lift_traj, 0.0f, 0.0f, 0);
+    chassis_lift_queue_add_point(&chassis_lift_traj, LIFT_RETRACT_HEIGHT, LIFT_RETRACT_HEIGHT, 0);
 
     /* 重置状态机 */
     fsm->state       = STEP_FSM_IDLE;
@@ -305,7 +305,7 @@ BT_Status chassis_step_fsm_tick(ChassisStepFSM *fsm)
         if (STEP_SWITCH_FRONT()) {
             step_wheel_stop();
             /* 收回前支撑柱，后柱保持伸出 */
-            chassis_lift_queue_add_point(&chassis_lift_traj, 0.0f, neg_stroke, 0);
+            chassis_lift_queue_add_point(&chassis_lift_traj, LIFT_RETRACT_HEIGHT, neg_stroke, 0);
             fsm->state = STEP_UP_WAIT_FRONT_RETRACT;
             fsm->timer_ms = 0;
         } else if (fsm->timer_ms * 10 >= STEP_SUBSTATE_TIMEOUT_MS) {
@@ -316,7 +316,7 @@ BT_Status chassis_step_fsm_tick(ChassisStepFSM *fsm)
 
     /* ---------- 等待前柱收回 ---------- */
     case STEP_UP_WAIT_FRONT_RETRACT:
-        if (lift_front_arrived(0.0f)) {
+        if (lift_front_arrived(LIFT_RETRACT_HEIGHT)) {
             /* 前柱已收回，继续前进等待后开关触发 */
             step_wheel_drive(wheel_speed, wheel_kp, wheel_kd);
             fsm->state = STEP_UP_DRIVE_TO_REAR_TOUCH;
@@ -334,7 +334,7 @@ BT_Status chassis_step_fsm_tick(ChassisStepFSM *fsm)
         if (STEP_SWITCH_REAR()) {
             step_wheel_stop();
             /* 收回后支撑柱（全部收回） */
-            chassis_lift_queue_add_point(&chassis_lift_traj, 0.0f, 0.0f, 0);
+            chassis_lift_queue_add_point(&chassis_lift_traj, LIFT_RETRACT_HEIGHT, LIFT_RETRACT_HEIGHT, 0);
             fsm->state = STEP_UP_WAIT_REAR_RETRACT;
             fsm->timer_ms = 0;
         } else if (fsm->timer_ms * 10 >= STEP_SUBSTATE_TIMEOUT_MS) {
@@ -345,7 +345,7 @@ BT_Status chassis_step_fsm_tick(ChassisStepFSM *fsm)
 
     /* ---------- 等待后柱收回 ---------- */
     case STEP_UP_WAIT_REAR_RETRACT:
-        if (lift_both_arrived(0.0f)) {
+        if (lift_both_arrived(LIFT_RETRACT_HEIGHT)) {
             /* 全部收回，上台阶完成（安全前移暂弃用） */
             fsm->state = STEP_UP_CHASSIS_FORWARD;
             fsm->timer_ms = 0;
@@ -375,7 +375,7 @@ BT_Status chassis_step_fsm_tick(ChassisStepFSM *fsm)
          * 前后支撑柱转为力控，持续向下压住台阶面。
          * 设置全局控制模式 = 力控前后，freertos 消费后调用 m8010_torque_control。
          */
-        step_set_force_both_mode(-STEP_DOWN_FORCE_TORQUE, -STEP_DOWN_FORCE_TORQUE);
+        step_set_force_both_mode(-STEP_DOWN_FORCE_TORQUE, STEP_DOWN_FORCE_TORQUE);
 
         /* 记录初始位置快照，用于后续检测是否离开台阶面 */
         fsm->front_leave_snapshot = chassis_r2.lift_front_current;

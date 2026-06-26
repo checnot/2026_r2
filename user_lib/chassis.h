@@ -92,9 +92,9 @@ void chassis_single_route_scheduler(RADAR_POSITION * chassis_real_position, chas
 
 
 // 底盘升降速度/加速度参数（可调整）
-#define CHASSIS_LIFT_V_MAX   1.0f    // 升降最大速度 m/s
-#define CHASSIS_LIFT_A_MAX   2.0f    // 升降最大加速度 m/s^2
-#define CHASSIS_LIFT_TRACKING_ERROR_THRESHOLD  0.02f  // 升降跟踪误差阈值，单位m
+#define CHASSIS_LIFT_V_MAX   (9.0f)    // 升降最大速度 m/s
+#define CHASSIS_LIFT_A_MAX   (6.5f)    // 升降最大加速度 m/s^2
+#define CHASSIS_LIFT_TRACKING_ERROR_THRESHOLD  0.04f  // 升降跟踪误差阈值，单位m
 #define CHASSIS_LIFT_ARRIVAL_THRESHOLD         0.005f // 升降到达判定阈值，单位m
 #define CHASSIS_LIFT_QUEUE_BLEND_RADIUS        0.010f  // 升降队列融合半径，单位m
 
@@ -127,7 +127,7 @@ void chassis_lift_ik_update(chassis_stu *chassis);
 void chassis_lift_traj_init(void);
 void chassis_lift_linear_interpolation_update(chassis_stu *chassis, chassis_lift_traj_stu *lift_traj, float blend_radius);
 void chassis_lift_queue_add_point(chassis_lift_traj_stu *lift_traj, float front_height, float back_height, uint16_t delay_ms);
-void chassis_lift_excute(chassis_stu *chassis, float kp, float kw);
+void chassis_lift_excute(float kp, float kw, uint8_t front_en, uint8_t back_en);
 void chassis_lift_wheel_excute(float target_speed, float speed_kp, float speed_kd);
 #endif /* CHASSIS_H */
 
