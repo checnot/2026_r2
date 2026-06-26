@@ -165,10 +165,14 @@ int main(void)
   memset(Rec_Data, 0, sizeof(Rec_Data));
   HAL_UARTEx_ReceiveToIdle_DMA(&huart5, Rec_Data, sizeof(Rec_Data));
   __HAL_DMA_DISABLE_IT(&hdma_uart5_rx, DMA_IT_HT);
-  
+  // uart5 - ht10
+  // memset(ht10a_buffer, 0, sizeof(ht10a_buffer));
+  // HAL_UARTEx_ReceiveToIdle_DMA(&huart5, ht10a_buffer, sizeof(ht10a_buffer));
+  // __HAL_DMA_DISABLE_IT(&hdma_uart5_rx, DMA_IT_HT);
+
   // uart8 - camera
   memset(Camera_Rec_Data, 0, sizeof(Camera_Rec_Data));
-  HAL_UARTEx_ReceiveToIdle_DMA(&huart8, (uint8_t*)Camera_Rec_Data, sizeof(Camera_Rec_Data));
+  HAL_UARTEx_ReceiveToIdle_DMA(&huart8, Camera_Rec_Data, sizeof(Camera_Rec_Data));
   __HAL_DMA_DISABLE_IT(&hdma_uart8_rx, DMA_IT_HT);
 
   // 雷达卡尔曼滤波器初始化
@@ -268,26 +272,7 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
-{
-  uint32_t status_value;
-  status_value = taskENTER_CRITICAL_FROM_ISR();
 
-  if (GPIO_Pin == GPIO_PIN_5)
-  {
-    if (HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_5) == 1)
-    {
-     // osDelay(20);
-      if (HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_5) == 1)
-      {
-        MC_bb.RACK_PICK_SUCCESS = 1;
-      }
-    }
-    else
-      MC_bb.RACK_PICK_SUCCESS = 0;
-  }
-  taskEXIT_CRITICAL_FROM_ISR(status_value); // 退出临界段
-}
 
 /* USER CODE END 4 */
 

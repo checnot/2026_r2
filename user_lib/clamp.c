@@ -11,20 +11,20 @@ void clamp_lift_control(uint8_t lift_flag, M3508_Motor_Struct *motor)
     int32_t target_position;
     if (lift_flag == 0)
     {
-        target_position = 0; // 复位位置
+        target_position = CLAMP_LIFT_SPECIAL_POSITION1; // 复位位置
     }
     else if (lift_flag == 1)
     {
-        target_position = CLAMP_LIFT_SPECIAL_POSITION1; // 抓矛头位置
+        target_position = CLAMP_LIFT_SPECIAL_POSITION2; // 暂定对杆位置
     }
-    else if (lift_flag == 2)
-    {
-        target_position = CLAMP_LIFT_SPECIAL_POSITION2; // 抓矛头后抬起位置
-    }
-    else if (lift_flag == 3)
-    {
-        target_position = CLAMP_LIFT_SPECIAL_POSITION3; // 暂定对杆位置
-    }
+    // else if (lift_flag == 2)
+    // {
+    //     target_position = CLAMP_LIFT_SPECIAL_POSITION2; // 抓矛头后抬起位置
+    // }
+    // else if (lift_flag == 3)
+    // {
+    //     target_position = CLAMP_LIFT_SPECIAL_POSITION3; // 暂定对杆位置
+    // }
     float position_error = target_position - motor->Angle_Sum; // 计算位置误差
     if (abs_float(position_error) < 10000.f)                   // 位置pid精准控制
     {
@@ -66,7 +66,7 @@ void clamp_extend_control(int32_t target_length, M3508_Motor_Struct *motor)
     }
     else // 长度误差较大时，先快速接近目标长度
     {
-        int16_t speed = (length_error > 0) ? 6000 : -6000; // 大幅度控制
+        int16_t speed = (length_error > 0) ? 7000 : -7000; // 大幅度控制
         m3508_speed_control(motor, speed, 8192);           // 使用速度PID控制
     }
 }
@@ -78,11 +78,11 @@ void clamp_open_control(int8_t open_flag)
 {
     if (open_flag)
     {
-        HAL_GPIO_WritePin(GPIOD, GPIO_PIN_6, GPIO_PIN_SET); // 打开夹爪
+        HAL_GPIO_WritePin(clamp_catch_GPIO_Port, clamp_catch_Pin, GPIO_PIN_SET); // 打开夹爪
     }
     else
     {
-        HAL_GPIO_WritePin(GPIOD, GPIO_PIN_6, GPIO_PIN_RESET); // 关闭夹爪
+        HAL_GPIO_WritePin(clamp_catch_GPIO_Port, clamp_catch_Pin, GPIO_PIN_RESET); // 关闭夹爪
     }
    
 }

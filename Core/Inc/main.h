@@ -64,6 +64,11 @@ void Error_Handler(void);
 #define RS485_1_RX_GPIO_Port GPIOD
 #define RS485_1_RE_Pin GPIO_PIN_10
 #define RS485_1_RE_GPIO_Port GPIOD
+#define clamp_catch_Pin GPIO_PIN_14
+#define clamp_catch_GPIO_Port GPIOD
+#define clamp_weidong_Pin GPIO_PIN_15
+#define clamp_weidong_GPIO_Port GPIOD
+#define clamp_weidong_EXTI_IRQn EXTI15_10_IRQn
 #define RS485_2_TX_Pin GPIO_PIN_6
 #define RS485_2_TX_GPIO_Port GPIOC
 #define RS485_2_RX_Pin GPIO_PIN_7
@@ -76,6 +81,12 @@ void Error_Handler(void);
 #define RS485_3_RX_GPIO_Port GPIOC
 #define RS485_3_RE_Pin GPIO_PIN_0
 #define RS485_3_RE_GPIO_Port GPIOD
+#define front_wheel_weidong_Pin GPIO_PIN_1
+#define front_wheel_weidong_GPIO_Port GPIOD
+#define front_wheel_weidong_EXTI_IRQn EXTI1_IRQn
+#define back_wheel_weidong_Pin GPIO_PIN_2
+#define back_wheel_weidong_GPIO_Port GPIOD
+#define back_wheel_weidong_EXTI_IRQn EXTI2_IRQn
 
 /* USER CODE BEGIN Private defines */
 

@@ -6,25 +6,29 @@
 #include "FreeRTOS.h"
 #include "mycan.h"
 #include "myuart.h"
-#include "m3508.h"
+#include "m3508.h" 
 #include "ht10a.h"
 #include "trajectory.h"
 #include "radar.h"
 #include "pid.h"
 
 #define DISTANCE_WHEEL_CENTER 0.25f //轮子到中心的距离，单位m
-#define CHASSIS_V_MAX 2500.0f //底盘最大速度
-#define CHASSIS_A_MAX 2500.0f //底盘最大加速度
+#define CHASSIS_V_MAX 2500.0f //底盘最大速度,上坡时5500
+#define CHASSIS_A_MAX 2500.0f //底盘最大加速度，上坡时5500
+#define CHASSIS_SLOPE_V_MAX 5500.0f //上坡时底盘最大速度
+#define CHASSIS_SLOPE_A_MAX 5500.0f //上坡时底盘最大加速度
 #define CHASSIS_TRACKING_POSITION_ERROR_THRESHOLD 200.0f //底盘跟踪位置误差阈值，单位mm
 #define CHASSIS_TRACKING_ANGLE_ERROR_THRESHOLD 6.0f //底盘跟踪角度误差阈值，单位rad
 #define CHASSIS_ROUTE_ARRIVAL_THRESHOLD 10.0f //底盘路径到达判定阈值，单位mm    
 #define CHASSIS_ANGLE_ARRIVAL_THRESHOLD 0.5f //底盘路径到达判定阈值，单位度
-#define CHASSIS_ROUTE_FINAL_APPROACH_THRESHOLD 300.0f //底盘路径最终接近目标判定阈值，单位mm        
+#define CHASSIS_ROUTE_FINAL_APPROACH_THRESHOLD 250.0f //底盘路径最终接近目标判定阈值，单位mm        
 #define CHASSIS_ROUTE_FINAL_APPROACH_ANGLE_THRESHOLD 5.0f //底盘路径最终接近目标判定阈值，单位度
-#define CHASSIS_VX_FILTER_ALPHA 0.05f
-#define CHASSIS_VY_FILTER_ALPHA 0.05f
+#define CHASSIS_VX_FILTER_ALPHA 0.2f
+#define CHASSIS_VY_FILTER_ALPHA 0.2f
 #define CHASSIS_VW_FILTER_ALPHA 0.9f
 #define CHASSIS_ZERO_MUTATION_ALPHA 0.01f
+
+#define POS_HOLD_DEADBAND        7.0f     // 静止位置死区 mm，雷达抖动小于此值不更新
 /* 底盘控制相关结构体定义 */
 typedef struct {
     float vx;           // 目标前向速度 
@@ -65,7 +69,10 @@ typedef struct{
     PID_Struct pid_final_vx; //前向速度PID实例      
     PID_Struct pid_final_vy; //横向速度PID实例  
     PID_Struct pid_final_vw; //旋转速度PID实例 
+    uint8_t slope_mode;       // 上坡模式标志: 0=平地参数, 1=上坡参数(CHASSIS_SLOPE_V/A_MAX)
 }chassis_route_traj_stu;
+
+void chassis_route_set_slope_mode(uint8_t enable);
 
 
 
@@ -80,6 +87,7 @@ void omni_chassis_inverse_calculate(chassis_stu *chassis, M3508_Motor_Struct * m
 // void chassis_lift_front_control(uint8_t lift_front);
 // void chassis_lift_back_control(uint8_t lift_back);  
 // void chassis_lift_control(uint8_t lift_mode, uint8_t lift_front_flag, uint8_t lift_back_flag, uint8_t lift_whole_flag);
+float chassis_angle_edge_protection(float target_yaw, float now_yaw);
 void chassis_route_traj_init(void);
 void chassis_multi_route_scheduler(chassis_route_traj_stu* chassis_route_traj,RADAR_POSITION * chassis_real_position);
 void chassis_route_point_add(chassis_route_traj_stu* chassis_route_traj, float target_vx, float target_vy, float target_vw, uint16_t delay_time_ms);
