@@ -126,12 +126,20 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
         HAL_UARTEx_ReceiveToIdle_DMA(&huart5, Rec_Data, sizeof(Rec_Data));
         __HAL_DMA_DISABLE_IT(&hdma_uart5_rx, DMA_IT_HT);
     }
+    // usart5供 ht10a 回传数据
+    // if (huart->Instance == UART5)
+    // {
+    //     HT10A_process(ht10a_buffer);
+    //     HAL_UARTEx_ReceiveToIdle_DMA(&huart5, ht10a_buffer, sizeof(ht10a_buffer));
+    //     __HAL_DMA_DISABLE_IT(&hdma_uart5_rx, DMA_IT_HT);
+    // }
     // uart8-camera
     if (huart->Instance == UART8)
     {
-        Camera_Scan_Data_Progress((uint8_t *)Camera_Rec_Data);
+         Camera_CZ_Data_Progress((char*) Camera_Rec_Data);
+        // Camera_Scan_Data_Progress((uint8_t *)Camera_Rec_Data);
         memset(Camera_Rec_Data, 0, sizeof(Camera_Rec_Data));
-        HAL_UARTEx_ReceiveToIdle_DMA(&huart8, (uint8_t *)Camera_Rec_Data, sizeof(Camera_Rec_Data));
+        HAL_UARTEx_ReceiveToIdle_DMA(&huart8, Camera_Rec_Data, sizeof(Camera_Rec_Data));
         __HAL_DMA_DISABLE_IT(&hdma_uart8_rx, DMA_IT_HT);
     }
     // usart10-供hi14回传
@@ -190,11 +198,18 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
         HAL_UARTEx_ReceiveToIdle_DMA(&huart5, Rec_Data, sizeof(Rec_Data));
         __HAL_DMA_DISABLE_IT(&hdma_uart5_rx, DMA_IT_HT);
     }
+    // // usart5供 ht10a 回传数据
+    // if (huart->Instance == UART5)
+    // {
+        
+    //     HAL_UARTEx_ReceiveToIdle_DMA(&huart5, ht10a_buffer, sizeof(ht10a_buffer));
+    //     __HAL_DMA_DISABLE_IT(&hdma_uart5_rx, DMA_IT_HT);
+    // }
     // uart8-camera
     if (huart->Instance == UART8)
     {
         memset(Camera_Rec_Data, 0, sizeof(Camera_Rec_Data));
-        HAL_UARTEx_ReceiveToIdle_DMA(&huart8, (uint8_t *)Camera_Rec_Data, sizeof(Camera_Rec_Data));
+        HAL_UARTEx_ReceiveToIdle_DMA(&huart8, Camera_Rec_Data, sizeof(Camera_Rec_Data));
         __HAL_DMA_DISABLE_IT(&hdma_uart8_rx, DMA_IT_HT);
     }
     // usart10-hi14

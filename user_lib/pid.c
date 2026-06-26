@@ -38,3 +38,18 @@ void PID_Set(PID_Struct *PID, float Kp, float Ki, float Kd)
 	PID->Ki = Ki;
 	PID->Kd = Kd;
 }
+
+/**
+ * @brief PID状态复位函数（清零积分/历史误差，保留Kp/Ki/Kd）
+*/
+void PID_Reset(PID_Struct *PID)
+{
+	PID->I_out = 0.0f;
+	PID->P_out = 0.0f;
+	PID->D_out = 0.0f;
+	PID->Output = 0.0f;
+	PID->Error = 0.0f;
+	PID->LastError = 0.0f;
+	PID->LastLastError = 0.0f;
+	PID->LastMeasure = 0.0f;
+}

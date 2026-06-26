@@ -1,18 +1,20 @@
 
 #include <camera.h>
 
-char Camera_Rec_Data[128];
-
+uint8_t Camera_Rec_Data[128];
+CZ_ACTION_TYPE CZ_action = ACTION_IDLE;
+CZ_PUT_POS CZ_put_pos = POS_IDLE;
 uint8_t grid[ROWS][COLS];
-uint8_t MEILIN_STATE[4][3]; // ËÄĞĞÈıÁĞ
+uint8_t MEILIN_STATE[4][3]; // å››è¡Œä¸‰åˆ—
 uint8_t tx_buffer1 = 0x01;
 uint8_t tx_buffer2 = 0x02;
 uint8_t tx_buffer3 = 0x03;
 uint8_t tx_buffer4 = 0x04;
 
+
 /*
- * @brief MFÇøÉ¨Ãè·¢ËÍÖ¸Áî
- * @param Command_Number Ã¿¸öÖ¸Áî¶ÔÓ¦µÄĞòºÅ
+ * @brief MFåŒºæ‰«æå‘é€æŒ‡ä»¤
+ * @param Command_Number æ¯ä¸ªæŒ‡ä»¤å¯¹åº”çš„åºå·
  */
 void MF_Scan_Command_Send(uint8_t Command_Number)
 {
@@ -37,7 +39,7 @@ void MF_Scan_Command_Send(uint8_t Command_Number)
 
 // void parse_full_table(const char *data) {
 //     char buf[256];
-//     strcpy(buf, data);   // ÊäÈë±£Ö¤×ã¹»Ğ¡ÇÒ¹æ·¶£¬Ö±½Ó¸´ÖÆ
+//     strcpy(buf, data);   // è¾“å…¥ä¿è¯è¶³å¤Ÿå°ä¸”è§„èŒƒï¼Œç›´æ¥å¤åˆ¶
 
 //     int row = 0;
 //     char *line = strtok(buf, "\r\n");
@@ -45,7 +47,7 @@ void MF_Scan_Command_Send(uint8_t Command_Number)
 //         int col = 0;
 //         char *token = strtok(line, " \t");
 //         while (token && col < COLS) {
-//             strcpy(grid[row][col], token);   // token³¤¶È×î´ó2×Ö·û+'\0'£¬°²È«
+//             strcpy(grid[row][col], token);   // tokené•¿åº¦æœ€å¤§2å­—ç¬¦+'\0'ï¼Œå®‰å…¨
 //             col++;
 //             token = strtok(NULL, " \t");
 //         }
@@ -55,7 +57,7 @@ void MF_Scan_Command_Send(uint8_t Command_Number)
 // }
 
 /*
- *@brief Ïà»úÉ¨Ãè»Ø´«´¦Àíº¯Êı
+ *@brief ç›¸æœºæ‰«æå›ä¼ å¤„ç†å‡½æ•°
  */
 void Camera_Scan_Data_Progress(uint8_t buf[])
 {
@@ -63,3 +65,29 @@ void Camera_Scan_Data_Progress(uint8_t buf[])
         for (int c = 0; c < COLS; c++)
             MEILIN_STATE[r][c] = buf[r * COLS + c];
 }
+
+static void Store_CZCmd(uint8_t action, uint8_t  target)
+{
+    CZ_action = (CZ_ACTION_TYPE)(action + 1);
+    if (target != 9)
+    {
+        CZ_put_pos = (CZ_PUT_POS)(target + 1);
+    }
+    else CZ_put_pos = (CZ_PUT_POS)target ;
+
+}
+
+void Camera_CZ_Data_Progress(char * str)
+{
+
+    char *header_ptr = strstr(str, "R2");
+    if (header_ptr != NULL)
+    {
+        int action = 0, target = 0;
+        if (sscanf(header_ptr + 2, ",%d,%d", &action, &target) == 2)
+        {
+            Store_CZCmd((uint8_t)action, (uint8_t)target);
+        }
+    }
+}
+

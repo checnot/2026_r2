@@ -24,5 +24,6 @@ typedef struct
 
 float PID_Calculate(PID_Struct *PID, float Measure, float Target, float max_output);
 void PID_Set(PID_Struct *PID, float Kp, float Ki, float Kd);
+void PID_Reset(PID_Struct *PID);
 
 #endif /* PID_H */

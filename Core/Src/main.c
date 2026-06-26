@@ -163,10 +163,14 @@ int main(void)
   memset(Rec_Data, 0, sizeof(Rec_Data));
   HAL_UARTEx_ReceiveToIdle_DMA(&huart5, Rec_Data, sizeof(Rec_Data));
   __HAL_DMA_DISABLE_IT(&hdma_uart5_rx, DMA_IT_HT);
-  
+  // uart5 - ht10
+  // memset(ht10a_buffer, 0, sizeof(ht10a_buffer));
+  // HAL_UARTEx_ReceiveToIdle_DMA(&huart5, ht10a_buffer, sizeof(ht10a_buffer));
+  // __HAL_DMA_DISABLE_IT(&hdma_uart5_rx, DMA_IT_HT);
+
   // uart8 - camera
   memset(Camera_Rec_Data, 0, sizeof(Camera_Rec_Data));
-  HAL_UARTEx_ReceiveToIdle_DMA(&huart8, (uint8_t*)Camera_Rec_Data, sizeof(Camera_Rec_Data));
+  HAL_UARTEx_ReceiveToIdle_DMA(&huart8, Camera_Rec_Data, sizeof(Camera_Rec_Data));
   __HAL_DMA_DISABLE_IT(&hdma_uart8_rx, DMA_IT_HT);
 
   // 雷达卡尔曼滤波器初始化

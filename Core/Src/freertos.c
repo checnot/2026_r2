@@ -90,9 +90,11 @@ float vx, vy, vw = 0.0f;         // 用于测试的底盘速度变量
 float speed = 0.0f;              // 用于测试的速度变量
 uint8_t catch_flag = 0;          // 测试用：夹爪开合标志位
 int32_t rotate_target_angle = 0; // 测试用：夹爪旋转目标角度
+uint8_t CZ_task = 0;             //测试用：CZ任务请求
 uint8_t task_flag = 0;           // 测试用：总开关，控制是否执行BT_Combined_Task_Tree_Root函数
 float debug_speed;               // 用于测试的速度变量
-
+int16_t leidai_speed_1 = 300;    //由于雷达建图的低速
+int16_t leidai_speed_2 = 1000;    //由于雷达建图的高速
 uint8_t traj_init_flag_arm = 0;     // 机械臂轨迹初始化标志位
 uint8_t traj_init_flag_lift = 0;    // 抬升轨迹初始化标志位
 uint8_t traj_init_flag_chassis = 0; // 底盘轨迹初始化标志位
@@ -113,17 +115,17 @@ osStaticSemaphoreDef_t bisem_m8010ControlBlock;
 // #endif
 /* USER CODE END FunctionPrototypes */
 
-void StartDefaultTask(void const *argument);
-void entry_robotic_arm(void const *argument);
-void entry_chassis(void const *argument);
-void entry_clamp(void const *argument);
-void entry_cmd_task(void const *argument);
-void entry_m8010_task(void const *argument);
+void StartDefaultTask(void const * argument);
+void entry_robotic_arm(void const * argument);
+void entry_chassis(void const * argument);
+void entry_clamp(void const * argument);
+void entry_cmd_task(void const * argument);
+void entry_m8010_task(void const * argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
 /* GetIdleTaskMemory prototype (linked to static allocation support) */
-void vApplicationGetIdleTaskMemory(StaticTask_t **ppxIdleTaskTCBBuffer, StackType_t **ppxIdleTaskStackBuffer, uint32_t *pulIdleTaskStackSize);
+void vApplicationGetIdleTaskMemory( StaticTask_t **ppxIdleTaskTCBBuffer, StackType_t **ppxIdleTaskStackBuffer, uint32_t *pulIdleTaskStackSize );
 
 /* USER CODE BEGIN GET_IDLE_TASK_MEMORY */
 static StaticTask_t xIdleTaskTCBBuffer;
@@ -139,12 +141,11 @@ void vApplicationGetIdleTaskMemory(StaticTask_t **ppxIdleTaskTCBBuffer, StackTyp
 /* USER CODE END GET_IDLE_TASK_MEMORY */
 
 /**
- * @brief  FreeRTOS initialization
- * @param  None
- * @retval None
- */
-void MX_FREERTOS_Init(void)
-{
+  * @brief  FreeRTOS initialization
+  * @param  None
+  * @retval None
+  */
+void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN Init */
 
   /* USER CODE END Init */
@@ -202,6 +203,7 @@ void MX_FREERTOS_Init(void)
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
   /* USER CODE END RTOS_THREADS */
+
 }
 
 /* USER CODE BEGIN Header_StartDefaultTask */
@@ -211,7 +213,7 @@ void MX_FREERTOS_Init(void)
  * @retval None
  */
 /* USER CODE END Header_StartDefaultTask */
-void StartDefaultTask(void const *argument)
+void StartDefaultTask(void const * argument)
 {
   /* USER CODE BEGIN StartDefaultTask */
 
@@ -279,7 +281,7 @@ void StartDefaultTask(void const *argument)
  * @retval None
  */
 /* USER CODE END Header_entry_robotic_arm */
-void entry_robotic_arm(void const *argument)
+void entry_robotic_arm(void const * argument)
 {
   /* USER CODE BEGIN entry_robotic_arm */
 
@@ -360,7 +362,7 @@ void entry_robotic_arm(void const *argument)
  * @retval None
  */
 /* USER CODE END Header_entry_chassis */
-void entry_chassis(void const *argument)
+void entry_chassis(void const * argument)
 {
   /* USER CODE BEGIN entry_chassis */
   // 3508参数初始化
@@ -382,43 +384,127 @@ void entry_chassis(void const *argument)
   {
     if (m3508_fdcan3[0].Initial_flag == 200 && m3508_fdcan3[1].Initial_flag == 200 && m3508_fdcan3[2].Initial_flag == 200 && m3508_fdcan3[3].Initial_flag == 200)
     {
-     //测试用添加路径点
-     if (point_add == 1)
-     {
-       chassis_route_point_add(&chassis_route_traj, CHASSIS_CZ_INIT_X, CHASSIS_CZ_INIT_Y, CHASSIS_CZ_INIT_W, 0);
-       point_add = 0;
-     }
-     if (point_add == 2)
-     {
-       chassis_route_point_add(&chassis_route_traj, CHASSIS_SUDUKU_1_X, CHASSIS_SUDUKU_1_Y, CHASSIS_SUDUKU_1_W, 0);
-       point_add = 0;
-     }
-     if (point_add == 3)
-     {
-       chassis_route_point_add(&chassis_route_traj, CHASSIS_SUDUKU_2_X, CHASSIS_SUDUKU_2_Y, CHASSIS_SUDUKU_2_W, 0);
-       point_add = 0;
-     }
-     if (point_add == 4)
-     {
-       chassis_route_point_add(&chassis_route_traj, CHASSIS_SUDUKU_3_X, CHASSIS_SUDUKU_3_Y, CHASSIS_SUDUKU_3_W, 0);
-       point_add = 0;
-     }
-     
-     if (point_add1 == 1)
-     {
-       chassis_route_point_add(&chassis_route_traj, 11100.0f, -3000.0f, 90.0f, 0);
-       point_add1 = 0;
-     }
+      // //雷达建图用
+      // if (HT10A.switch_d == -1)
+      // {
+      //   if (HT10A.left_y > 0)chassis_r2.vx = leidai_speed_1;
+      //   else if (HT10A.left_y < 0)chassis_r2.vx = -leidai_speed_1;
+      //   else if(HT10A.left_y == 0)chassis_r2.vx = 0;
+      //   if (HT10A.left_x > 0)chassis_r2.vy = -leidai_speed_1;
+      //   else if (HT10A.left_x < 0)chassis_r2.vy = leidai_speed_1;
+      //   else if(HT10A.left_x == 0)chassis_r2.vy = 0;
+      //    if (HT10A.right_y > 0)chassis_r2.vw = leidai_speed_1;
+      //   else if (HT10A.right_y < 0)chassis_r2.vw = -leidai_speed_1;
+      //   else if(HT10A.right_y == 0)chassis_r2.vw = 0;
+      // }
+      // if (HT10A.switch_d == 1)
+      // {
+      //   if (HT10A.left_y > 0)chassis_r2.vx = leidai_speed_2;
+      //   else if (HT10A.left_y < 0)chassis_r2.vx = -leidai_speed_2;
+      //   else if(HT10A.left_y == 0)chassis_r2.vx = 0;
+      //   if (HT10A.left_x > 0)chassis_r2.vy = -leidai_speed_2;
+      //   else if (HT10A.left_x < 0)chassis_r2.vy = leidai_speed_2;
+      //    else if(HT10A.left_x == 0)chassis_r2.vy = 0;
+      //    if (HT10A.right_y > 0)chassis_r2.vw = leidai_speed_2;
+      //   else if (HT10A.right_y < 0)chassis_r2.vw = -leidai_speed_2;
+      //   else if(HT10A.right_y == 0)chassis_r2.vw = 0;
+      // }
+      //一区平移测试
+      // if (point_add== 1 )
+      // {
+      //   chassis_route_point_add(&chassis_route_traj,1000.0f,-1400.0f,0.0f,0);
+			// 	point_add = 0;
+      // }
+      // if (point_add== 2 )
+      // {
+      //   chassis_route_point_add(&chassis_route_traj,1000.0f,-4500.0f,180.0f,0);
+			// 	point_add = 0;
+      // }
+      //梅林旋转测试
+    //   if (point_add1 == 1)
+    //  {
+    //    chassis_route_point_add(&chassis_route_traj, 3800.0f, -3000.0f, 90.0f, 0);
+    //    point_add1 = 0;
+    //  }
+    //   if (point_add1 == 2)
+    //  {
+    //    chassis_route_point_add(&chassis_route_traj, 3800.0f, -3000.0f, -90.0f, 0);
+    //    point_add1 = 0;
+    //  }
+		//  if (point_add1 == 3)
+    //  {
+    //    chassis_route_point_add(&chassis_route_traj, 4050.0f, -3000.0f, 0.0f, 0);
+    //    point_add1 = 0;
+    //  }
+		//  if (point_add1 == 4)
+    //  {
+    //    chassis_route_point_add(&chassis_route_traj, 3800.0f, -3000.0f, 0.0f, 0);
+    //    point_add1 = 0;
+    //  }
+    //梅林边缘测试
+    //   if (point_add1 == 1)
+    //  {
+    //    chassis_route_point_add(&chassis_route_traj, 3800.0f, -3000.0f, 0.0f, 0);
+    //    point_add1 = 0;
+    //  }
+    //   if (point_add1 == 2)
+    //  {
+    //    chassis_route_point_add(&chassis_route_traj, 3800.0f, -3000.0f, -180.0f, 0);
+    //    point_add1 = 0;
+    //  }
+		//  if (point_add1 == 3)
+    //  {
+    //    chassis_route_point_add(&chassis_route_traj, 3400.0f, -3000.0f, 0.0f, 0);
+    //    point_add1 = 0;
+    //  }
+    //  if (point_add1 == 4)
+    //  {
+    //    chassis_route_point_add(&chassis_route_traj, 3400.0f, -3000.0f, -180.0f, 0);
+    //     point_add1 = 0;
+    //  }
+    //  if (point_add1 == 5)
+    //  {
+    //    chassis_route_point_add(&chassis_route_traj, 3800.0f, -3100.0f, -90.0f, 0);
+    //     point_add1 = 0;
+    //  }
+    //  //测试用添加路径点
     //  if (point_add == 1)
     //  {
-    //    chassis_route_point_add(&chassis_route_traj, CHASSIS_SLOPE_START_X, CHASSIS_SLOPE_START_Y, CHASSIS_SLOPE_START_W, 0);
+    //    chassis_route_point_add(&chassis_route_traj, CHASSIS_CZ_INIT_X, CHASSIS_CZ_INIT_Y, CHASSIS_CZ_INIT_W, 0);
     //    point_add = 0;
     //  }
     //  if (point_add == 2)
     //  {
-    //    chassis_route_point_add(&chassis_route_traj, CHASSIS_CZ_INIT_X, CHASSIS_CZ_INIT_Y, 0, 0);
+    //    chassis_route_point_add(&chassis_route_traj, CHASSIS_SUDUKU_1_X, CHASSIS_SUDUKU_1_Y, CHASSIS_SUDUKU_1_W, 0);
     //    point_add = 0;
     //  }
+    //  if (point_add == 3)
+    //  {
+    //    chassis_route_point_add(&chassis_route_traj, CHASSIS_SUDUKU_2_X, CHASSIS_SUDUKU_2_Y, CHASSIS_SUDUKU_2_W, 0);
+    //    point_add = 0;
+    //  }
+    //  if (point_add == 4)
+    //  {
+    //    chassis_route_point_add(&chassis_route_traj, CHASSIS_SUDUKU_3_X, CHASSIS_SUDUKU_3_Y, CHASSIS_SUDUKU_3_W, 0);
+    //    point_add = 0;
+    //  }
+     
+    //  if (point_add1 == 1)
+    //  {
+    //    chassis_route_point_add(&chassis_route_traj, 11100.0f, -3000.0f, 90.0f, 0);
+    //    point_add1 = 0;
+    //  }
+    //上坡测试
+     if (point_add == 1)
+     {
+       chassis_route_point_add(&chassis_route_traj, R_CHASSIS_SLOPE_START_X, R_CHASSIS_SLOPE_START_Y, R_CHASSIS_SLOPE_START_W, 0);
+       point_add = 0;
+     }
+     if (point_add == 2)
+     {
+       chassis_route_point_add(&chassis_route_traj, R_CHASSIS_CZ_INIT_X, R_CHASSIS_CZ_INIT_Y, 0, 0);
+       point_add = 0;
+     }
 
       // 滤波后的雷达数据更新
       Radar_Pos.radar_x_filtered = Kalman_Update(&Radar_Kalman_X, Radar_Pos.radar_x);
@@ -547,7 +633,7 @@ void entry_chassis(void const *argument)
  * @retval None
  */
 /* USER CODE END Header_entry_clamp */
-void entry_clamp(void const *argument)
+void entry_clamp(void const * argument)
 {
   /* USER CODE BEGIN entry_clamp */
 
@@ -590,13 +676,13 @@ void entry_clamp(void const *argument)
  * @retval None
  */
 /* USER CODE END Header_entry_cmd_task */
-void entry_cmd_task(void const *argument)
+void entry_cmd_task(void const * argument)
 {
   /* USER CODE BEGIN entry_cmd_task */
 
   BT_MASTER_Init_Task(); // 初始化行为树任务
                          //  BT_MASTER_Start_Task(); // 启动行为树主控任务
-
+  BT_CZ_Init_Task();
   /* Infinite loop */
   for (;;)
   {
@@ -605,8 +691,13 @@ void entry_cmd_task(void const *argument)
       BT_MASTER_Start_Task();
       task_flag = 0;
     }
+    if(CZ_task == 1)
+    {
+     BT_CZ_Start_Task();
+     CZ_task = 0;
+    };
     BT_MASTER_Tick(); // 每1ms调用，内部降频10ms，行为树主控任务周期调用
-
+    BT_Customized_Tick1ms_CZ();
     osDelay(1);
   }
   /* USER CODE END entry_cmd_task */
@@ -619,7 +710,7 @@ void entry_cmd_task(void const *argument)
  * @retval None
  */
 /* USER CODE END Header_entry_m8010_task */
-void entry_m8010_task(void const *argument)
+void entry_m8010_task(void const * argument)
 {
   /* USER CODE BEGIN entry_m8010_task */
 
