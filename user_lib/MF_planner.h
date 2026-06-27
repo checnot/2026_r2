@@ -47,6 +47,11 @@ typedef enum {
 	MF_ACT_SCAN        /* 第一次扫描 */
 } MF_ActionType;
 
+typedef enum {
+	BLUE_MAP = 1,
+	RED_MAP = 2
+} MF_MapColor;
+
 typedef struct {
 	MF_ActionType type;  /* 动作类别 */
 	MF_Dir dir;          /* 动作方向(移动/取方块/等待均可用) */
@@ -59,6 +64,7 @@ typedef struct {
  * @brief MF 规划器上下文，包含地图状态和规划输出
 */
 typedef struct {
+	MF_MapColor map_color;             /* 地图颜色 */
 	uint16_t height[MF_ROWS][MF_COLS]; /* 高度矩阵(mm) */
 	MF_CellType cell[MF_ROWS][MF_COLS]; /* KFS/空格状态 */
 	MF_Action actions[MF_MAX_ACTIONS]; /* 规划输出动作列表 */
@@ -83,7 +89,7 @@ extern MF_Planner mf_planner_ctx;
 
 
 
-void MFPlanner_Init(MF_Planner* ctx);
+void MFPlanner_Init(MF_Planner* ctx, MF_MapColor color);
 
 void MFPlanner_LoadFixedDemoMap(MF_Planner* ctx);
 

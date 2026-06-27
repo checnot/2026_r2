@@ -12,6 +12,7 @@
 #include "chassis.h"
 #include "clamp.h"
 #include "MF_planner.h"
+#include "lift.h"
 //================== 客制化头文件 ==================
 
 /* ------------ 机械臂预设可配置参数（按需微调） ------------ */
@@ -33,8 +34,8 @@
 #define ARM_HOME_X 0.15f /* 机械臂待机位置 X */
 #define ARM_HOME_Y 0.15f /* 机械臂待机位置 Y */
 
-#define ARM_SUCK_ON 1  /* 吸泵吸取动作标志 */
-#define ARM_SUCK_OFF 0 /* 吸泵停止动作标志 */
+// #define ARM_SUCK_ON 1  /* 吸泵吸取动作标志 */
+// #define ARM_SUCK_OFF 0 /* 吸泵停止动作标志 */
 
 #define ARRIVE_TOL 0.03f       /* 到位容差 (m) */
 #define ACTION_TIMEOUT_MS 5000 /* 单步动作超时 (ms) */
@@ -282,13 +283,22 @@ extern MC_Blackboard MC_bb;
 /* ================================================ MF 规划行为树接口 ================================================ */
 /* ================================================ MF 规划行为树接口 ================================================ */
 
+typedef struct
+{
+    uint8_t kfs_stored;     /* 存储KFS的数量 */
+}MF_Blackboard;
+
+
+
 /* ---------- MF 专用参数宏（需实测调整） ---------- */
 
 #define R2_KFS_ALL_NEED 3 /* 需要拾取的 R2KFS 总数量（根据实际情况调整，并非所有的R2KFS） */
 
 /* MF 区原点在世界坐标系中的位置 (mm) — row0,col0 的坐标 */
-#define MF_ORIGIN_WORLD_X  2600.0f   /* row0,col0 的中心在世界坐标系中的x位置 */
-#define MF_ORIGIN_WORLD_Y  4200.0f   /* row0,col0 的中心在世界坐标系中的y位置 */
+#define MF_ORIGIN_WORLD_X_BLUE  2600.0f   /* row0,col0 的中心在蓝地图世界坐标系中的x位置 */
+#define MF_ORIGIN_WORLD_Y_BLUE  4200.0f   /* row0,col0 的中心在蓝地图世界坐标系中的y位置 */
+#define MF_ORIGIN_WORLD_X_RED   2600.0f   /* row0,col0 的中心在红地图世界坐标系中的x位置 */
+#define MF_ORIGIN_WORLD_Y_RED   (-1800.0f)   /* row0,col0 的中心在红地图世界坐标系中的y位置 */
 
 /* 每个树林方块的边长 (mm) */
 #define MF_CELL_SIZE_MM     1200.0f  /* 每个栅格的实际大小 */
@@ -308,40 +318,91 @@ extern MC_Blackboard MC_bb;
 /* 🟡【需实测】等待 R1 的超时时间 (ms) */
 #define MF_WAIT_R1_TIMEOUT_MS 10000 /* 🟡 等待 R1 清理的超时，超时后强行跳过 */
 
+/* 🟡【需实测】机械臂存储服务超时时间 */
+#define ARM_STORE_TRANS_TIMEOUT_MS 5000 /* 工作区切换超时时间 */
+#define ARM_STORE_PATH_TIMEOUT_MS 8000  /* 后向存储路径超时时间 */
+#define ARM_STORE_REST_TIMEOUT_MS 5000  /* 返回前向待机点超时时间 */
+
 /* ============================== 🟡（待定）机械臂预设拾取路径点 ============================== */
-#define PICK_REST_X 0.35f             /* 🟡（待定）机械臂待机位置 X */
-#define PICK_REST_Y 0.35f             /* 🟡（待定）机械臂待机位置 Y */
+
+/**
+ * @brief 机械臂存储服务状态
+*/
+typedef enum {
+    ARM_STORE_IDLE = 0,
+
+    ARM_STORE_REQ_F2B,
+    ARM_STORE_WAIT_BACK,
+
+    ARM_STORE_SEND_PATH,
+    ARM_STORE_WAIT_DONE,
+
+    ARM_STORE_REQ_B2F,
+    ARM_STORE_WAIT_FRONT,
+
+    ARM_STORE_SEND_REST,
+    ARM_STORE_WAIT_REST,
+
+    ARM_STORE_DONE,
+    ARM_STORE_FAILED
+} ArmStoreState;
+
+extern ArmStoreState arm_store_state;
+extern uint8_t arm_store_slot;
+
+#define PICK_REST_X 0.35f             /* 机械臂待机位置 X */
+#define PICK_REST_Y 0.35f             /* 机械臂待机位置 Y */
 
 #define PICK_HANDS_UP_X 0.15f       /* 演示用抬手坐标 */
 #define PICK_HANDS_UP_Y 0.9f       /* 演示用抬手坐标 */
 
 #define PICK_N200_APR_X_1 0.3f          /* -200预抓取点1 X */
 #define PICK_N200_APR_Y_1 0.5f          /* -200预抓取点1 Y */
-#define PICK_N200_APR_X_2 0.5f          /* -200预抓取点2 X */
-#define PICK_N200_APR_Y_2 0.5f          /* -200预抓取点2 Y */
+// #define PICK_N200_APR_X_2 0.5f          /* -200预抓取点2 X */
+// #define PICK_N200_APR_Y_2 0.5f          /* -200预抓取点2 Y */
 #define PICK_N200_TARGET_X 0.5f         /* -200抓取点 X */
 #define PICK_N200_TARGET_Y 0.4f         /* -200抓取点 Y */
 
-#define PICK_P200_APR_X_1 0.3f     /* +200预抓取点1 X */
-#define PICK_P200_APR_Y_1 0.5f     /* +200预抓取点1 Y */
-#define PICK_P200_APR_X_2 0.5f     /* +200预抓取点2 X */
-#define PICK_P200_APR_Y_2 0.5f     /* +200预抓取点2 Y */
-#define PICK_P200_TARGET_X 0.5f         /* +200抓取点 X */
-#define PICK_P200_TARGET_Y 0.4f         /* +200抓取点 Y */
+#define PICK_0_APR_X_1 0.568f             /* 0预抓取点1 X */
+#define PICK_0_APR_Y_1 (-0.135f)          /* 0预抓取点1 Y */
+// #define PICK_0_APR_X_2 0.5f             /* 0预抓取点2 X */
+// #define PICK_0_APR_Y_2 0.5f             /* 0预抓取点2 Y */
+#define PICK_0_TARGET_X 0.618f            /* 0抓取点 X */
+#define PICK_0_TARGET_Y (-0.135f)            /* 0抓取点 Y */
 
-#define PICK_P400_APR_X_1 0.3f     /* +400预抓取点1 X */
-#define PICK_P400_APR_Y_1 0.5f     /* +400预抓取点1 Y */
-#define PICK_P400_APR_X_2 0.5f     /* +400预抓取点2 X */
-#define PICK_P400_APR_Y_2 0.5f     /* +400预抓取点2 Y */
-#define PICK_P400_TARGET_X 0.5f         /* +400抓取点 X */
-#define PICK_P400_TARGET_Y 0.4f         /* +400抓取点 Y */
+#define PICK_P200_APR_X_1 0.568f     /* +200预抓取点1 X */
+#define PICK_P200_APR_Y_1 0.065f     /* +200预抓取点1 Y */
+// #define PICK_P200_APR_X_2 0.5f     /* +200预抓取点2 X */
+// #define PICK_P200_APR_Y_2 0.5f     /* +200预抓取点2 Y */
+#define PICK_P200_TARGET_X 0.618f         /* +200抓取点 X */
+#define PICK_P200_TARGET_Y 0.065f         /* +200抓取点 Y */
 
-#define PICK_0_APR_X_1 0.3f             /* 0预抓取点1 X */
-#define PICK_0_APR_Y_1 0.5f             /* 0预抓取点1 Y */
-#define PICK_0_APR_X_2 0.5f             /* 0预抓取点2 X */
-#define PICK_0_APR_Y_2 0.5f             /* 0预抓取点2 Y */
-#define PICK_0_TARGET_X 0.5f            /* 0抓取点 X */
-#define PICK_0_TARGET_Y 0.4f            /* 0抓取点 Y */
+#define PICK_P400_APR_X_1 0.568f     /* +400预抓取点1 X */
+#define PICK_P400_APR_Y_1 0.265f     /* +400预抓取点1 Y */
+// #define PICK_P400_APR_X_2 0.5f     /* +400预抓取点2 X */
+// #define PICK_P400_APR_Y_2 0.5f     /* +400预抓取点2 Y */
+#define PICK_P400_TARGET_X 0.618f         /* +400抓取点 X */
+#define PICK_P400_TARGET_Y 0.265f         /* +400抓取点 Y */
+
+#define PICK_PRE_TRANS_X 0.4f         /* 抓取完毕之后的过渡准备点 X */
+#define PICK_PRE_TRANS_Y 0.6f         /* 抓取完毕之后的过渡准备点 Y */
+#define PICK_TIME 1000       /* 抓取点停留时间 (ms) */
+
+#define STORE_A_PRE_X -0.4f         /* 存储点a过渡点 X */
+#define STORE_A_PRE_Y 0.6f         /* 存储点a过渡点 Y */
+#define STORE_A_X -0.4f         /* 存储点a X */
+#define STORE_A_Y 0.4f         /* 存储点a Y */
+#define STORE_B_PRE_X -0.4f         /* 存储点b过渡点 X */
+#define STORE_B_PRE_Y 0.6f         /* 存储点b过渡点 Y */
+#define STORE_B_X -0.4f        /* 存储点b X */
+#define STORE_B_Y 0.4f         /* 存储点b Y */
+#define STORE_C_X -0.4f         /* ！！！ 待定 存储点c X */
+#define STORE_C_Y 0.7f         /* ！！！ 待定存储点c Y */
+
+#define STORE_PRE_TRANS_X -0.2f         /* 存储完毕之后的过渡准备点 X */
+#define STORE_PRE_TRANS_Y 0.7f         /* 存储完毕之后的过渡准备点 Y */
+#define STORE_TIME 1000       /* 存储点停留时间 (ms) */
+
 /* ============================== 🟡（待定）机械臂预设拾取路径点 ============================== */
 
 

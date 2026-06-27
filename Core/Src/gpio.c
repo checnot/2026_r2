@@ -85,11 +85,11 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : clamp_weidong_Pin front_wheel_weidong_Pin back_wheel_weidong_Pin */
-  GPIO_InitStruct.Pin = clamp_weidong_Pin|front_wheel_weidong_Pin|back_wheel_weidong_Pin;
+  /*Configure GPIO pin : clamp_weidong_Pin */
+  GPIO_InitStruct.Pin = clamp_weidong_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
-  HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+  HAL_GPIO_Init(clamp_weidong_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : RS485_2_RE_Pin */
   GPIO_InitStruct.Pin = RS485_2_RE_Pin;
@@ -98,13 +98,13 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(RS485_2_RE_GPIO_Port, &GPIO_InitStruct);
 
+  /*Configure GPIO pins : PD1 PD2 */
+  GPIO_InitStruct.Pin = GPIO_PIN_1|GPIO_PIN_2;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+
   /* EXTI interrupt init*/
-  HAL_NVIC_SetPriority(EXTI1_IRQn, 5, 0);
-  HAL_NVIC_EnableIRQ(EXTI1_IRQn);
-
-  HAL_NVIC_SetPriority(EXTI2_IRQn, 5, 0);
-  HAL_NVIC_EnableIRQ(EXTI2_IRQn);
-
   HAL_NVIC_SetPriority(EXTI15_10_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 

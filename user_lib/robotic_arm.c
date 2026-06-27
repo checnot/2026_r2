@@ -2,15 +2,12 @@
 
 robotic_arm_stu arm;    //机械臂实例
 robotic_arm_traj_stu arm_traj; //机械臂轨迹实例
-
+robotic_arm_trans_traj_stu arm_trans_traj; //机械臂过渡轨迹实例
 
 // 实际测试从最上掰到最下转子经过了105800单位，末端在机械上实际经过240deg，即pi*4/3 rad，所以转化比约为 105800/(PI*4/3) = 25258
 // 为实机测量角度映射关系，该数值代表转子转过rate个单位，机械臂末端转过1rad
 static float rate = 25258.0f;
 
-#define UPPERARM_OFFSET_DEG (180.0f-41.5f) //实测大臂与云台平面的夹角约为"41~42度"
-#define FOREARM_OFFSET_DEG (30.0f) //实测小臂与大臂的夹角约为30度
-#define WRIST_OFFSET_DEG (180.0f-66.38f) //实测末端执行器与小臂的夹角约为"66.38度"
 
 /**
  * @brief 机械臂参数初始化函数，在机械臂任务开始时调用，进行机械臂物理参数的初始化
@@ -63,31 +60,32 @@ void arm_joint_state_update(robotic_arm_stu *arm)
 
 
 // 云台朝向角    
-    arm->joint_parameters[0].theta = m8010_bus_1.motors[0].measure.Pos;        
+    // arm->joint_parameters[0].theta = m8010_bus_1.motors[0].measure.Pos;        
+    arm->joint_parameters[0].theta = 0.0f;
 // 根据各关节处电机的测量位置更新机械臂的关节角状态，对二连杆末端位置进行正解算
-    arm->joint_parameters[1].theta = -m8010_bus_1.motors[1].measure.Pos + UPPERARM_OFFSET_DEG/180.0f*PI;  //（实测41~42deg）大臂与云台平面的夹角
-    arm->joint_parameters[2].theta = m8010_bus_1.motors[2].measure.Pos + FOREARM_OFFSET_DEG/180.0f*PI;        //（实测30deg）小臂与大臂的夹角
+    arm->joint_parameters[1].theta = -A1_debug_485_2[0].measure.Pos + UPPERARM_OFFSET_DEG/180.0f*PI;    // 大臂与云台平面的夹角
+    arm->joint_parameters[2].theta = m8010_bus_1.motors[2].measure.Pos + FOREARM_OFFSET_DEG/180.0f*PI;  // 小臂与大臂的夹角
     arm->joint_pitch[0] = arm->joint_parameters[1].theta;
     arm->joint_pitch[1] = -PI + arm->joint_pitch[0] + arm->joint_parameters[2].theta;
     arm->x0_now = 0.55f*arm_cos_f32(arm->joint_pitch[0]) + 0.45f*arm_cos_f32(arm->joint_pitch[1]);
     arm->y0_now = 0.55f*arm_sin_f32(arm->joint_pitch[0]) + 0.45f*arm_sin_f32(arm->joint_pitch[1]);
 // 末端机构解算
 
-    arm->joint_parameters[3].theta = -m3508_fdcan1[0].Angle_Sum/rate + WRIST_OFFSET_DEG/180.0f*PI;   //（实测66.38deg）末端与小臂的夹角
+    arm->joint_parameters[3].theta = -m3508_fdcan1[0].Angle_Sum/rate + WRIST_OFFSET_DEG/180.0f*PI;   //（实测56.4deg）末端与小臂的夹角
     arm->joint_pitch[2] = arm->joint_pitch[1] + arm->joint_parameters[3].theta;
 }
 
 
 /**
- * @brief 用于检测目标路径点是否可到达，推荐在目标点解算前以及完毕后调用
+ * @brief 用于检测目标路径点是否可到达（前面/常规工作区模式），推荐在目标点解算前以及完毕后调用
 */
-IK_Reach_Status_enum arm_route_reachable_check(robotic_arm_stu *arm)
+IK_Reach_Status_enum arm_route_reachable_check_front(robotic_arm_stu *arm)
 {
     if(sqrtf(arm->x0_target*arm->x0_target + arm->y0_target*arm->y0_target) > 0.95f || sqrtf(arm->x0_target*arm->x0_target + arm->y0_target*arm->y0_target) < 0.15f) 
     {
         return IK_LENGTH_OUT_OF_RANGE;//末端位置超出机械臂工作范围
     }
-    else if(arm->theta_target[1]<0.0f || arm->theta_target[1]>PI*3.0f/4.0f || arm->theta_target[2]<PI/6.0f || arm->theta_target[2]>PI)
+    else if(arm->theta_target[1]<UPPERARM_LIMIT_DEG_MIN/180.0f*PI || arm->theta_target[1]>UPPERARM_LIMIT_DEG_MAX/180.0f*PI || arm->theta_target[2]<FOREARM_LIMIT_DEG_MIN/180.0f*PI || arm->theta_target[2]>FOREARM_LIMIT_DEG_MAX/180.0f*PI)
     {
         return IK_ANGLE_OUT_OF_RANGE;//关节角超出物理限位
     }
@@ -107,11 +105,11 @@ IK_Reach_Status_enum arm_route_reachable_check_back(robotic_arm_stu *arm)
         return IK_LENGTH_OUT_OF_RANGE;//末端位置超出机械臂工作范围
     }
     // 大臂：30°~170° (向后工作区)
-    if(arm->theta_target[1] < 30.0f/180.0f*PI || arm->theta_target[1] > 170.0f/180.0f*PI)
+    if(arm->theta_target[1] < UPPERARM_LIMIT_DEG_MIN/180.0f*PI || arm->theta_target[1] > UPPERARM_LIMIT_DEG_MAX/180.0f*PI)
         return IK_ANGLE_OUT_OF_RANGE;
 
     // 小臂：180°~330°，即 [PI, 11*PI/6]（排除±30°死区）
-    if(arm->theta_target[2] < PI || arm->theta_target[2] > 11.0f*PI/6.0f)
+    if(arm->theta_target[2] < FOREARM_LIMIT_DEG_MIN/180.0f*PI || arm->theta_target[2] > FOREARM_LIMIT_DEG_MAX/180.0f*PI)
         return IK_ANGLE_OUT_OF_RANGE;
 
     return IK_REACHABLE;
@@ -121,7 +119,7 @@ IK_Reach_Status_enum arm_route_reachable_check_back(robotic_arm_stu *arm)
  * @brief 机械臂点逆解算函数，输入目标末端位置，输出目标关节角
  * @warning 目前仅支持二连杆末端位置的计算
 */
-void arm_route_point_calculate(robotic_arm_stu *arm)
+void arm_route_point_calculate_front(robotic_arm_stu *arm)
 {
     float x = arm->x0_target;
     float y = arm->y0_target;
@@ -186,11 +184,75 @@ void arm_route_execute(robotic_arm_stu *arm, float m8010_kp, float m8010_kw, flo
     // A1_Motor_Position_Control(&A1_debug_485_2[0], arm->theta_target[0], a1_kw/3.0f, a1_kp/3.0f);                    //云台(由于云台旋转负载小，所以参数调小一些)
     // A1_Motor_Position_Control(&A1_debug_485_2[1], PI*11.0f/12.0f - arm->theta_target[1], a1_kw, a1_kp);             //大臂
     // m3508_anglesum_control(&m3508_fdcan1[0], (int32_t)((arm->theta_target[2]-PI/12.0f)/(PI/2.0f)*100000.0f), 12000);//小臂
-    m8010_position_control(&m8010_bus_1.motors[0], arm->theta_target[0], m8010_kp/6.0f, m8010_kw/6.0f);                    //云台(由于云台旋转负载小，所以参数调小一些)
-    m8010_position_control(&m8010_bus_1.motors[1], (UPPERARM_OFFSET_DEG/180.0f*PI - arm->theta_target[1]), m8010_kp, m8010_kw);             //大臂
-    m8010_position_control(&m8010_bus_1.motors[2], (arm->theta_target[2] - FOREARM_OFFSET_DEG/180.0f*PI), m8010_kp, m8010_kw);             //小臂
+
+    // m8010_position_control(&m8010_bus_1.motors[0], arm->theta_target[0], m8010_kp/6.0f, m8010_kw/6.0f);                    //云台(由于云台旋转负载小，所以参数调小一些)
+    // m8010_position_control(&m8010_bus_1.motors[1], (UPPERARM_OFFSET_DEG/180.0f*PI - arm->theta_target[1]), m8010_kp, m8010_kw);             //大臂
+    // m8010_position_control(&m8010_bus_1.motors[2], (arm->theta_target[2] - FOREARM_OFFSET_DEG/180.0f*PI), m8010_kp, m8010_kw);             //小臂
+
+    A1_Motor_Position_Control(&A1_debug_485_2[0], (UPPERARM_OFFSET_DEG/180.0f*PI - arm->theta_target[1]), a1_kw, a1_kp);
+    m8010_position_control(&m8010_bus_1.motors[2], (arm->theta_target[2] - FOREARM_OFFSET_DEG/180.0f*PI), m8010_kp, m8010_kw);
 }
 
+/**
+ * @brief 机械臂气泵应用函数，根据气泵状态标志控制气泵的吸取/释放动作
+*/
+void arm_pump_apply(robotic_arm_stu *arm)
+{
+    if (arm->pump_state == ARM_PUMP_SUCK) {
+        HAL_GPIO_WritePin(GPIOD, GPIO_PIN_6, GPIO_PIN_SET);
+    } else if (arm->pump_state == ARM_PUMP_RELEASE) {
+        HAL_GPIO_WritePin(GPIOD, GPIO_PIN_6, GPIO_PIN_RESET);
+    }
+}
+/**
+ * @brief 机械臂气泵控制函数，输入气泵控制命令来设置气泵的吸取/释放状态标志
+ * @param cmd 气泵控制命令，0为保持当前状态，1为吸取，2为释放
+*/
+void arm_pump_set(robotic_arm_stu *arm, uint8_t cmd)
+{
+    if (cmd == ARM_PUMP_SUCK) {
+        arm->pump_state = ARM_PUMP_SUCK;
+    } else if (cmd == ARM_PUMP_RELEASE) {
+        arm->pump_state = ARM_PUMP_RELEASE;
+    }
+
+    arm_pump_apply(arm);
+}
+
+
+/**
+ * @brief 检查末端执行器的pitch角是否在可达范围内
+ * @param arm 机械臂实例
+ * @param target_pitch 目标pitch角
+ * @return 1表示可达，0表示不可达
+ */
+uint8_t arm_effector_pitch_reachable_check(robotic_arm_stu *arm, float target_pitch)
+{
+    float theta3_cmd = target_pitch - arm->joint_pitch[1];
+
+    float theta3_min = WRIST_LIMIT_DEG_MIN / 180.0f * PI;
+    float theta3_max = WRIST_LIMIT_DEG_MAX / 180.0f * PI;
+
+    if (theta3_cmd < theta3_min || theta3_cmd > theta3_max) {
+        return 0;
+    }
+
+    return 1;
+}
+
+/**
+ * @brief 将末端执行器绝对pitch目标限制到当前小臂姿态下腕部可达范围内
+ */
+static float arm_effector_pitch_clamp(robotic_arm_stu *arm, float target_pitch)
+{
+    float theta3_min = WRIST_LIMIT_DEG_MIN / 180.0f * PI;
+    float theta3_max = WRIST_LIMIT_DEG_MAX / 180.0f * PI;
+
+    float pitch_min = arm->joint_pitch[1] + theta3_min;
+    float pitch_max = arm->joint_pitch[1] + theta3_max;
+
+    return limit_float(target_pitch, pitch_min, pitch_max);
+}
 
 /**
  * @brief 机械臂末端执行器稳定控制函数，输入末端执行器的目标pitch与自转角来控制末端执行器的姿态稳定，输入单位为rad
@@ -215,7 +277,7 @@ void arm_actuator_stable_control(robotic_arm_stu *arm, float target_pitch, float
     arm->theta_target[3] = target_pitch - arm->joint_pitch[1];
 // 末端执行器的自转角控制
 // 根据实际机械限位修改
-    arm->theta_target[3] = limit_float(arm->theta_target[3], (WRIST_OFFSET_DEG/180.0f*PI-4.0f/3.0f*PI), WRIST_OFFSET_DEG/180.0f*PI);
+    arm->theta_target[3] = limit_float(arm->theta_target[3], WRIST_LIMIT_DEG_MIN/180.0f*PI, WRIST_LIMIT_DEG_MAX/180.0f*PI);
     m3508_anglesum_control(&m3508_fdcan1[0], (-arm->theta_target[3] + WRIST_OFFSET_DEG/180.0f*PI) * rate, 8192);
 }
 
@@ -235,14 +297,14 @@ void arm_trajectory_init(robotic_arm_traj_stu *arm_traj, robotic_arm_stu *arm)
     // 参数:(实例, 起点位置, 目标位置, 两轴最高速度 0.5m/s, 加速度 2.0m/s^2, 弹簧死区 0.05m)
 
     // 机械臂平面x方向
-    Traj_Adaptive_Init(&arm_traj->traj_x, arm->x0_now, arm->x0_now, 0.5f, 2.0f, 0.1f);
+    Traj_Adaptive_Init(&arm_traj->traj_x, arm->x0_now, arm->x0_now, GLOBAL_V_MAX, GLOBAL_A_MAX, 0.05f);
     Traj_Path_Queue_Init(&arm_traj->traj_queue_x, 0.025f); // 2cm 的路径融合半径
     // 机械臂平面y方向
-    Traj_Adaptive_Init(&arm_traj->traj_y, arm->y0_now, arm->y0_now, 0.5f, 2.0f, 0.1f);
+    Traj_Adaptive_Init(&arm_traj->traj_y, arm->y0_now, arm->y0_now, GLOBAL_V_MAX, GLOBAL_A_MAX, 0.05f);
     Traj_Path_Queue_Init(&arm_traj->traj_queue_y, 0.025f); 
-    // 机械臂云台旋转角
-    Traj_Adaptive_Init(&arm_traj->traj_w, m8010_bus_1.motors[0].measure.Pos, m8010_bus_1.motors[0].measure.Pos, PI/2.0f, PI, PI/36.0f);
-    Traj_Path_Queue_Init(&arm_traj->traj_queue_w, PI/72.0f); 
+    // // 机械臂云台旋转角
+    // Traj_Adaptive_Init(&arm_traj->traj_w, m8010_bus_1.motors[0].measure.Pos, m8010_bus_1.motors[0].measure.Pos, PI/2.0f, PI, PI/36.0f);
+    // Traj_Path_Queue_Init(&arm_traj->traj_queue_w, PI/72.0f); 
 
     //机械臂延时控制参数初始化
     arm_traj->target_delay_ms = 0;
@@ -279,10 +341,10 @@ void arm_linear_interpolation_update(robotic_arm_stu *arm, robotic_arm_traj_stu 
                      (blend_radius > 0.001f && dist_act_y <= blend_radius && dist_out_y <= blend_radius);
 
     // 云台W轴的判敛（角度的融合偏差可以适当放宽，或者按照弧度值判定）
-    float dist_act_w = fabsf(arm_traj->traj_w.target_pos - arm->joint_parameters[0].theta);
-    float dist_out_w = fabsf(arm_traj->traj_w.target_pos - arm_traj->traj_w.out_pos);
-    uint8_t ready_w = arm_traj->traj_w.is_finished || 
-                     (blend_radius > 0.001f && dist_act_w <= (blend_radius * 2.0f) && dist_out_w <= (blend_radius * 2.0f));
+    // float dist_act_w = fabsf(arm_traj->traj_w.target_pos - arm->joint_parameters[0].theta);
+    // float dist_out_w = fabsf(arm_traj->traj_w.target_pos - arm_traj->traj_w.out_pos);
+    // uint8_t ready_w = arm_traj->traj_w.is_finished || 
+    //                  (blend_radius > 0.001f && dist_act_w <= (blend_radius * 2.0f) && dist_out_w <= (blend_radius * 2.0f));
 
 
     // 新增延时逻辑：如果还有延时没等完，就原地return，不下发下一个点
@@ -292,7 +354,7 @@ void arm_linear_interpolation_update(robotic_arm_stu *arm, robotic_arm_traj_stu 
         return; 
     }
     // === 2. 联合抛点与参数动态重分配 ===
-    if (ready_x && ready_y && ready_w) 
+    if (ready_x && ready_y) 
     {
         // // 新增延时逻辑：如果还有延时没等完，就原地return，不下发下一个点
         // if (arm_traj->wait_counter > 0)
@@ -302,16 +364,17 @@ void arm_linear_interpolation_update(robotic_arm_stu *arm, robotic_arm_traj_stu 
         // }
         // 新增气泵逻辑
         uint8_t next_pump_action = arm_traj->pump_queue[arm_traj->traj_queue_x.tail];
-        if (next_pump_action == 1) {
-            // HAL_GPIO_WritePin(ARM_AIR_PUMP_GPIO_Port, ARM_AIR_PUMP_Pin, GPIO_PIN_SET);   // 吸货
-        } 
-        else if (next_pump_action == 0) {
-            // HAL_GPIO_WritePin(ARM_AIR_PUMP_GPIO_Port, ARM_AIR_PUMP_Pin, GPIO_PIN_RESET); // 松货
+        if (next_pump_action == ARM_PUMP_SUCK) {
+            arm_pump_set(arm, ARM_PUMP_SUCK);
+        }
+        else if (next_pump_action == ARM_PUMP_RELEASE) {
+            arm_pump_set(arm, ARM_PUMP_RELEASE);
         }
 
         float next_x = arm_traj->traj_queue_x.points[arm_traj->traj_queue_x.tail];
         float next_y = arm_traj->traj_queue_y.points[arm_traj->traj_queue_y.tail];
-        float next_w = arm_traj->traj_queue_w.points[arm_traj->traj_queue_w.tail]; // 取出W轴目标
+        // float next_w = arm_traj->traj_queue_w.points[arm_traj->traj_queue_w.tail]; // 取出W轴目标
+
         // 提取该点的预设延时，并赋给计数器
         uint16_t next_delay = arm_traj->delay_queue[arm_traj->traj_queue_x.tail];
         arm_traj->target_delay_ms = next_delay;
@@ -322,24 +385,25 @@ void arm_linear_interpolation_update(robotic_arm_stu *arm, robotic_arm_traj_stu 
         arm_traj->traj_queue_x.count--;
         arm_traj->traj_queue_y.tail = (arm_traj->traj_queue_y.tail + 1) % TRAJ_MAX_WAYPOINTS;
         arm_traj->traj_queue_y.count--;
-        arm_traj->traj_queue_w.tail = (arm_traj->traj_queue_w.tail + 1) % TRAJ_MAX_WAYPOINTS;
-        arm_traj->traj_queue_w.count--;
+        // arm_traj->traj_queue_w.tail = (arm_traj->traj_queue_w.tail + 1) % TRAJ_MAX_WAYPOINTS;
+        // arm_traj->traj_queue_w.count--;
         
         // 计算各轴偏差
         float delta_x = fabsf(next_x - arm->x0_now);
         float delta_y = fabsf(next_y - arm->y0_now);
-        float delta_w = fabsf(next_w - arm->joint_parameters[0].theta);
+        // float delta_w = fabsf(next_w - arm->joint_parameters[0].theta);
         
         // 综合距离：为了让角度也参与时间同步，将角度转化为权重系数(0.3)
         float distance_xy = sqrtf(delta_x*delta_x + delta_y*delta_y);
-        float distance_total = distance_xy + (delta_w * 0.3f); 
-        
+        // float distance_total = distance_xy + (delta_w * 0.3f); 
+        float distance_total = distance_xy; // 暂时不考虑W轴的影响
+
         if (distance_total > 0.002f) 
         {
             // 计算各轴投影比例
             float px = delta_x / distance_total;
             float py = delta_y / distance_total;
-            float pw = (delta_w * 0.3f) / distance_total; 
+            // float pw = (delta_w * 0.3f) / distance_total; 
             
             // 下发X轴
             arm_traj->traj_x.v_max = GLOBAL_V_MAX * px;
@@ -358,12 +422,12 @@ void arm_linear_interpolation_update(robotic_arm_stu *arm, robotic_arm_traj_stu 
             arm_traj->traj_y.is_finished = 0;
 
             // 下发W轴 (角速度/角加速度根据力臂反算)
-            arm_traj->traj_w.v_max = (GLOBAL_V_MAX / 0.3f) * pw;
-            arm_traj->traj_w.a_max = (GLOBAL_A_MAX / 0.3f) * pw;
-            if(arm_traj->traj_w.v_max < 0.002f) arm_traj->traj_w.v_max = 0.002f;
-            if(arm_traj->traj_w.a_max < 0.002f) arm_traj->traj_w.a_max = 0.002f;
-            arm_traj->traj_w.target_pos = next_w;
-            arm_traj->traj_w.is_finished = 0;
+            // arm_traj->traj_w.v_max = (GLOBAL_V_MAX / 0.3f) * pw;
+            // arm_traj->traj_w.a_max = (GLOBAL_A_MAX / 0.3f) * pw;
+            // if(arm_traj->traj_w.v_max < 0.002f) arm_traj->traj_w.v_max = 0.002f;
+            // if(arm_traj->traj_w.a_max < 0.002f) arm_traj->traj_w.a_max = 0.002f;
+            // arm_traj->traj_w.target_pos = next_w;
+            // arm_traj->traj_w.is_finished = 0;
         }
         
         return; 
@@ -377,10 +441,10 @@ void arm_linear_interpolation_update(robotic_arm_stu *arm, robotic_arm_traj_stu 
  * @param target_y 柱坐标系下期望的 Y 坐标 (向上为正，向下为负)
  * @param target_w 柱坐标系下期望的云台旋转角 W (从上方看，逆时针为正，顺时针为负)
  * @param delay_ms 目标点到达后的延时时间(ms)
- * @param air_pump_flag 气泵控制标志，0为不控制，1为吸，2为吹（预留接口，目前未实现）
+ * @param pump_state 气泵控制标志，0为不控制，1为吸，2为吹（预留接口，目前未实现）
  */
 void arm_queue_add_point(robotic_arm_traj_stu *arm_traj, float target_x, float target_y, float target_w,
-                         uint16_t delay_time_ms, uint8_t air_pump_flag)
+                         uint16_t delay_time_ms, uint8_t pump_state)
 {
     float max_radius = 0.95f; // 最大物理伸展半径
     float min_radius = 0.30f; // 最小物理收缩半径 (机械结构限制)
@@ -403,14 +467,14 @@ void arm_queue_add_point(robotic_arm_traj_stu *arm_traj, float target_x, float t
     else if(target_y > 0.95f) target_y = 0.95f; // 上限边界限制
 
     if(delay_time_ms > 3000) delay_time_ms = 3000; // 最大延时限制，防止过长时间占用队列资源
-    if (air_pump_flag > 2) air_pump_flag = 0; // 无效的气泵标志重置为不控制
+    if (pump_state > 3) pump_state = 0; // 无效的气泵标志重置为不控制
 
     // 将x的head作为其他元素的索引，进行延时和气泵标志的存储
     if (arm_traj->traj_queue_x.count >= TRAJ_MAX_WAYPOINTS) return;
     // 将延时信息存储到轨迹实例中，和点位队列下标同步
     arm_traj->delay_queue[arm_traj->traj_queue_x.head] = delay_time_ms;
     // 将气泵控制标志存储到轨迹实例中，和点位队列下标同步
-    arm_traj->pump_queue[arm_traj->traj_queue_x.head] = air_pump_flag;
+    arm_traj->pump_queue[arm_traj->traj_queue_x.head] = pump_state;
 
     // 将合法化后的安全坐标压入各自队列
     Traj_Path_Queue_AddPoint(&arm_traj->traj_queue_w, target_w);
@@ -428,31 +492,71 @@ void arm_queue_add_point(robotic_arm_traj_stu *arm_traj, float target_x, float t
  * @param dir 过渡方向
  * @note 用于发起过渡
  */
-void arm_mode_switch_to_transition(robotic_arm_stu *arm, robotic_arm_traj_stu *arm_traj, ArmTransDir_enum dir)
+void arm_mode_switch_to_transition(robotic_arm_stu *arm, robotic_arm_traj_stu *arm_traj, robotic_arm_trans_traj_stu *arm_trans_traj, ArmTransDir_enum dir)
 {
     // 1. 清空所有轨迹队列（丢弃未完成的路径点）
     Traj_Path_Queue_Init(&arm_traj->traj_queue_x, 0.025f);
     Traj_Path_Queue_Init(&arm_traj->traj_queue_y, 0.025f);
     Traj_Path_Queue_Init(&arm_traj->traj_queue_w, PI/72.0f);
     
-    // 2. 重置延时/气泵状态
+    // 2. 重置延时状态
     arm_traj->target_delay_ms = 0;
     arm_traj->wait_counter = 0;
+    arm->pump_state = ARM_PUMP_KEEP; // 过渡阶段保持当前气泵状态
     
     // 3. 设定过渡方向
     arm->trans_dir = dir;
     
     // 4. 根据方向设定过渡目标关节角
     if (dir == ARM_TRANS_FRONT_TO_BACK) {
-        arm->trans_theta1_target = TRANS_F2B_THETA1_TARGET;
-        arm->trans_theta2_target = TRANS_F2B_THETA2_TARGET;
-    } else {
-        arm->trans_theta1_target = TRANS_B2F_THETA1_TARGET;
-        arm->trans_theta2_target = TRANS_B2F_THETA2_TARGET;
+        arm->trans_target_theta1 = TRANS_F2B_THETA1_TARGET;
+        arm->trans_target_theta2 = TRANS_F2B_THETA2_TARGET;
+        arm->trans_target_pitch = TRANS_F2B_PITCH_TARGET;
+    } else if (dir == ARM_TRANS_BACK_TO_FRONT) {
+        arm->trans_target_theta1 = TRANS_B2F_THETA1_TARGET;
+        arm->trans_target_theta2 = TRANS_B2F_THETA2_TARGET;
+        arm->trans_target_pitch = TRANS_B2F_PITCH_TARGET;
     }
     
-    // 5. 云台保持当前角度不动
-    arm->theta_target[0] = arm->joint_parameters[0].theta;
+    if (!arm_effector_pitch_reachable_check(arm, arm->trans_target_pitch)) {
+        /*
+        * 这里有两种处理方式：
+        * 1. 直接 return，不进入过渡
+        * 2. 将 trans_pitch_target 修正成当前 pitch，保证腕部不乱动
+        *
+        * 调试阶段建议先用第 2 种，更安全。
+        */
+        // arm->trans_target_pitch = arm->joint_pitch[2];
+    }
+
+    // 初始化过渡轨迹
+    Traj_Adaptive_Init(
+        &arm_trans_traj->traj_theta1,
+        arm->joint_parameters[1].theta,
+        arm->trans_target_theta1,
+        TRANS_V_MAX,          // 最大速度：2pi rad/s，可根据实机调
+        TRANS_A_MAX,          // 最大加速度：3pi rad/s^2
+        PI / 24.0f            // 最大跟随误差：10 deg
+    );
+    Traj_Adaptive_Init(
+        &arm_trans_traj->traj_theta2,
+        arm->joint_parameters[2].theta,
+        arm->trans_target_theta2,
+        TRANS_V_MAX * 1.25f,  // 小臂速度可以更快一些
+        TRANS_A_MAX * 1.25f,  // 小臂加速度也可以更快一些
+        PI / 15.0f           // 小臂跟随误差可以更大一些
+    );
+    Traj_Adaptive_Init(
+        &arm_trans_traj->traj_pitch,
+        arm->joint_pitch[2],
+        arm->trans_target_pitch,
+        TRANS_V_MAX * 0.75f,    // pitch 速度可以稍微慢一些，防止运动过猛块飞了
+        TRANS_A_MAX * 0.75f,    // pitch 加速度也可以稍微慢一些
+        PI / 9.0f
+    );
+
+    // // 5. 云台保持当前角度不动
+    // arm->theta_target[0] = arm->joint_parameters[0].theta;
     
     // 6. 切换到过渡模式
     arm->mode = ARM_MODE_TRANSITION;
@@ -469,17 +573,15 @@ void arm_mode_switch_to_transition(robotic_arm_stu *arm, robotic_arm_traj_stu *a
  * @note 过渡模式的位置和参数需要根据实际测试进行调整
  * @warning 代替了原有 task 中最后的 arm_route_execute 和 arm_route_point_calculate 的调用
  */
-void arm_mode_update_execute(robotic_arm_stu *arm, robotic_arm_traj_stu *arm_traj, float m8010_kp, float m8010_kw, float a1_kp, float a1_kw)
+void arm_mode_update_execute(robotic_arm_stu *arm, robotic_arm_traj_stu *arm_traj, robotic_arm_trans_traj_stu *arm_trans_traj, float m8010_kp, float m8010_kw, float a1_kp, float a1_kw)
 {
-    float err1, err2;
-
     switch (arm->mode) {
         
     // ========== 前向工作模式 ==========
     case ARM_MODE_FRONT:
         // 正常流程：轨迹规划 → 逆解算 → 可到达检查 → 执行
-        arm_route_point_calculate(arm);
-        if (arm_route_reachable_check(arm) == IK_REACHABLE) {
+        arm_route_point_calculate_front(arm);
+        if (arm_route_reachable_check_front(arm) == IK_REACHABLE) {
             // 轨迹更新后，用逆解算结果驱动位置环
             arm_route_execute(arm, m8010_kp, m8010_kw, a1_kp, a1_kw);
         }
@@ -488,26 +590,45 @@ void arm_mode_update_execute(robotic_arm_stu *arm, robotic_arm_traj_stu *arm_tra
         
     // ========== 过渡模式 ==========
     case ARM_MODE_TRANSITION:
-        // 纯位置环驱动，不走逆解算，不走轨迹规划
-        arm->theta_target[0] = arm->joint_parameters[0].theta;  // 云台锁住不动
-        arm->theta_target[1] = arm->trans_theta1_target;         // 大臂目标
-        arm->theta_target[2] = arm->trans_theta2_target;         // 小臂目标
-        arm_route_execute(arm, m8010_kp, m8010_kw, a1_kp, a1_kw);   // 位置环执行
-        
-        // 判断是否到达过渡目标
-        err1 = fabsf(arm->joint_parameters[1].theta - arm->trans_theta1_target);
-        err2 = fabsf(arm->joint_parameters[2].theta - arm->trans_theta2_target);
-        if (err1 < 0.05f && err2 < 0.05f) {  // 约 3° 误差内判定到达
-            // 过渡完成，切换到目标模式
+    {
+        // 1. 保持吸盘当前状态
+        arm_pump_apply(arm);
+
+        // 2. 推演三条过渡轨迹
+        Traj_Adaptive_Update(&arm_trans_traj->traj_theta1, arm->joint_parameters[1].theta, 0.001f);
+        Traj_Adaptive_Update(&arm_trans_traj->traj_theta2, arm->joint_parameters[2].theta, 0.001f);
+        Traj_Adaptive_Update(&arm_trans_traj->traj_pitch, arm->joint_pitch[2], 0.001f);
+
+        // 3. 下发大臂、小臂轨迹输出
+        arm->theta_target[1] = arm_trans_traj->traj_theta1.out_pos;
+        arm->theta_target[2] = arm_trans_traj->traj_theta2.out_pos;
+
+        // 4. 将 pitch 轨迹输出钳制到当前小臂姿态下腕部可达范围内，保证末端姿态命令连续
+        float safe_pitch = arm_effector_pitch_clamp(arm, arm_trans_traj->traj_pitch.out_pos);
+        arm_actuator_stable_control(arm,
+                                    safe_pitch,
+                                    arm->theta_target[4]);
+
+        // 5. 执行大臂、小臂位置环
+        arm_route_execute(arm, m8010_kp, m8010_kw, a1_kp, a1_kw);
+
+        // 6. 三条轨迹都完成，才允许切换模式
+        if (arm_trans_traj->traj_theta1.is_finished &&
+            arm_trans_traj->traj_theta2.is_finished &&
+            arm_trans_traj->traj_pitch.is_finished) 
+        {
+            arm->effector_pitch_target = arm->trans_target_pitch; // 更新末端执行器目标 pitch（过渡结束后保持这个值不变）
             if (arm->trans_dir == ARM_TRANS_FRONT_TO_BACK) {
                 arm->mode = ARM_MODE_BACK;
             } else {
                 arm->mode = ARM_MODE_FRONT;
             }
-            // 以当前位置重新初始化轨迹规划器
+            // 以当前位置重新初始化笛卡尔轨迹规划器
             arm_trajectory_init(arm_traj, arm);
         }
+
         break;
+    }
         
     // ========== 后向工作模式 ==========
     case ARM_MODE_BACK:
@@ -543,17 +664,16 @@ void arm_mode_update_execute(robotic_arm_stu *arm, robotic_arm_traj_stu *arm_tra
  * @param delay_time_ms 目标点到达后的延时时间(ms)
  * @param air_pump_flag 气泵控制标志
  */
-void arm_queue_add_point_cartesian(robotic_arm_traj_stu *arm_traj, float target_x, float target_y, float target_z, uint16_t delay_time_ms, uint8_t air_pump_flag)
-{
-    //将车身坐标系下的目标点转换柱坐标，机械臂坐标系以云台为原点，向前为X轴正向，向上为Y轴正向
-    float l0 = sqrtf(target_x*target_x + target_y*target_y);
-    float x_arm = l0;
-    float y_arm = target_z;
-    float w_arm = atan2f(target_y, target_x);
-    uint16_t delay_ms_arm = delay_time_ms;
-
-    arm_queue_add_point(arm_traj, x_arm, y_arm, w_arm, delay_ms_arm, air_pump_flag);
-}
+// void arm_queue_add_point_cartesian(robotic_arm_traj_stu *arm_traj, float target_x, float target_y, float target_z, uint16_t delay_time_ms, uint8_t air_pump_flag)
+// {
+//     //将车身坐标系下的目标点转换柱坐标，机械臂坐标系以云台为原点，向前为X轴正向，向上为Y轴正向
+//     float l0 = sqrtf(target_x*target_x + target_y*target_y);
+//     float x_arm = l0;
+//     float y_arm = target_z;
+//     float w_arm = atan2f(target_y, target_x);
+//     uint16_t delay_ms_arm = delay_time_ms;
+//     arm_queue_add_point(arm_traj, x_arm, y_arm, w_arm, delay_ms_arm, air_pump_flag);
+// }
 
 
 /**

@@ -81,12 +81,6 @@ void Error_Handler(void);
 #define RS485_3_RX_GPIO_Port GPIOC
 #define RS485_3_RE_Pin GPIO_PIN_0
 #define RS485_3_RE_GPIO_Port GPIOD
-#define front_wheel_weidong_Pin GPIO_PIN_1
-#define front_wheel_weidong_GPIO_Port GPIOD
-#define front_wheel_weidong_EXTI_IRQn EXTI1_IRQn
-#define back_wheel_weidong_Pin GPIO_PIN_2
-#define back_wheel_weidong_GPIO_Port GPIOD
-#define back_wheel_weidong_EXTI_IRQn EXTI2_IRQn
 
 /* USER CODE BEGIN Private defines */
 

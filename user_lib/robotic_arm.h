@@ -15,9 +15,16 @@
 #include "go_m8010.h"
 
 // 人为设定的“机械臂末端合成上限”
-#define GLOBAL_V_MAX 0.5f  // 合成最大速度(m/s)
-#define GLOBAL_A_MAX 2.0f  // 合成最大加速度(m/s^2)
+#define GLOBAL_V_MAX 2.0f  // 合成最大速度(m/s)
+#define GLOBAL_A_MAX 4.0f  // 合成最大加速度(m/s^2)
 
+#define UPPERARM_OFFSET_DEG (180.0f-23.8f)  //实测初始状态大臂与云台平面的夹角约为"23.8度"
+#define FOREARM_OFFSET_DEG (28.7f)          //实测小臂与大臂的夹角约为28.7度
+#define WRIST_OFFSET_DEG (180.0f-56.4f)     //实测末端执行器与小臂的夹角约为"56.4度"
+
+#define ARM_PUMP_KEEP      0    // 气泵保持当前状态
+#define ARM_PUMP_SUCK      1    // 气泵吸取
+#define ARM_PUMP_RELEASE   2    // 气泵释放
 
 /**
  * @brief 机械臂dh参数结构体（Craig 改进 D-H 法参数描述）
@@ -33,20 +40,29 @@ typedef struct
 
 /* ========================== 机械臂工作区域过渡相关 ========================== */
 
+#define TRANS_V_MAX (3.0f*PI)  // 过渡最大关节速度(rad/s)
+#define TRANS_A_MAX (1.5f*PI)       // 合成最大关节加速度(rad/s^2)
+
+#define UPPERARM_LIMIT_DEG_MIN (19.3f) //实测大臂与云台平面的夹角最小约为"19.3度"
+#define UPPERARM_LIMIT_DEG_MAX (156.2f) //实测大臂与云台平面的夹角最大约为"180-23.8=156.2度"
+#define FOREARM_LIMIT_DEG_MIN (28.7f) //实测小臂与大臂的夹角最小约为28.7度
+#define FOREARM_LIMIT_DEG_MAX (340.8f) //实测小臂与大臂的夹角最大约为340.8度
+#define WRIST_LIMIT_DEG_MIN (-120.0f) //实测末端执行器与小臂的夹角最小约为-120度
+#define WRIST_LIMIT_DEG_MAX (120.0f) //实测末端执行器与小臂的夹角最大约为120度
 
 /* 前向→后向 过渡目标 （弧度制）*/
-#define TRANS_F2B_THETA1_TARGET   (135.0f / 180.0f * PI)   // 大臂 135°
-#define TRANS_F2B_THETA2_TARGET   (200.0f / 180.0f * PI)   // 小臂 200°（电机侧等价于 -160°）
-
+#define TRANS_F2B_THETA1_TARGET   (100.0f / 180.0f * PI)   // 大臂 120°
+#define TRANS_F2B_THETA2_TARGET   (200.0f / 180.0f * PI)   // 小臂 240°（电机侧等价于 -120°）
+#define TRANS_F2B_PITCH_TARGET     (180.0f / 180.0f * PI)                    // 腕部 180°（反向平行地面）
 /* 后向→前向 过渡目标 （弧度制）*/
-#define TRANS_B2F_THETA1_TARGET   (45.0f / 180.0f * PI)    // 大臂 45°
-#define TRANS_B2F_THETA2_TARGET   (160.0f / 180.0f * PI)   // 小臂 160°
-
+#define TRANS_B2F_THETA1_TARGET   (80.0f / 180.0f * PI)    // 大臂 60°
+#define TRANS_B2F_THETA2_TARGET   (170.0f / 180.0f * PI)   // 小臂 120°
+#define TRANS_B2F_PITCH_TARGET     (0.0f / 180.0f * PI)                    // 腕部 0°（平行地面）
 
 /* === 机械臂工作模式枚举 === */
 typedef enum {
     ARM_MODE_FRONT = 0,      // 向前取块：正常逆解算 + 轨迹规划
-    ARM_MODE_TRANSITION,     // 过渡中：纯位置环，穿越 ±30° 不可达死区
+    ARM_MODE_TRANSITION,     // 过渡中：纯轨迹规划
     ARM_MODE_BACK            // 向后存块：反向逆解算 + 轨迹规划
 } ArmWorkMode_enum;
 
@@ -92,17 +108,19 @@ typedef struct
     float x0_now, y0_now;       //目前二连杆末端位置
     float x0_target, y0_target; //目标二连杆末端位置
     float effector_pitch_target;           //目标末端执行器pitch角，平行地面为0，抬起为正
+    uint8_t pump_state;                 // 气泵控制标志，0为保持当前状态，1为吸取，2为释放
     float theta_target[5];      //目标关节角，[0]为“云台”，[1]为”肩部“，[2]为“手肘”，[3]为”腕部“，[4]为“手腕自转”
 
 
-/* ========== 机械臂工作区域过渡相关 ========== */
+/* ============== 机械臂工作区域过渡相关 ============== */
 
     ArmWorkMode_enum mode;           // 当前工作模式
     ArmTransDir_enum trans_dir;      // 过渡方向（仅在 ARM_MODE_TRANSITION 时有效）
     
     // 过渡目标关节角（纯位置环驱动到达的目标）
-    float trans_theta1_target;       // 过渡目标：大臂关节角
-    float trans_theta2_target;       // 过渡目标：小臂关节角
+    float trans_target_theta1;       // 过渡目标：大臂关节角
+    float trans_target_theta2;       // 过渡目标：小臂关节角
+    float trans_target_pitch;        // 过渡目标：腕部关节角
 
 } robotic_arm_stu;
 
@@ -119,21 +137,37 @@ typedef enum {
 
 
 
+/**
+ * @brief 机械臂过渡轨迹结构体类型，其中包含三段single过渡轨迹，分别对应大臂、小臂和腕部（pitch）的过渡控制
+ */
+typedef struct
+{
+    Traj_Single_struct traj_theta1; // 大臂关节过渡轨迹
+    Traj_Single_struct traj_theta2; // 小臂关节过渡轨迹
+    Traj_Single_struct traj_pitch;  // 腕部关节过渡轨迹（因为腕部在控制上以pitch为优，所以将pitch作为过渡控制变量）
+
+} robotic_arm_trans_traj_stu ;
+
 
 
 
 
 extern robotic_arm_stu arm;    //机械臂实例
 extern robotic_arm_traj_stu arm_traj; //机械臂轨迹实例
+extern robotic_arm_trans_traj_stu arm_trans_traj; //机械臂过渡轨迹实例
 
 void arm_joint_parameter_init(robotic_arm_stu *arm);
 void arm_joint_state_update(robotic_arm_stu *arm);
 // void arm_joint_state_init(robotic_arm_stu *arm);
-IK_Reach_Status_enum arm_route_reachable_check(robotic_arm_stu *arm);
-void arm_route_point_calculate(robotic_arm_stu *arm);
+IK_Reach_Status_enum arm_route_reachable_check_front(robotic_arm_stu *arm);
+IK_Reach_Status_enum arm_route_reachable_check_back(robotic_arm_stu *arm);
+
+void arm_route_point_calculate_front(robotic_arm_stu *arm);
+void arm_route_point_calculate_back(robotic_arm_stu *arm);
 void arm_route_execute(robotic_arm_stu *arm, float m8010_kp, float m8010_kw, float a1_kp, float a1_kw);
 void arm_actuator_stable_control(robotic_arm_stu *arm, float target_pitch, float theta4);
-void arm_remote_control(void);
+// void arm_remote_control(void);
+uint8_t arm_effector_pitch_reachable_check(robotic_arm_stu *arm, float target_pitch);
 
 void arm_trajectory_init(robotic_arm_traj_stu *arm_traj, robotic_arm_stu *arm);
 void arm_queue_add_point(robotic_arm_traj_stu *arm_traj, float target_x, float target_y, float target_w, uint16_t delay_ms, uint8_t air_pump_flag);
@@ -153,9 +187,8 @@ void arm_gravity_comp(void);
 
 /* ========================== 机械臂工作区域过渡相关 ========================== */
 
-// 状态机相关
-void arm_mode_switch_to_transition(robotic_arm_stu *arm, robotic_arm_traj_stu *arm_traj, ArmTransDir_enum dir);
-void arm_mode_update_execute(robotic_arm_stu *arm, robotic_arm_traj_stu *arm_traj, float m8010_kp, float m8010_kw, float a1_kp, float a1_kw);
+void arm_mode_switch_to_transition(robotic_arm_stu *arm, robotic_arm_traj_stu *arm_traj, robotic_arm_trans_traj_stu *arm_trans_traj, ArmTransDir_enum dir);
+void arm_mode_update_execute(robotic_arm_stu *arm, robotic_arm_traj_stu *arm_traj, robotic_arm_trans_traj_stu *arm_trans_traj, float m8010_kp, float m8010_kw, float a1_kp, float a1_kw);
 
 // 向后工作区逆解算和可到达性检查（你已添加）
 IK_Reach_Status_enum arm_route_reachable_check_back(robotic_arm_stu *arm);

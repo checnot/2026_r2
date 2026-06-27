@@ -455,14 +455,16 @@ static bool MF_FindPathToAdjacent(const MF_Planner* ctx,
  * @param ctx 规划器上下文
  * @note 等价于清零，动作列表与地图都会被重置
  */
-void MFPlanner_Init(MF_Planner* ctx)
+void MFPlanner_Init(MF_Planner* ctx, MF_MapColor color)
 {
     /* 清空规划器上下文 */
     memset(ctx, 0, sizeof(*ctx));
+    /* 设置地图颜色 */
+    ctx->map_color = color;
 }
 
 /**
- * @brief 载入固定地图与高度
+ * @brief 载入不同颜色的固定地图与高度
  * @param ctx 规划器上下文
  * @note 行号定义：row0 是入口区地面，row5 是出口区地面
  */
@@ -475,6 +477,14 @@ void MFPlanner_LoadFixedDemoMap(MF_Planner* ctx)
         { 200, 400, 600 }, /* row2 */
         { 400, 600, 400 }, /* row3 */
         { 200, 400, 200 }, /* row4: 最上方绿色方块 */
+        { 0,   0,   0   }  /* row5: 出口区地面 */
+    };
+    uint16_t fixed_height_red[MF_ROWS][MF_COLS] = {
+        { 0,   0,   0   }, /* row0: 入口区地面 */
+        { 400, 200, 400 }, /* row1: 最下方红色方块 */
+        { 600, 400, 200 }, /* row2 */
+        { 400, 600, 400 }, /* row3 */
+        { 200, 400, 200 }, /* row4: 最上方红色方块 */
         { 0,   0,   0   }  /* row5: 出口区地面 */
     };
 
@@ -519,7 +529,11 @@ void MFPlanner_LoadFixedDemoMap(MF_Planner* ctx)
     };
 
     /* 拷贝到上下文中 */
-    memcpy(ctx->height, fixed_height_blue, sizeof(fixed_height_blue));
+    if(ctx->map_color == BLUE_MAP) {
+        memcpy(ctx->height, fixed_height_blue, sizeof(fixed_height_blue));
+    } else if(ctx->map_color == RED_MAP) {
+        memcpy(ctx->height, fixed_height_red, sizeof(fixed_height_red));
+    }
     memcpy(ctx->cell, fixed_cell, sizeof(fixed_cell));
 
     /* 将 row1~row4 标记为 UNKNOWN(模拟相机尚未扫描) */
@@ -704,7 +718,15 @@ bool MFPlanner_BuildFullPlan(MF_Planner* ctx,
 void MFPlanner_ScanRows(MF_Planner* ctx, uint8_t start_row, uint8_t end_row)
 {
     /* 真实 KFS 分布(与 LoadFixedDemoMap 中的 demo_cellx 一致) */
-    static const MF_CellType real_cell[MF_ROWS][MF_COLS] = {
+    static const MF_CellType real_cell_debug_blue[MF_ROWS][MF_COLS] = {
+        { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_EMPTY },
+        { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_R2KFS },
+        { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_R1KFS },
+        { MF_CELL_R1KFS,  MF_CELL_FAKEKFS, MF_CELL_R1KFS },
+        { MF_CELL_R2KFS,  MF_CELL_R2KFS,  MF_CELL_R2KFS },
+        { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_EMPTY }
+    };
+    static const MF_CellType real_cell_debug_red[MF_ROWS][MF_COLS] = {
         { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_EMPTY },
         { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_R2KFS },
         { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_R1KFS },
@@ -713,12 +735,20 @@ void MFPlanner_ScanRows(MF_Planner* ctx, uint8_t start_row, uint8_t end_row)
         { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_EMPTY }
     };
 
+
     /* 遍历指定行范围 */
     for (uint8_t r = start_row; r <= end_row && r < MF_ROWS; r++) {
         for (uint8_t c = 0; c < MF_COLS; c++) {
             /* 仅更新仍为 UNKNOWN 的格子(保留已揭示/已修改的状态) */
             if (ctx->cell[r][c] == MF_CELL_UNKNOWN) {
-                ctx->cell[r][c] = real_cell[r][c];
+                switch (ctx->map_color) {
+                    case BLUE_MAP:
+                        ctx->cell[r][c] = real_cell_debug_blue[r][c];
+                        break;
+                    case RED_MAP:
+                        ctx->cell[r][c] = real_cell_debug_red[r][c];
+                        break;
+                }
             }
         }
     }
@@ -765,7 +795,7 @@ bool MFPlanner_BuildPhase1(MF_Planner* ctx,
     // }
 
     /* 此处应修改为实际的相机扫描 */
-    MFPlanner_ScanRows(&mf_planner_ctx, 1, 2);
+    MFPlanner_ScanRows(ctx, 1, 2);
 
     /* 扫描 row1 上是否有 R2KFS */
     bool row1_has_r2kfs = false;
@@ -841,7 +871,7 @@ bool MFPlanner_BuildPhase1(MF_Planner* ctx,
     if (MF_PushAction(ctx, MF_ACT_SCAN, MF_DIR_NORTH, 1, 1)) 
     {
         /* === 第二次扫描(在 SCAN 动作执行后触发)：揭示 row3~row4 === */
-        MFPlanner_ScanRows(&mf_planner_ctx, 3, 4);
+        MFPlanner_ScanRows(ctx, 3, 4);
         /* 此时：row3/row4 全部已知(如已揭示则保持不变) */
     }
 
