@@ -265,7 +265,7 @@ BT_Status chassis_step_fsm_tick(ChassisStepFSM *fsm)
     /* ================================================================ */
     case STEP_FSM_IDLE:
         fsm->timer_ms = 0;
-        return BT_SUCCESS;
+        return BT_RUNNING;
 
     /* ================================================================ */
     /*                    上台阶流程                                    */
@@ -471,7 +471,7 @@ BT_Status chassis_step_fsm_tick(ChassisStepFSM *fsm)
         if (fsm->timer_ms * 10 >= STEP_DOWN_CLEARANCE_SAFE_MS) {
             step_wheel_stop();
             /* 安全距离已走完，全部收回到正常位置 */
-            chassis_lift_queue_add_point(&chassis_lift_traj, 0.0f, 0.0f, 0);
+            chassis_lift_queue_add_point(&chassis_lift_traj, LIFT_RETRACT_HEIGHT, LIFT_RETRACT_HEIGHT, 0);
             fsm->state = STEP_DOWN_WAIT_RETRACT_ALL;
             fsm->timer_ms = 0;
         }
@@ -479,7 +479,7 @@ BT_Status chassis_step_fsm_tick(ChassisStepFSM *fsm)
 
     /* ---------- 等待全部收回 ---------- */
     case STEP_DOWN_WAIT_RETRACT_ALL:
-        if (lift_both_arrived(0.0f)) {
+        if (lift_both_arrived(LIFT_RETRACT_HEIGHT)) {
             fsm->state = STEP_DOWN_COMPLETE;
             fsm->timer_ms = 0;
         } else if (fsm->timer_ms * 10 >= STEP_LIFT_TIMEOUT_MS) {

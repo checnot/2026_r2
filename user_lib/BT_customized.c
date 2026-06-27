@@ -1,4 +1,4 @@
-﻿#include "BT_customized.h"
+#include "BT_customized.h"
 
 /* ================= 万能小变量 ================= */
 uint8_t debug_if_reach_MF_phase2_scan = 0; // 用于调试是否达到 MF 区第二次扫描的条件，实际比赛时请删除或替换为 BuildPhase2 调用
@@ -68,7 +68,12 @@ static inline uint8_t chassis_if_arrived(float tx, float ty, float tw)
     float dx = fabsf(Radar_Pos.reliable_x - tx);
     float dy = fabsf(Radar_Pos.reliable_y - ty);
     float dw = fabsf(chassis_angle_edge_protection(tw, Radar_Pos.reliable_yaw));
-    return ((dx < CHASSIS_ROUTE_ARRIVAL_THRESHOLD )&& (dy < CHASSIS_ROUTE_ARRIVAL_THRESHOLD )&& (dw < CHASSIS_ANGLE_ARRIVAL_THRESHOLD) && (chassis_route_traj.traj_queue_vx.count == 0));
+    return ((dx < CHASSIS_ROUTE_ARRIVAL_THRESHOLD )
+    && (dy < CHASSIS_ROUTE_ARRIVAL_THRESHOLD )
+    && (dw < CHASSIS_ANGLE_ARRIVAL_THRESHOLD)
+    && (chassis_route_traj.traj_queue_vx.count == 0)
+    && (chassis_route_traj.traj_queue_vy.count == 0)
+    && (chassis_route_traj.traj_queue_vw.count == 0));
 }
 /*================================ 条件 节点 ================================*/
 
@@ -647,7 +652,7 @@ static BT_Status Act_R2_MC_Mission(void)
               clamp.rotate_flag = 0;
 			  MC_bb.mc_mission_state = CAMERA_SCAN;
               MC_bb.R2_MC_timer_ms = 0;
-              return BT_SUCCESS;
+//              return BT_SUCCESS;
             }
             else if(++MC_bb.R2_MC_timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS) {
                 return BT_FAILURE; 
@@ -661,7 +666,7 @@ static BT_Status Act_R2_MC_Mission(void)
                 /* 暂定立马完成扫描*/
                 MC_bb.mc_mission_state = MF_TASK_FLAG;
                 MC_bb.R2_MC_timer_ms = 0;
-					  		return BT_SUCCESS;
+//					  		return BT_SUCCESS;
 
             }
             else if(++MC_bb.R2_MC_timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS) {
@@ -789,6 +794,8 @@ uint8_t mf_task_request_flag = 0;           /* MF 任务请求标志 (1=有请�
 uint8_t mf_phase_flag = 0;                  /* 规划阶段标记: 0=未规划, 1=Phase1完成, 2=全部规划完成 */
 
 uint8_t mf_picked_phase1 = 0;               /* Phase1 已拾取 R2KFS 数量 */
+
+uint8_t arm_if_send_point = 0; /* 机械臂是否已经下发轨迹点标志位，避免重复下发 */
 
 uint8_t arm_store_request = 0;  /* 机械臂存储服务请求标志 */
 uint8_t arm_store_busy = 0;     /* 机械臂存储服务占用机械臂标志，后台收尾期间仍为 1 */
@@ -1065,6 +1072,7 @@ static void Arm_Store_Service_Tick(void)
  */
 static BT_Status Cond_Has_MF_Request(void)
 {
+    // MC_bb.MF_MISSION_Req = 1;
     return (MC_bb.MF_MISSION_Req || mf_task_request_flag) ? BT_SUCCESS : BT_FAILURE;
 }
 
@@ -1182,21 +1190,35 @@ static BT_Status Act_MF_Execute_Action(void)
 
         /* ---------- 上台阶 ---------- */
         case MF_ACT_STEP_UP: {
+            // /*
+            // * 启动底盘上台阶 FSM。
+            // * 当前 MF_Action 结构中暂不携带台阶高度(200/400)信息，
+            // * 默认使用 STEP_UP_200；如需区分 400mm，可复用 act.height_pick_diff 字段。
+            // *
+            // * 台阶 FSM 会自行管理：
+            // *   - 支撑柱升降（通过 chassis_lift_queue_add_point → freertos 位控消费）
+            // *   - 辅助轮驱动（通过 g_lift_wheel_target → freertos 消费）
+            // *   - 微动开关检测 → 决定何时收回前/后柱
+            // */
+            // ChassisStepType step_type = STEP_UP_200;  // 默认 200mm
+            // // 如果 MF_Action 携带了高度差信息，用 400mm
+            // // if (act.height_pick_diff == 400) step_type = STEP_UP_400;
+            // chassis_step_fsm_start(&g_step_fsm, step_type);
+            // mf_exec_state = MF_EXEC_STEP_UP;
+            // mf_exec_timer_ms = 0;
+            // break;
             /*
-            * 启动底盘上台阶 FSM。
-            * 当前 MF_Action 结构中暂不携带台阶高度(200/400)信息，
-            * 默认使用 STEP_UP_200；如需区分 400mm，可复用 act.height_pick_diff 字段。
-            *
-            * 台阶 FSM 会自行管理：
-            *   - 支撑柱升降（通过 chassis_lift_queue_add_point → freertos 位控消费）
-            *   - 辅助轮驱动（通过 g_lift_wheel_target → freertos 消费）
-            *   - 微动开关检测 → 决定何时收回前/后柱
+            * 第一步：先让底盘转向台阶方向，面朝 act.dir。
+            * 目标点为当前格中心坐标，朝向与动作方向一致。
             */
-            ChassisStepType step_type = STEP_UP_200;  // 默认 200mm
-            // 如果 MF_Action 携带了高度差信息，用 400mm
-            // if (act.height_pick_diff == 400) step_type = STEP_UP_400;
+            // float cur_cell_x, cur_cell_y;
+            // mf_cell_to_world(act.row, act.col, &cur_cell_x, &cur_cell_y, mf_planner_ctx.map_color);
+            float step_yaw = mf_dir_to_yaw(act.dir);
 
-            chassis_step_fsm_start(&g_step_fsm, step_type);
+            taskENTER_CRITICAL();
+            /* 添加当前的机器人坐标，原地自转 */
+            chassis_route_point_add(&chassis_route_traj, Radar_Pos.reliable_x, Radar_Pos.reliable_y, step_yaw, 0);
+            taskEXIT_CRITICAL();
 
             mf_exec_state = MF_EXEC_STEP_UP;
             mf_exec_timer_ms = 0;
@@ -1213,10 +1235,23 @@ static BT_Status Act_MF_Execute_Action(void)
             *   力控下压 → 前移检测前柱悬空 → 前柱转位控 → 前移检测后柱悬空
             *   → 后柱转位控 → 安全前移 → 全收回
             */
-            ChassisStepType step_type = STEP_DOWN_200; // 默认 200mm
-            // if (act.height_pick_diff == 400) step_type = STEP_DOWN_400;
+            // ChassisStepType step_type = STEP_DOWN_200; // 默认 200mm
+            // // if (act.height_pick_diff == 400) step_type = STEP_DOWN_400;
+            // chassis_step_fsm_start(&g_step_fsm, step_type);
+            // mf_exec_state = MF_EXEC_STEP_DOWN;
+            // mf_exec_timer_ms = 0;
+            // break;
+            /*
+            * 第一步：先让底盘转向台阶方向，面朝 act.dir。
+            * 目标点为当前格中心坐标，朝向与动作方向一致。
+            */
+            // float cur_cell_x, cur_cell_y;
+            // mf_cell_to_world(act.row, act.col, &cur_cell_x, &cur_cell_y, mf_planner_ctx.map_color);
+            float step_yaw = mf_dir_to_yaw(act.dir);
 
-            chassis_step_fsm_start(&g_step_fsm, step_type);
+            taskENTER_CRITICAL();
+            chassis_route_point_add(&chassis_route_traj, Radar_Pos.reliable_x, Radar_Pos.reliable_y, step_yaw, 0);
+            taskEXIT_CRITICAL();
 
             mf_exec_state = MF_EXEC_STEP_DOWN;
             mf_exec_timer_ms = 0;
@@ -1253,42 +1288,13 @@ static BT_Status Act_MF_Execute_Action(void)
             /* 计算 R2 应该站立的世界坐标 */
             float stand_x, stand_y;
             mf_pick_stand_position(act.row, act.col, act.dir, &stand_x, &stand_y);
-
             /* 目标朝向 = 拾取方向对应的 yaw */
             float pick_yaw;
             pick_yaw = mf_dir_to_yaw(act.dir);
             
             taskENTER_CRITICAL();
-            //让底盘转到位预期的方向
+            // 让底盘转到位预期的方向，机械臂的路点在MF_EXEC_PICK_R2状态中下发
             chassis_route_point_add(&chassis_route_traj, stand_x, stand_y, pick_yaw, 0);
-            // if(chassis_if_arrived(stand_x, stand_y, pick_yaw))  //底盘到位后再发出机械臂的抓取动作
-            if(1)
-            {
-                if(act.height_pick_diff == -200)    // KFS 在 R2 下方 200mm
-                {
-                    arm_queue_add_point(&arm_traj, PICK_N200_APR_X_1, PICK_N200_APR_Y_1, 0, 0, ARM_PUMP_RELEASE);   // 预抓取点1
-                    arm_queue_add_point(&arm_traj, PICK_N200_TARGET_X, PICK_N200_TARGET_Y, 0, PICK_TIME, ARM_PUMP_SUCK);  // 最终抓取点
-                    arm_queue_add_point(&arm_traj, PICK_PRE_TRANS_X, PICK_PRE_TRANS_Y, 0, 0, ARM_PUMP_SUCK);                // 此处应换成放置点坐标，用待机位置做占位
-                }
-                if(act.height_pick_diff == 200)     // KFS 在 R2 上方 200mm
-                {
-                    arm_queue_add_point(&arm_traj, PICK_P200_APR_X_1, PICK_P200_APR_Y_1, 0, 0, ARM_PUMP_RELEASE);   // 预抓取点1
-                    arm_queue_add_point(&arm_traj, PICK_P200_TARGET_X, PICK_P200_TARGET_Y, 0, PICK_TIME, ARM_PUMP_SUCK);  // 最终抓取点
-                    arm_queue_add_point(&arm_traj, PICK_PRE_TRANS_X, PICK_PRE_TRANS_Y, 0, 0, ARM_PUMP_SUCK);                // 此处应换成放置点坐标，用待机位置做占位
-                }
-                if(act.height_pick_diff == 400)    // KFS 在 R2 上方 400mm
-                {
-                    arm_queue_add_point(&arm_traj, PICK_P400_APR_X_1, PICK_P400_APR_Y_1, 0, 0, ARM_PUMP_RELEASE);   // 预抓取点1
-                    arm_queue_add_point(&arm_traj, PICK_P400_TARGET_X, PICK_P400_TARGET_Y, 0, PICK_TIME, ARM_PUMP_SUCK);  // 最终抓取点
-                    arm_queue_add_point(&arm_traj, PICK_PRE_TRANS_X, PICK_PRE_TRANS_Y, 0, 0, ARM_PUMP_SUCK);                // 此处应换成放置点坐标，用待机位置做占位
-                }
-                if(act.height_pick_diff == 0)      // KFS 与 R2 同高
-                {
-                    arm_queue_add_point(&arm_traj, PICK_0_APR_X_1, PICK_0_APR_Y_1, 0, 0, ARM_PUMP_RELEASE);   // 预抓取点1
-                    arm_queue_add_point(&arm_traj, PICK_0_TARGET_X, PICK_0_TARGET_Y, 0, PICK_TIME, ARM_PUMP_SUCK);  // 最终抓取点
-                    arm_queue_add_point(&arm_traj, PICK_PRE_TRANS_X, PICK_PRE_TRANS_Y, 0, 0, ARM_PUMP_SUCK);                // 此处应换成放置点坐标，用待机位置做占位
-                }
-            }
             taskEXIT_CRITICAL();
 
             mf_exec_state = MF_EXEC_PICK_R2;
@@ -1362,16 +1368,17 @@ static BT_Status Act_MF_Execute_Action(void)
     /* MOVE_FLAT 状态：等待底盘平移到位                              */
     /* ============================================================ */
     case MF_EXEC_MOVE_FLAT:
+    {
         /*
             * 🟡【需实测】底盘到达判断条件
             * 使用 chassis_if_arrived 或 chassis_route_traj 的 is_finished 标志
             * 需要与你的底盘路径执行逻辑（entry_chassis）对齐
             */
 
-        // if (chassis_route_traj.traj_vx.is_finished &&
-        //     chassis_route_traj.traj_vy.is_finished &&
-        //     chassis_route_traj.traj_vw.is_finished)
-        if(1)
+        float tx, ty;
+        mf_cell_to_world(act.row, act.col, &tx, &ty, mf_planner_ctx.map_color);
+
+        if(chassis_if_arrived(tx, ty, Radar_Pos.reliable_yaw))  //底盘到位即可，不要求底盘强制面朝位移方向
         {
             /* 平移到位，推进到下一个动作 */
             MFPlanner_AdvanceAction(&mf_planner_ctx);
@@ -1382,7 +1389,7 @@ static BT_Status Act_MF_Execute_Action(void)
             mf_exec_state = MF_EXEC_FAILED;
         }
         return BT_RUNNING;
-
+    }
     /* ============================================================ */
     /* STEP_UP 状态：等待上台阶 FSM 完成                              */
     /* ============================================================ */
@@ -1393,13 +1400,76 @@ static BT_Status Act_MF_Execute_Action(void)
         *   BT_RUNNING  → 台阶动作仍在进行中
         *   BT_SUCCESS  → 上台阶完成，推进到下一个 MF 动作
         *   BT_FAILURE  → 超时或异常，进入 MF 失败处理
+        *
+        * 当前扩展：FSM 进入 STEP_UP_DRIVE_TO_REAR_TOUCH（前柱已完全收回）时，
+        * 向底盘四个全向轮发送台阶目标格世界坐标，辅助轮+全向轮共同前进，
+        * 同时抑制后微动触发台阶时的反弹趋势。
         */
+
+        static uint8_t step_up_fsm_started = 0;    /* FSM 是否已启动 */
+        static uint8_t step_up_chassis_sent = 0;  /* 防止重复发送路径点 */
+
+        MF_Action act;
+        MFPlanner_PeekAction(&mf_planner_ctx, &act);
+
+        // float cur_cell_x, cur_cell_y;
+        // mf_cell_to_world(act.row, act.col, &cur_cell_x, &cur_cell_y, mf_planner_ctx.map_color);
+        float step_yaw = mf_dir_to_yaw(act.dir);
+
+            /* ---- 阶段 1：等待底盘转向到位（面朝台阶方向即可） ---- */
+        if (!step_up_fsm_started)
+        {
+            if (chassis_if_arrived(Radar_Pos.reliable_x, Radar_Pos.reliable_y, step_yaw))
+            {
+                /* 底盘已到位，启动上台阶 FSM */
+                ChassisStepType step_type = STEP_UP_200;
+                chassis_step_fsm_start(&g_step_fsm, step_type);
+                step_up_fsm_started = 1;
+                mf_exec_timer_ms = 0;
+            }
+            else if (++mf_exec_timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS)
+            {
+                mf_exec_state = MF_EXEC_FAILED;
+            }
+            return BT_RUNNING;
+        }
+
         BT_Status step_status = chassis_step_fsm_tick(&g_step_fsm);
 
+        /* 刚启动抬升时就发下个台阶的中心点 */
+        if (!step_up_chassis_sent &&
+            g_step_fsm.state == STEP_UP_WAIT_DEPLOY_DONE)
+        {
+            /* 计算台阶目标格（当前格沿 act.dir 方向偏移一格）的世界坐标 */
+            int8_t target_row = (int8_t)act.row;
+            int8_t target_col = (int8_t)act.col;
+            // switch (act.dir) {
+            //     case MF_DIR_NORTH: target_row += 1; break;
+            //     case MF_DIR_SOUTH: target_row -= 1; break;
+            //     case MF_DIR_EAST:  target_col += 1; break;
+            //     case MF_DIR_WEST:  target_col -= 1; break;
+            //     default: break;
+            // }
+            float step_tx, step_ty;
+            mf_cell_to_world((uint8_t)target_row, (uint8_t)target_col,
+                             &step_tx, &step_ty, mf_planner_ctx.map_color);
+            float step_yaw = mf_dir_to_yaw(act.dir);
+
+            taskENTER_CRITICAL();
+            chassis_route_point_add(&chassis_route_traj, step_tx, step_ty, step_yaw, 0);
+            taskEXIT_CRITICAL();
+
+            step_up_chassis_sent = 1;
+        }
+
         if (step_status == BT_SUCCESS) {
+            step_up_chassis_sent = 0;
+            step_up_fsm_started = 0;
             MFPlanner_AdvanceAction(&mf_planner_ctx);
             mf_exec_state = MF_EXEC_IDLE;
         } else if (step_status == BT_FAILURE) {
+            step_up_chassis_sent = 0;
+            step_up_fsm_started = 0;
             mf_exec_state = MF_EXEC_FAILED;
         }
         return BT_RUNNING;
@@ -1410,12 +1480,41 @@ static BT_Status Act_MF_Execute_Action(void)
     /* ============================================================ */
     case MF_EXEC_STEP_DOWN:
     {
+        static uint8_t step_down_fsm_started = 0;  /* FSM 是否已启动 */
+
+        MF_Action act;
+        MFPlanner_PeekAction(&mf_planner_ctx, &act);
+
+        // float cur_cell_x, cur_cell_y;
+        // mf_cell_to_world(act.row, act.col, &cur_cell_x, &cur_cell_y, mf_planner_ctx.map_color);
+        float step_yaw = mf_dir_to_yaw(act.dir);
+
+        /* ---- 阶段 1：等待底盘转向到位（面朝台阶方向、到达当前格中心） ---- */
+        if (!step_down_fsm_started)
+        {
+            if (chassis_if_arrived(Radar_Pos.reliable_x, Radar_Pos.reliable_y, step_yaw))
+            {
+                /* 底盘已到位，启动下台阶 FSM */
+                ChassisStepType step_type = STEP_DOWN_200;
+                chassis_step_fsm_start(&g_step_fsm, step_type);
+                step_down_fsm_started = 1;
+                mf_exec_timer_ms = 0;
+            }
+            else if (++mf_exec_timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS)
+            {
+                mf_exec_state = MF_EXEC_FAILED;
+            }
+            return BT_RUNNING;
+        }
+
         BT_Status step_status = chassis_step_fsm_tick(&g_step_fsm);
 
         if (step_status == BT_SUCCESS) {
+            step_down_fsm_started = 0;
             MFPlanner_AdvanceAction(&mf_planner_ctx);
             mf_exec_state = MF_EXEC_IDLE;
         } else if (step_status == BT_FAILURE) {
+            step_down_fsm_started = 0;
             mf_exec_state = MF_EXEC_FAILED;
         }
         return BT_RUNNING;
@@ -1425,6 +1524,7 @@ static BT_Status Act_MF_Execute_Action(void)
     /* PICK_R2 状态：等待机械臂拾取完成                              */
     /* ============================================================ */
     case MF_EXEC_PICK_R2:
+    {
         /*
             * 🟡【需实测】机械臂拾取完成判断
             * 使用 arm_if_arrived_xy
@@ -1432,43 +1532,83 @@ static BT_Status Act_MF_Execute_Action(void)
             * 这样可以节省时间（不必等机械臂完全收回再走下一步），也让流程更顺畅。
             */
 
-        // if (!arm_store_busy && !arm_store_request &&  !arm_store_payload_done && !arm_store_done && !arm_store_failed)
-        // {
-        //     if (arm_if_arrived_xy(PICK_PRE_TRANS_X, PICK_PRE_TRANS_Y))
-        //     {
-        //         /* 拾取完成后请求机械臂存储服务接管 */
-        //         arm_store_slot = mf_bb.kfs_stored;
-        //         arm_store_request = 1;
-        //         mf_exec_timer_ms = 0;
-        //     }
-        //     else if (++mf_exec_timer_ms * 10 >= MF_PICK_TIMEOUT_MS)
-        //     {
-        //         mf_exec_state = MF_EXEC_FAILED;
-        //     }
-        // }
+        /* 计算 R2 应该站立的世界坐标 */
+        float stand_x, stand_y;
+        mf_pick_stand_position(act.row, act.col, act.dir, &stand_x, &stand_y);
+        /* 目标朝向 = 拾取方向对应的 yaw */
+        float pick_yaw;
+        pick_yaw = mf_dir_to_yaw(act.dir);
 
-        // if (arm_store_payload_done)
-        // {
-        //     arm_store_payload_done = 0;
-        //     mf_bb.kfs_stored++;
-        //     MFPlanner_AdvanceAction(&mf_planner_ctx);
-        //     mf_exec_state = MF_EXEC_IDLE;
-        //     mf_exec_timer_ms = 0;
-        // }
-        // else if (arm_store_failed)
-        // {
-        //     arm_store_failed = 0;
-        //     mf_exec_state = MF_EXEC_FAILED;
-        // }
+        /* 底盘到位，并且之前没有发过点，再发出机械臂的抓取动作 */
+        if(chassis_if_arrived(stand_x, stand_y, pick_yaw) && arm_if_send_point == 0)
+        // if(1)
+        {
+            arm_if_send_point = 1;  // 机械臂轨迹队列允许发送点
+            if(act.height_pick_diff == -200)    // KFS 在 R2 下方 200mm
+            {
+                arm_queue_add_point(&arm_traj, PICK_N200_APR_X_1, PICK_N200_APR_Y_1, 0, 0, ARM_PUMP_RELEASE);   // 预抓取点1
+                arm_queue_add_point(&arm_traj, PICK_N200_TARGET_X, PICK_N200_TARGET_Y, 0, PICK_TIME, ARM_PUMP_SUCK);  // 最终抓取点
+                arm_queue_add_point(&arm_traj, PICK_PRE_TRANS_X, PICK_PRE_TRANS_Y, 0, 0, ARM_PUMP_SUCK);                // 此处应换成放置点坐标，用待机位置做占位
+            }
+            if(act.height_pick_diff == 200)     // KFS 在 R2 上方 200mm
+            {
+                arm_queue_add_point(&arm_traj, PICK_P200_APR_X_1, PICK_P200_APR_Y_1, 0, 0, ARM_PUMP_RELEASE);   // 预抓取点1
+                arm_queue_add_point(&arm_traj, PICK_P200_TARGET_X, PICK_P200_TARGET_Y, 0, PICK_TIME, ARM_PUMP_SUCK);  // 最终抓取点
+                arm_queue_add_point(&arm_traj, PICK_PRE_TRANS_X, PICK_PRE_TRANS_Y, 0, 0, ARM_PUMP_SUCK);                // 此处应换成放置点坐标，用待机位置做占位
+            }
+            if(act.height_pick_diff == 400)    // KFS 在 R2 上方 400mm
+            {
+                arm_queue_add_point(&arm_traj, PICK_P400_APR_X_1, PICK_P400_APR_Y_1, 0, 0, ARM_PUMP_RELEASE);   // 预抓取点1
+                arm_queue_add_point(&arm_traj, PICK_P400_TARGET_X, PICK_P400_TARGET_Y, 0, PICK_TIME, ARM_PUMP_SUCK);  // 最终抓取点
+                arm_queue_add_point(&arm_traj, PICK_PRE_TRANS_X, PICK_PRE_TRANS_Y, 0, 0, ARM_PUMP_SUCK);                // 此处应换成放置点坐标，用待机位置做占位
+            }
+            if(act.height_pick_diff == 0)      // KFS 与 R2 同高
+            {
+                arm_queue_add_point(&arm_traj, PICK_0_APR_X_1, PICK_0_APR_Y_1, 0, 0, ARM_PUMP_RELEASE);   // 预抓取点1
+                arm_queue_add_point(&arm_traj, PICK_0_TARGET_X, PICK_0_TARGET_Y, 0, PICK_TIME, ARM_PUMP_SUCK);  // 最终抓取点
+                arm_queue_add_point(&arm_traj, PICK_PRE_TRANS_X, PICK_PRE_TRANS_Y, 0, 0, ARM_PUMP_SUCK);                // 此处应换成放置点坐标，用待机位置做占位
+            }
+        }
 
-        arm_store_payload_done = 1;
-        mf_bb.kfs_stored++;
-        MFPlanner_AdvanceAction(&mf_planner_ctx);
-        mf_exec_state = MF_EXEC_IDLE;
-        mf_exec_timer_ms = 0;
+        if (!arm_store_busy && !arm_store_request &&  !arm_store_payload_done && !arm_store_done && !arm_store_failed)
+        {
+            if (arm_if_arrived_xy(PICK_PRE_TRANS_X, PICK_PRE_TRANS_Y))
+            {
+                /* 拾取完成后请求机械臂存储服务接管 */
+                arm_store_slot = mf_bb.kfs_stored;
+                arm_store_request = 1;
+                mf_exec_timer_ms = 0;
+            }
+            else if (++mf_exec_timer_ms * 10 >= MF_PICK_TIMEOUT_MS)
+            {
+                mf_exec_state = MF_EXEC_FAILED;
+            }
+        }
+
+        if (arm_store_payload_done)
+        {
+            arm_store_payload_done = 0;
+            arm_if_send_point = 0;  // 存完块之后机械臂轨迹队列允许发送点
+
+            mf_bb.kfs_stored++;
+            MFPlanner_AdvanceAction(&mf_planner_ctx);
+            mf_exec_state = MF_EXEC_IDLE;
+            mf_exec_timer_ms = 0;
+        }
+        else if (arm_store_failed)
+        {
+            arm_store_failed = 0;
+            mf_exec_state = MF_EXEC_FAILED;
+        }
+
+        // arm_store_payload_done = 1;
+        // mf_bb.kfs_stored++;
+        // MFPlanner_AdvanceAction(&mf_planner_ctx);
+        // mf_exec_state = MF_EXEC_IDLE;
+        // mf_exec_timer_ms = 0;
 
         return BT_RUNNING;
-
+    }
     /* ============================================================ */
     /* WAIT_R1 状态：等待 R1 清除 R1KFS                             */
     /* ============================================================ */
@@ -1514,6 +1654,8 @@ static BT_Status Act_MF_Execute_Action(void)
  */
 static BT_Status Act_MF_Finish_Cleanup(void)
 {
+    MC_bb.MF_MISSION_Req = 0;
+
     mf_exec_state = MF_EXEC_IDLE;
     mf_exec_timer_ms = 0;
     mf_task_request_flag = 0;
@@ -1600,20 +1742,20 @@ void BT_MF_Init_Task(void)
  * @brief MF 行为树 Tick 入口（在 cmd_task 的 for(;;) 中 1ms 周期调用）
  * @note 内部降频到 10ms
  */
-void BT_Customized_Tick1ms_MF(void)
-{
-    static uint8_t div10 = 0;
-    div10++;
-    if (div10 < 10) return;
-    div10 = 0;
-    Arm_Store_Service_Tick();
-    BT_Status status = BT_MF_Task_Tree_Root();
-    /* 异常自愈：BT 树崩溃时自动清理 */
-    if (status == BT_FAILURE) {
-        Act_MF_Finish_Cleanup();
-        seq_mem_idx_mf = 0;
-    }
-}
+// void BT_Customized_Tick1ms_MF(void)
+// {
+//     static uint8_t div10 = 0;
+//     div10++;
+//     if (div10 < 10) return;
+//     div10 = 0;
+//     Arm_Store_Service_Tick();
+//     BT_Status status = BT_MF_Task_Tree_Root();
+//     /* 异常自愈：BT 树崩溃时自动清理 */
+//     if (status == BT_FAILURE) {
+//         Act_MF_Finish_Cleanup();
+//         seq_mem_idx_mf = 0;
+//     }
+// }
 
 
 
@@ -2048,8 +2190,8 @@ static BT_Status BT_MASTER_Task_Tree_Root(void)
 {
     static const BT_NodeFunc seq[] = {
         Cond_Has_MASTER_Request,       /* 1. 有总任务请求？ */
-        // Act_MC_Task_Wrapper,           /* 2. MC(武馆) */
-        // Cond_Has_MF_Request,           /* 3. 有 MF 任务请求 */
+        Act_MC_Task_Wrapper,           /* 2. MC(武馆) */
+        Cond_Has_MF_Request,           /* 3. 有 MF 任务请求 */
         Act_MF_Task_Wrapper,           /* 4. MF(梅林) */
         // Act_ARENA_Task_Wrapper,        /* 5. ARENA(竞技场) */
         Act_MASTER_Finish_Cleanup      /* 6. 清理 */

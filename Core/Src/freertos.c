@@ -265,14 +265,14 @@ void StartDefaultTask(void const * argument)
     // data_send_vofa[6] = m3508_fdcan3[0].Now_Speed;
     // data_send_vofa[7] = m3508_fdcan3[0].M3508_Speed_PID.Target;
     // Vofa 10通道：卡尔曼 vs 低通对比视图
-    data_send_vofa[0] = Radar_Pos.radar_x;            // ch0: 雷达原始X
-    data_send_vofa[1] = Radar_Pos.radar_x_filtered;   // ch1: 卡尔曼滤波X
-    data_send_vofa[2] = radar_x_lowpass;              // ch2: 一阶低通X
-    data_send_vofa[3] = Radar_Pos.reliable_x;         // ch3: 最终使用X
-    data_send_vofa[4] = chassis_route_traj.traj_vx.out_vel;          // ch4: 雷达原始Y
-    data_send_vofa[5] = Radar_Pos.radar_y_filtered;   // ch5: 卡尔曼滤波Y
-    data_send_vofa[6] = radar_y_lowpass;              // ch6: 一阶低通Y
-    data_send_vofa[7] = Radar_Pos.reliable_y;         // ch7: 最终使用Y
+    // data_send_vofa[0] = Radar_Pos.radar_x;            // ch0: 雷达原始X
+    // data_send_vofa[1] = Radar_Pos.radar_x_filtered;   // ch1: 卡尔曼滤波X
+    // data_send_vofa[2] = radar_x_lowpass;              // ch2: 一阶低通X
+    // data_send_vofa[3] = Radar_Pos.reliable_x;         // ch3: 最终使用X
+    // data_send_vofa[4] = chassis_route_traj.traj_vx.out_vel;          // ch4: 雷达原始Y
+    // data_send_vofa[5] = Radar_Pos.radar_y_filtered;   // ch5: 卡尔曼滤波Y
+    // data_send_vofa[6] = radar_y_lowpass;              // ch6: 一阶低通Y
+    // data_send_vofa[7] = Radar_Pos.reliable_y;         // ch7: 最终使用Y
     vofa_send_to_show_justfloat(&huart7, data_send_vofa);
 
     // vofa显示调试信息
@@ -405,8 +405,8 @@ void entry_chassis(void const * argument)
   m3508_parameter_init(&m3508_fdcan3[2], 15.0f, 0.00f, 3.0f, 0.0f, 0.0f, 0.0f);
   m3508_parameter_init(&m3508_fdcan3[3], 15.0f, 0.00f, 3.0f, 0.0f, 0.0f, 0.0f);
   // 抬升机构辅助轮电机初始化
-  m3508_parameter_init(&m3508_fdcan1[1], 15.0f, 0.00f, 2.0f, 0.0f, 0.0f, 0.0f);
-  m3508_parameter_init(&m3508_fdcan1[2], 15.0f, 0.00f, 2.0f, 0.0f, 0.0f, 0.0f);
+  m3508_parameter_init(&m3508_fdcan1[1], 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+  m3508_parameter_init(&m3508_fdcan1[2], 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
   // 底盘升降初始化为收回状态
   // chassis_r2.lift_front = 0;
   // chassis_r2.lift_back = 0;
@@ -522,23 +522,22 @@ void entry_chassis(void const * argument)
     //    chassis_route_point_add(&chassis_route_traj, CHASSIS_SUDUKU_3_X, CHASSIS_SUDUKU_3_Y, CHASSIS_SUDUKU_3_W, 0);
     //    point_add = 0;
     //  }
-     
     //  if (point_add1 == 1)
     //  {
     //    chassis_route_point_add(&chassis_route_traj, 11100.0f, -3000.0f, 90.0f, 0);
     //    point_add1 = 0;
     //  }
     //上坡测试
-     if (point_add == 1)
-     {
-       chassis_route_point_add(&chassis_route_traj, R_CHASSIS_SLOPE_START_X, R_CHASSIS_SLOPE_START_Y, R_CHASSIS_SLOPE_START_W, 0);
-       point_add = 0;
-     }
-     if (point_add == 2)
-     {
-       chassis_route_point_add(&chassis_route_traj, R_CHASSIS_CZ_INIT_X, R_CHASSIS_CZ_INIT_Y, 0, 0);
-       point_add = 0;
-     }
+    //  if (point_add == 1)
+    //  {
+    //    chassis_route_point_add(&chassis_route_traj, R_CHASSIS_SLOPE_START_X, R_CHASSIS_SLOPE_START_Y, R_CHASSIS_SLOPE_START_W, 0);
+    //    point_add = 0;
+    //  }
+    //  if (point_add == 2)
+    //  {
+    //    chassis_route_point_add(&chassis_route_traj, R_CHASSIS_CZ_INIT_X, R_CHASSIS_CZ_INIT_Y, 0, 0);
+    //    point_add = 0;
+    //  }
 
       // 滤波后的雷达数据更新
       Radar_Pos.radar_x_filtered = Kalman_Update(&Radar_Kalman_X, Radar_Pos.radar_x);
@@ -627,16 +626,6 @@ void entry_chassis(void const * argument)
         chassis_lift_queue_add_point(&chassis_lift_traj, LIFT_RETRACT_HEIGHT, LIFT_RETRACT_HEIGHT, 0);
         traj_init_flag_lift = 1;
       }
-      // if (debug_flag == 1)
-      // {
-      //   chassis_lift_queue_add_point(&chassis_lift_traj, -0.025f, -0.225f, 0);
-      //   debug_flag = 0;
-      // }
-      // if (debug_flag == 2)
-      // {
-      //   chassis_lift_queue_add_point(&chassis_lift_traj, 0.230f, 0.030f, 0);
-      //   debug_flag = 0;
-      // }
       // 2. 多段路径调度器：当前段完成→从队列出队下一个目标
       chassis_lift_linear_interpolation_update(&chassis_r2, &chassis_lift_traj, CHASSIS_LIFT_QUEUE_BLEND_RADIUS);
       // 3. 单段轨迹推演（影子位置 + 速度 + 自动判敛）

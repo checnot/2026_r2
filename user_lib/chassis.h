@@ -20,7 +20,7 @@
 #define CHASSIS_TRACKING_POSITION_ERROR_THRESHOLD 200.0f //底盘跟踪位置误差阈值，单位mm
 #define CHASSIS_TRACKING_ANGLE_ERROR_THRESHOLD 6.0f //底盘跟踪角度误差阈值，单位rad
 #define CHASSIS_ROUTE_ARRIVAL_THRESHOLD 10.0f //底盘路径到达判定阈值，单位mm    
-#define CHASSIS_ANGLE_ARRIVAL_THRESHOLD 0.5f //底盘路径到达判定阈值，单位度
+#define CHASSIS_ANGLE_ARRIVAL_THRESHOLD 1.0f //底盘路径到达判定阈值，单位度
 #define CHASSIS_ROUTE_FINAL_APPROACH_THRESHOLD 250.0f //底盘路径最终接近目标判定阈值，单位mm        
 #define CHASSIS_ROUTE_FINAL_APPROACH_ANGLE_THRESHOLD 5.0f //底盘路径最终接近目标判定阈值，单位度
 #define CHASSIS_VX_FILTER_ALPHA 0.2f
@@ -137,5 +137,6 @@ void chassis_lift_linear_interpolation_update(chassis_stu *chassis, chassis_lift
 void chassis_lift_queue_add_point(chassis_lift_traj_stu *lift_traj, float front_height, float back_height, uint16_t delay_ms);
 void chassis_lift_excute(float kp, float kw, uint8_t front_en, uint8_t back_en);
 void chassis_lift_wheel_excute(float target_speed, float speed_kp, float speed_kd);
-#endif /* CHASSIS_H */
+
+#endif
 
