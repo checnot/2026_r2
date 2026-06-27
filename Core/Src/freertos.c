@@ -199,7 +199,7 @@ void MX_FREERTOS_Init(void) {
   clamp_taskHandle = osThreadCreate(osThread(clamp_task), NULL);
 
   /* definition and creation of cmd_task */
-  osThreadDef(cmd_task, entry_cmd_task, osPriorityNormal, 0, 128);
+  osThreadDef(cmd_task, entry_cmd_task, osPriorityNormal, 0, 512);
   cmd_taskHandle = osThreadCreate(osThread(cmd_task), NULL);
 
   /* definition and creation of m8010_task */
