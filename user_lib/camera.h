@@ -27,10 +27,13 @@ typedef enum
   Invalid = 9 //无效，不进行放置动作
 }CZ_PUT_POS;
 
+
 extern uint8_t Camera_Rec_Data[128];
 extern CZ_ACTION_TYPE CZ_action;
 extern CZ_PUT_POS CZ_put_pos;
-
+extern float CZ_SUDUKU_X ;
+extern float CZ_SUDUKU_Y ;
+extern float CZ_SUDUKU_W ;
 void MF_Scan_Command_Send(uint8_t Command_Number);
 void Camera_Scan_Data_Progress(uint8_t buf[]);
 void Camera_CZ_Data_Progress(char * str);

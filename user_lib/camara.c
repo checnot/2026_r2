@@ -4,6 +4,9 @@
 uint8_t Camera_Rec_Data[128];
 CZ_ACTION_TYPE CZ_action = ACTION_IDLE;
 CZ_PUT_POS CZ_put_pos = POS_IDLE;
+float CZ_SUDUKU_X = 0.0f;
+float CZ_SUDUKU_Y = 0.0f;
+float CZ_SUDUKU_W = 0.0f;
 uint8_t grid[ROWS][COLS];
 uint8_t MEILIN_STATE[4][3]; // 四行三列
 uint8_t tx_buffer1 = 0x01;

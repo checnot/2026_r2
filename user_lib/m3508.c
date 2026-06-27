@@ -85,23 +85,13 @@ void M3508_Return_Process(FDCAN_RxHeaderTypeDef* RxHeader, uint8_t Data[], M3508
 		Motor[num-1].Now_Speed = Data[2]<<8 | Data[3];
 	  Motor[num-1].Now_Current = Data[4]<<8 | Data[5];
 	
-    int16_t angle_add_1,angle_add_2,angle_add_fin=0;
+    int32_t angle_add_fin = (int32_t)Motor[num-1].Now_Angle - (int32_t)Motor[num-1].Angle_Last;
 
-    if(Motor[num-1].Now_Angle > Motor[num-1].Angle_Last)
-    {
-        angle_add_1 = Motor[num-1].Now_Angle - Motor[num-1].Angle_Last;
-        angle_add_2 = -8191 + Motor[num-1].Now_Angle - Motor[num-1].Angle_Last;
-    }
-    else
-    {
-        angle_add_1 = Motor[num-1].Now_Angle - Motor[num-1].Angle_Last;
-        angle_add_2 = 8191 - Motor[num-1].Angle_Last + Motor[num-1].Now_Angle;
-    }
-    
-    if(abs_int16(angle_add_1) > abs_int16(angle_add_2))
-    {angle_add_fin=angle_add_2;}
-    else
-    {angle_add_fin=angle_add_1;}
+    // 标准半圈环绕判断: 差值过半(>4096)为反向环绕, < -4096 为正向环绕
+    if (angle_add_fin > 4096)
+        angle_add_fin -= 8192;
+    else if (angle_add_fin < -4096)
+        angle_add_fin += 8192;
 
     Motor[num-1].Angle_Sum += angle_add_fin;
     Motor[num-1].Angle_Last = Motor[num-1].Now_Angle;

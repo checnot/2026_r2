@@ -1,4 +1,4 @@
-﻿#ifndef __BT_CUSTOMIZED_H
+#ifndef __BT_CUSTOMIZED_H
 #define __BT_CUSTOMIZED_H
 
 #include "main.h"
@@ -48,7 +48,7 @@
 /***************************************
  * 通用参数（红蓝区共用数值）
 **************************************** */
-#define R_CLAMP_TO_CHASSIS_CENTER_DIST 130.0f /* 夹爪中心到底盘中心的X方向距离 (mm) */
+#define R_CLAMP_TO_CHASSIS_CENTER_DIST 132.0f /* 夹爪中心到底盘中心的X方向距离 (mm) */
 #define B_CLAMP_TO_CHASSIS_CENTER_DIST 132.0f /* 夹爪中心到底盘中心的X方向距离 (mm) */
 #define R_RACK_STABLE_TIMES_CONDITION 80      /* 取矛头时到达目标位置次数，保证稳定抓取 */
 #define B_RACK_STABLE_TIMES_CONDITION 80      /* 取矛头时到达目标位置次数，保证稳定抓取 */
@@ -67,7 +67,7 @@
 #define R_CHASSIS_RACK_4_X 1050.0f - R_CLAMP_TO_CHASSIS_CENTER_DIST /* 红区 第四个矛头位置 X (mm) */
 #define R_CHASSIS_RACK_5_X 1250.0f - R_CLAMP_TO_CHASSIS_CENTER_DIST /* 红区 第五个矛头位置 X (mm) */
 #define R_CHASSIS_RACK_6_X 1450.0f - R_CLAMP_TO_CHASSIS_CENTER_DIST /* 红区 第六个矛头位置 X (mm) */
-#define R_CHASSIS_RACK_Y -595.0f              /* 红区 取矛头位置 Y (mm) */
+#define R_CHASSIS_RACK_Y -590.0f              /* 红区 取矛头位置 Y (mm) */
 #define R_CHASSIS_RACK_Y_1 -605.0f            /* 红区 取第一个矛头位置 Y (mm) */
 #define R_CHASSIS_RACK_W_1 10.0f              /* 红区 取第一个矛头位置 W (deg) */
 #define R_CHASSIS_RACK_W 0.0f                 /* 红区 取矛头位置 W (deg) */
@@ -103,19 +103,19 @@
 
 // 梅林进入对抗区
 #define R_CHASSIS_SLOPE_START_X 8650.0f       /* 红区 坡道起点 X (mm) */
-#define R_CHASSIS_SLOPE_START_Y -5500.0f      /* 红区 坡道起点 Y (mm) */
+#define R_CHASSIS_SLOPE_START_Y -5250.0f      /* 红区 坡道起点 Y (mm) */
 #define R_CHASSIS_SLOPE_START_W 0.0f          /* 红区 坡道起点 W (deg) */
-#define R_CHASSIS_SLOPE_END_X 11500.0f        /* 红区 坡道终点 X (mm) */
-#define R_CHASSIS_SLOPE_END_Y -5500.0f        /* 红区 坡道终点 Y (mm) */
+#define R_CHASSIS_SLOPE_END_X 11300.0f        /* 红区 坡道终点 X (mm) */
+#define R_CHASSIS_SLOPE_END_Y -5250.0f        /* 红区 坡道终点 Y (mm) */
 #define R_CHASSIS_SLOPE_END_W 0.0f            /* 红区 坡道终点 W (deg) */
 
 // 对抗区路径点位
 #define R_CHASSIS_CZ_INIT_X 11500.0f          /* 红区 重试区 X (mm) */
 #define R_CHASSIS_CZ_INIT_Y -5500.0f          /* 红区 重试区 Y (mm) */
 #define R_CHASSIS_CZ_INIT_W 90.0f             /* 红区 重试区 W (deg) */
-#define R_CHASSIS_CZ_CENTER_X 10750.0f        /* 红区 对抗区中央 X (mm) */
-#define R_CHASSIS_CZ_CENTER_Y -3000.0f        /* 红区 对抗区中央 Y (mm) */
-#define R_CHASSIS_CZ_CENTER_W 90.0f           /* 红区 对抗区中央 W (deg) */
+#define R_CHASSIS_CZ_CENTER_X 11030.0f        /* 红区 对抗区扫描 X (mm) */
+#define R_CHASSIS_CZ_CENTER_Y -2320.0f        /* 红区 对抗区扫描 Y (mm) */
+#define R_CHASSIS_CZ_CENTER_W 90.0f           /* 红区 对抗区扫描 W (deg) */
 
 #define R_CHASSIS_SUDUKU_1_X 11290.0f         /* 红区 九宫格第一列 X (mm) */
 #define R_CHASSIS_SUDUKU_1_Y -600.0f          /* 红区 九宫格第一列 Y (mm) */
@@ -366,6 +366,8 @@ void BT_Customized_Tick1ms_MF(void);
 
 /* ================================================ CZ 对抗区行为树接口 ================================================ */
 
+#define CZ_POS_STABLE_CONDITION 50  /* 扫描位置稳定次数阈值，类似MC取矛头 */
+
 /* 对抗区任务状态机 */
 typedef enum
 {
@@ -375,7 +377,7 @@ typedef enum
     CZ_NAV_TO_SCAN,
     CZ_CAMERA_SCAN,
     CZ_NAV_TO_SUDUKU,
-    CZ_EXEC_STRATEGY,
+    CZ_RETURN_TO_SCAN,
     CZ_DONE
 } R2_CZ_MISSION_STATE;
 
@@ -387,7 +389,8 @@ typedef struct
     uint8_t seq_mem_idx;
     uint32_t cz_timer_ms;
     uint8_t camera_scan_done;
-    uint8_t strategy_result;
+    uint8_t scan_count;           /* 扫描次数: 0=第一次, 1=第二次 */
+    uint16_t pos_stable_times;    /* 扫描位置稳定计数 */
 } CZ_Blackboard;
 
 extern CZ_Blackboard CZ_bb;

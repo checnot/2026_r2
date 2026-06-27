@@ -175,17 +175,16 @@ float chassis_angle_edge_protection(float target_yaw,float now_yaw)
 void chassis_single_route_completion_check(Traj_Single_struct * traj, float actual_pos)
 {
     float error = fabsf(traj->target_pos - actual_pos);
-    if (error < CHASSIS_ROUTE_ARRIVAL_THRESHOLD) // 误差小于误差阈值则判定完成
+    if (error < CHASSIS_ROUTE_ARRIVAL_THRESHOLD)
     {
         traj->is_finished = 1;
-        traj->out_pos = traj->target_pos; // 锁定目标位置
-        traj->out_vel = 0.0f; // 刹停
+        traj->out_pos = traj->target_pos;
+        traj->out_vel = 0.0f;
     }
     else
     {
         traj->is_finished = 0;
     }
-    
 }
 /*
 *@brief 路径完成判定与锁定函数(由于w轴)
@@ -317,7 +316,15 @@ void chassis_multi_route_scheduler(chassis_route_traj_stu* chassis_route_traj,RA
         return;  
     }
     // 如果当前轨迹已经完成，并且队列中还有待执行的轨迹点，则切换到下一个轨迹点
-    if (chassis_route_traj->traj_vx.is_finished && chassis_route_traj->traj_vy.is_finished && chassis_route_traj->traj_vw.is_finished) 
+    // 或：当前目标虽未完全到位，但已进入预加载距离，且队列中还有更多点，也提前出队
+    float dx = fabsf(chassis_route_traj->traj_vx.target_pos - chassis_real_position->reliable_x);
+    float dy = fabsf(chassis_route_traj->traj_vy.target_pos - chassis_real_position->reliable_y);
+    float dw = fabsf(chassis_angle_edge_protection(chassis_route_traj->traj_vw.target_pos, chassis_real_position->reliable_yaw));
+    uint8_t near_target = (dx < CHASSIS_ROUTE_LOOKAHEAD_DIST && dy < CHASSIS_ROUTE_LOOKAHEAD_DIST && dw < 10.0f);
+    uint8_t has_more_points = (chassis_route_traj->traj_queue_vx.count > 0);
+
+    if ((chassis_route_traj->traj_vx.is_finished && chassis_route_traj->traj_vy.is_finished && chassis_route_traj->traj_vw.is_finished)
+        || (near_target && has_more_points)) 
     {
         // 从队列头部取出下一个目标点
         chassis_route_traj->traj_vx.target_pos = chassis_route_traj->traj_queue_vx.points[chassis_route_traj->traj_queue_vx.tail];
@@ -458,9 +465,29 @@ void chassis_single_route_scheduler(RADAR_POSITION * chassis_real_position, chas
     //     chassis_route_traj->traj_vw.out_vel = chassis_route_traj->pid_final_vw.Output; // 用PID输出修正速度，进行微调
     // }
      // === 2. 如果已经判定到达，强制锁定目标防止晃动 ===
-    chassis_single_route_completion_check(&chassis_route_traj->traj_vx, chassis_real_position->reliable_x);
-    chassis_single_route_completion_check(&chassis_route_traj->traj_vy, chassis_real_position->reliable_y);
+    // W轴差>3°时跳过X/Y完成检查，防止旋转漂移导致X/Y反复锁/解锁震颤
+    float w_err = fabsf(chassis_angle_edge_protection(
+        chassis_route_traj->traj_vw.target_pos, chassis_real_position->reliable_yaw));
+    uint8_t allow_xy_finish = (chassis_route_traj->traj_vw.is_finished || w_err <= 3.0f);
+
+    if (allow_xy_finish) {
+        chassis_single_route_completion_check(&chassis_route_traj->traj_vx, chassis_real_position->reliable_x);
+        chassis_single_route_completion_check(&chassis_route_traj->traj_vy, chassis_real_position->reliable_y);
+    }
     chassis_single_route_completion_check_angle(&chassis_route_traj->traj_vw, chassis_real_position->reliable_yaw);
+
+    // 连续稳定计数：避免雷达单次波动误判完成或末端反复进出
+    static uint8_t stable_cnt = 0;
+    if (chassis_route_traj->traj_vx.is_finished && chassis_route_traj->traj_vy.is_finished && chassis_route_traj->traj_vw.is_finished)
+        stable_cnt++;
+    else
+        stable_cnt = 0;
+
+    if (stable_cnt < 5) {  // 需连续5次三轴均在阈值内才算真正完成
+        chassis_route_traj->traj_vx.is_finished = 0;
+        chassis_route_traj->traj_vy.is_finished = 0;
+        chassis_route_traj->traj_vw.is_finished = 0;
+    }
 
     if(chassis_route_traj->traj_vx.is_finished && chassis_route_traj->traj_vy.is_finished && chassis_route_traj->traj_vw.is_finished) 
     {
@@ -492,9 +519,9 @@ void chassis_single_route_scheduler(RADAR_POSITION * chassis_real_position, chas
             float v_max_2d = chassis_route_traj->slope_mode ? CHASSIS_SLOPE_V_MAX : CHASSIS_V_MAX;
             float a_max_2d = chassis_route_traj->slope_mode ? CHASSIS_SLOPE_A_MAX : CHASSIS_A_MAX;
 
-            // 方向
-            float dir_x = traj_sign2(chassis_route_traj->traj_vx.target_pos - chassis_route_traj->traj_vx.out_pos);
-            float dir_y = traj_sign2(chassis_route_traj->traj_vy.target_pos - chassis_route_traj->traj_vy.out_pos);
+            // 方向（基于实际位置，保证 vx:vy ≡ dx:dy 严格成立）
+            float dir_x = traj_sign2(chassis_route_traj->traj_vx.target_pos - chassis_real_position->reliable_x);
+            float dir_y = traj_sign2(chassis_route_traj->traj_vy.target_pos - chassis_real_position->reliable_y);
 
             // 安全刹车速度（基于实际2D距离）
             float safe_decel_vel = sqrtf(2.0f * a_max_2d * dis_total);

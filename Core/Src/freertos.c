@@ -468,43 +468,54 @@ void entry_chassis(void const * argument)
     //     point_add1 = 0;
     //  }
     //  //测试用添加路径点
-    //  if (point_add == 1)
-    //  {
-    //    chassis_route_point_add(&chassis_route_traj, CHASSIS_CZ_INIT_X, CHASSIS_CZ_INIT_Y, CHASSIS_CZ_INIT_W, 0);
-    //    point_add = 0;
-    //  }
-    //  if (point_add == 2)
-    //  {
-    //    chassis_route_point_add(&chassis_route_traj, CHASSIS_SUDUKU_1_X, CHASSIS_SUDUKU_1_Y, CHASSIS_SUDUKU_1_W, 0);
-    //    point_add = 0;
-    //  }
-    //  if (point_add == 3)
-    //  {
-    //    chassis_route_point_add(&chassis_route_traj, CHASSIS_SUDUKU_2_X, CHASSIS_SUDUKU_2_Y, CHASSIS_SUDUKU_2_W, 0);
-    //    point_add = 0;
-    //  }
-    //  if (point_add == 4)
-    //  {
-    //    chassis_route_point_add(&chassis_route_traj, CHASSIS_SUDUKU_3_X, CHASSIS_SUDUKU_3_Y, CHASSIS_SUDUKU_3_W, 0);
-    //    point_add = 0;
-    //  }
-     
-    //  if (point_add1 == 1)
-    //  {
-    //    chassis_route_point_add(&chassis_route_traj, 11100.0f, -3000.0f, 90.0f, 0);
-    //    point_add1 = 0;
-    //  }
-    //上坡测试
      if (point_add == 1)
      {
-       chassis_route_point_add(&chassis_route_traj, R_CHASSIS_SLOPE_START_X, R_CHASSIS_SLOPE_START_Y, R_CHASSIS_SLOPE_START_W, 0);
+       chassis_route_point_add(&chassis_route_traj, R_CHASSIS_CZ_INIT_X, R_CHASSIS_CZ_INIT_Y, R_CHASSIS_CZ_INIT_W, 0);
        point_add = 0;
      }
      if (point_add == 2)
      {
-       chassis_route_point_add(&chassis_route_traj, R_CHASSIS_CZ_INIT_X, R_CHASSIS_CZ_INIT_Y, 0, 0);
+       chassis_route_point_add(&chassis_route_traj, R_CHASSIS_SUDUKU_1_X, R_CHASSIS_SUDUKU_1_Y, R_CHASSIS_SUDUKU_1_W, 0);
        point_add = 0;
      }
+     if (point_add == 3)
+     {
+       chassis_route_point_add(&chassis_route_traj, R_CHASSIS_SUDUKU_2_X, R_CHASSIS_SUDUKU_2_Y, R_CHASSIS_SUDUKU_2_W, 0);
+       point_add = 0;
+     }
+     if (point_add == 4)
+     {
+       chassis_route_point_add(&chassis_route_traj, R_CHASSIS_SUDUKU_3_X, R_CHASSIS_SUDUKU_3_Y, R_CHASSIS_SUDUKU_3_W, 0);
+       point_add = 0;
+     }
+     
+     if (point_add1 == 1)
+     {
+       chassis_route_point_add(&chassis_route_traj, 11100.0f, -3000.0f, 90.0f, 0);
+       point_add1 = 0;
+     }
+    //上坡测试
+//     if (point_add == 1)
+//     {
+//       chassis_route_point_add(&chassis_route_traj, R_CHASSIS_SLOPE_START_X, R_CHASSIS_SLOPE_START_Y, R_CHASSIS_SLOPE_START_W, 0);
+//       point_add = 0;
+//     }
+//     if (point_add == 2)
+//     {
+//       chassis_route_point_add(&chassis_route_traj, R_CHASSIS_CZ_INIT_X, R_CHASSIS_CZ_INIT_Y, 0, 0);
+//       point_add = 0;
+//     }
+// if (point_add == 1)
+//      {
+//        chassis_route_point_add(&chassis_route_traj, 11500,-4000.0f, 0.0f, 0);
+//        point_add = 0;
+//      }
+//      if (point_add == 2)
+//      {
+//        chassis_route_point_add(&chassis_route_traj, 11100,-2400.0f, 180.0f, 0);
+//        point_add = 0;
+//      }
+
 
       // 滤波后的雷达数据更新
       Radar_Pos.radar_x_filtered = Kalman_Update(&Radar_Kalman_X, Radar_Pos.radar_x);
