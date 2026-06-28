@@ -41,10 +41,9 @@ typedef struct {
     float real_vw;      // 实际底盘旋转速度 
     int16_t wheel_speed[4]; // 四轮速度，直接对应轮部3508电机的目标速度
 
-// 以下为底盘升降相关属性
-    uint8_t lift_front; // 前升降状态，0代表收回，1代表推出
-    uint8_t lift_back; // 后升降状态，0代表收回，1代表推出
+    uint8_t chassis_en_flag; // 底盘使能标志，1=使能，0=禁用电机
 
+// 以下为底盘升降相关属性
     float lift_front_target;    // 前端升降目标高度(m)
     float lift_back_target;     // 后端升降目标高度(m)
     float lift_front_current;   // 前端升降当前高度(m)，从电机编码器换算
@@ -83,7 +82,7 @@ extern chassis_route_traj_stu chassis_route_traj;
 
 
 void chassis_world_to_robot_velocity(chassis_stu *chassis, float vx_world, float vy_world, float vw_world, float robot_yaw);
-void omni_chassis_calculate(chassis_stu *chassis, float vx, float vy, float vw);
+void omni_chassis_calculate(chassis_stu *chassis, float vx, float vy, float vw, uint8_t en_flag);
 void omni_chassis_inverse_calculate(chassis_stu *chassis, M3508_Motor_Struct * m3508_fdcan3);
 // void chassis_lift_front_control(uint8_t lift_front);
 // void chassis_lift_back_control(uint8_t lift_back);  
