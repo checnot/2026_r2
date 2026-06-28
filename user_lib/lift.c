@@ -416,8 +416,9 @@ BT_Status chassis_step_fsm_tick(ChassisStepFSM *fsm)
          * 控制模式 = LIFT_CTRL_FORCE_REAR_ONLY（上一状态已设置）。
          */
         if (lift_front_arrived(neg_stroke)) {
-            /* 前柱已到位撑住，更新后柱快照，恢复前进 */
-            fsm->rear_leave_snapshot = chassis_r2.lift_back_current;
+            /* 前柱已到位撑住 */
+            /* 暂时取消更新快照 */
+            // fsm->rear_leave_snapshot = chassis_r2.lift_back_current;
             step_wheel_drive(wheel_speed, wheel_kp, wheel_kd);
             fsm->state = STEP_DOWN_DRIVE_REAR_LEAVE;
             fsm->timer_ms = 0;
@@ -489,6 +490,10 @@ BT_Status chassis_step_fsm_tick(ChassisStepFSM *fsm)
 
     /* ---------- 下台阶完成 ---------- */
     case STEP_DOWN_COMPLETE:
+
+        /* 恢复底盘使能 */
+        chassis_r2.chassis_en_flag = 1;
+
         fsm->timer_ms = 0;
         return BT_SUCCESS;
 

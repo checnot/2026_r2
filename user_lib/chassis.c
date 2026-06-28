@@ -53,9 +53,10 @@ void chassis_world_to_robot_velocity(chassis_stu *chassis, float vx_world, float
  * @param vx 前向速度
  * @param vy 横向速度
  * @param vw 旋转速度
+ * @param en_flag 使能标志，1为使能底盘，0为禁用底盘（电机输出纯为0）
  * @warning 该函数全程使用机器人坐标系，并且单位未定义----电机id:右前为id1，右后为id2，左后为id3，左前为id4
 */
-void omni_chassis_calculate(chassis_stu *chassis, float vx, float vy, float vw)
+void omni_chassis_calculate(chassis_stu *chassis, float vx, float vy, float vw, uint8_t en_flag)
 {
    
     chassis->vx = vx;
@@ -67,10 +68,21 @@ void omni_chassis_calculate(chassis_stu *chassis, float vx, float vy, float vw)
     chassis->wheel_speed[2] = (int16_t)( -vx + vy - vw);
     chassis->wheel_speed[3] = (int16_t)( vx + vy - vw);
 
-    m3508_speed_control(&m3508_fdcan3[0], chassis->wheel_speed[0], 8192);
-    m3508_speed_control(&m3508_fdcan3[1], chassis->wheel_speed[1], 8192);
-    m3508_speed_control(&m3508_fdcan3[2], chassis->wheel_speed[2], 8192);
-    m3508_speed_control(&m3508_fdcan3[3], chassis->wheel_speed[3], 8192);
+    if(en_flag == 1)
+    {
+        m3508_speed_control(&m3508_fdcan3[0], chassis->wheel_speed[0], 8192);
+        m3508_speed_control(&m3508_fdcan3[1], chassis->wheel_speed[1], 8192);
+        m3508_speed_control(&m3508_fdcan3[2], chassis->wheel_speed[2], 8192);
+        m3508_speed_control(&m3508_fdcan3[3], chassis->wheel_speed[3], 8192);
+    }
+    else if(en_flag == 0)
+    {
+        m3508_fdcan3[0].Current_Output = 0;
+        m3508_fdcan3[1].Current_Output = 0;
+        m3508_fdcan3[2].Current_Output = 0;
+        m3508_fdcan3[3].Current_Output = 0;
+    }
+
 }
 /*
 *@brief 底盘速度逆解算函数，根据输入的各轮速度计算底盘的vx、vy、vw

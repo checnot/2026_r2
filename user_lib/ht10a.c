@@ -60,12 +60,12 @@ void customized_judgment(void)
   //底盘控制部分
   if(HT10A.switch_d == 0)
   {
-    //前半车身升降部分
-    if(HT10A_last.switch_b == -1 && HT10A.switch_b == 1)      {chassis_r2.lift_front = 1;}    
-    else if(HT10A_last.switch_b == 1 && HT10A.switch_b == -1) {chassis_r2.lift_front = 0;}
-    //后半车身升降部分
-    if(HT10A_last.switch_c == -1 && HT10A.switch_c == 1)      {chassis_r2.lift_back = 1;}    
-    else if(HT10A_last.switch_c == 1 && HT10A.switch_c == -1) {chassis_r2.lift_back = 0;}
+    // //前半车身升降部分
+    // if(HT10A_last.switch_b == -1 && HT10A.switch_b == 1)      {chassis_r2.lift_front = 1;}    
+    // else if(HT10A_last.switch_b == 1 && HT10A.switch_b == -1) {chassis_r2.lift_front = 0;}
+    // //后半车身升降部分
+    // if(HT10A_last.switch_c == -1 && HT10A.switch_c == 1)      {chassis_r2.lift_back = 1;}    
+    // else if(HT10A_last.switch_c == 1 && HT10A.switch_c == -1) {chassis_r2.lift_back = 0;}
   }
   //夹爪控制部分
   if(HT10A.switch_d == -1)

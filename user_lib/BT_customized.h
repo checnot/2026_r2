@@ -356,12 +356,12 @@ extern uint8_t arm_store_slot;
 #define PICK_HANDS_UP_X 0.15f       /* 演示用抬手坐标 */
 #define PICK_HANDS_UP_Y 0.9f       /* 演示用抬手坐标 */
 
-#define PICK_N200_APR_X_1 0.3f          /* -200预抓取点1 X */
-#define PICK_N200_APR_Y_1 0.5f          /* -200预抓取点1 Y */
-// #define PICK_N200_APR_X_2 0.5f          /* -200预抓取点2 X */
-// #define PICK_N200_APR_Y_2 0.5f          /* -200预抓取点2 Y */
-#define PICK_N200_TARGET_X 0.5f         /* -200抓取点 X */
-#define PICK_N200_TARGET_Y 0.4f         /* -200抓取点 Y */
+#define PICK_N200_APR_X_1 0.568f          /* ！！！！待测试！！！！-200预抓取点1 X */
+#define PICK_N200_APR_Y_1 0.065f          /* ！！！！待测试！！！！！-200预抓取点1 Y */
+// #define PICK_N200_APR_X_2 0.5f          /* ！！！！待测试！！！！！-200预抓取点2 X */
+// #define PICK_N200_APR_Y_2 0.5f          /* ！！！！待测试！！！！！-200预抓取点2 Y */
+#define PICK_N200_TARGET_X 0.618f         /* ！！！！待测试！！！！！-200抓取点 X */
+#define PICK_N200_TARGET_Y 0.065f         /* ！！！！待测试！！！！！-200抓取点 Y */
 
 #define PICK_0_APR_X_1 0.568f             /* 0预抓取点1 X */
 #define PICK_0_APR_Y_1 (-0.135f)          /* 0预抓取点1 Y */
