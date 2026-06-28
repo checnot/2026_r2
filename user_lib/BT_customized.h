@@ -1,4 +1,4 @@
-#ifndef __BT_CUSTOMIZED_H
+﻿#ifndef __BT_CUSTOMIZED_H
 #define __BT_CUSTOMIZED_H
 
 #include "main.h"
@@ -114,18 +114,18 @@
 #define R_CHASSIS_CZ_INIT_X 11500.0f          /* 红区 重试区 X (mm) */
 #define R_CHASSIS_CZ_INIT_Y -5500.0f          /* 红区 重试区 Y (mm) */
 #define R_CHASSIS_CZ_INIT_W 90.0f             /* 红区 重试区 W (deg) */
-#define R_CHASSIS_CZ_CENTER_X 11030.0f        /* 红区 对抗区扫描 X (mm) */
-#define R_CHASSIS_CZ_CENTER_Y -2320.0f        /* 红区 对抗区扫描 Y (mm) */
+#define R_CHASSIS_CZ_CENTER_X 11080.0f        /* 红区 对抗区扫描 X (mm) */
+#define R_CHASSIS_CZ_CENTER_Y -3055.0f        /* 红区 对抗区扫描 Y (mm) */
 #define R_CHASSIS_CZ_CENTER_W 90.0f           /* 红区 对抗区扫描 W (deg) */
 
 #define R_CHASSIS_SUDUKU_1_X 11290.0f         /* 红区 九宫格第一列 X (mm) */
-#define R_CHASSIS_SUDUKU_1_Y -600.0f          /* 红区 九宫格第一列 Y (mm) */
+#define R_CHASSIS_SUDUKU_1_Y -640.0f          /* 红区 九宫格第一列 Y (mm) */
 #define R_CHASSIS_SUDUKU_1_W 90.0f            /* 红区 九宫格第一列 W (deg) */
 #define R_CHASSIS_SUDUKU_2_X 10750.0f         /* 红区 九宫格第二列 X (mm) */
-#define R_CHASSIS_SUDUKU_2_Y -600.0f          /* 红区 九宫格第二列 Y (mm) */
+#define R_CHASSIS_SUDUKU_2_Y -640.0f          /* 红区 九宫格第二列 Y (mm) */
 #define R_CHASSIS_SUDUKU_2_W 90.0f            /* 红区 九宫格第二列 W (deg) */
 #define R_CHASSIS_SUDUKU_3_X 10210.0f         /* 红区 九宫格第三列 X (mm) */
-#define R_CHASSIS_SUDUKU_3_Y -600.0f          /* 红区 九宫格第三列 Y (mm) */
+#define R_CHASSIS_SUDUKU_3_Y -640.0f          /* 红区 九宫格第三列 Y (mm) */
 #define R_CHASSIS_SUDUKU_3_W 90.0f            /* 红区 九宫格第三列 W (deg) */
 
 /***************************************
@@ -429,6 +429,14 @@ void BT_Customized_Tick1ms_MF(void);
 
 #define CZ_POS_STABLE_CONDITION 50  /* 扫描位置稳定次数阈值，类似MC取矛头 */
 
+/* 对抗区机械臂放块坐标 */
+#define CZ_ARM_PLACE_1_X 0.1f       /* 对抗区放块机械臂抬高目标 X */
+#define CZ_ARM_PLACE_1_Y 0.95f       /* 对抗区放块机械臂抬高目标 Y */
+#define CZ_ARM_PLACE_2_X 0.2f       /* 对抗区放块机械臂前伸放置目标 X */
+#define CZ_ARM_PLACE_2_Y 0.95f       /* 对抗区放块机械臂前伸放置目标 Y */
+#define CZ_ARM_PLACE_TIME 1000    /* 放块停留时间 (ms) */
+#define CZ_ARM_PLACE_TIMEOUT_MS 8000 /* 放块超时时间 (ms) */
+
 /* 对抗区任务状态机 */
 typedef enum
 {
@@ -438,6 +446,7 @@ typedef enum
     CZ_NAV_TO_SCAN,
     CZ_CAMERA_SCAN,
     CZ_NAV_TO_SUDUKU,
+    CZ_ARM_PLACE,
     CZ_RETURN_TO_SCAN,
     CZ_DONE
 } R2_CZ_MISSION_STATE;

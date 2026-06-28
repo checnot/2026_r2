@@ -618,7 +618,7 @@ static BT_Status Act_R2_MC_Mission(void)
             taskENTER_CRITICAL();
             chassis_route_point_add(&chassis_route_traj, R_CHASSIS_DOCKING_X, R_CHASSIS_DOCKING_Y, R_CHASSIS_DOCKING_W, 0);
             taskEXIT_CRITICAL();
-//            clamp.lift_flag = 1;
+            clamp.lift_flag = 0;
 
             MC_bb.mc_mission_state = WAIT_DOCKING_COMPLETE;
             MC_bb.R2_MC_timer_ms = 0;
@@ -630,6 +630,8 @@ static BT_Status Act_R2_MC_Mission(void)
             if(MC_bb.DOCKING_SUCCESS == 1)
             {
                 clamp.catch_flag = 0; // 对接完成后放开夹爪
+                osDelay(800);
+                clamp.rotate_flag = 0;
 
                 MC_bb.mc_mission_state = WAIT_MF_INSTRUCTION;
                 MC_bb.R2_MC_timer_ms = 0;
@@ -649,7 +651,7 @@ static BT_Status Act_R2_MC_Mission(void)
               chassis_route_point_add(&chassis_route_traj, R_CHASSIS_SCANNING_X, R_CHASSIS_SCANNING_Y, R_CHASSIS_SCANNING_W, 0);
               taskEXIT_CRITICAL();
               clamp.retractable_flag = 0;
-              clamp.rotate_flag = 0;
+            //   clamp.rotate_flag = 0;
 			  MC_bb.mc_mission_state = CAMERA_SCAN;
               MC_bb.R2_MC_timer_ms = 0;
               
@@ -1860,7 +1862,7 @@ static BT_Status Act_CZ_Mission(void)
                 if (CZ_bb.pos_stable_times > CZ_POS_STABLE_CONDITION)
                 {
 									
-                    CZ_bb.camera_scan_done = 1;
+                    CZ_bb.camera_scan_done = 1;//是否需要发送指令给摄像头还未确定
 
                     /* 根据摄像头扫描结果决定下一步
                        KFS_PUT: CZ_put_pos 一定是 M1/M2/M3
@@ -1869,6 +1871,8 @@ static BT_Status Act_CZ_Mission(void)
                     switch (CZ_action)
                     {
                     case KFS_PUT:
+                    taskENTER_CRITICAL();
+                    arm_queue_add_point(&arm_traj,CZ_ARM_PLACE_1_X,CZ_ARM_PLACE_1_Y,0,0,ARM_PUMP_KEEP);
                         if (CZ_put_pos == M1)
                             chassis_route_point_add(&chassis_route_traj,
                                 R_CHASSIS_SUDUKU_3_X, R_CHASSIS_SUDUKU_3_Y, R_CHASSIS_SUDUKU_3_W, 0);
@@ -1878,7 +1882,7 @@ static BT_Status Act_CZ_Mission(void)
                         else /* M3 */
                             chassis_route_point_add(&chassis_route_traj,
                                 R_CHASSIS_SUDUKU_1_X, R_CHASSIS_SUDUKU_1_Y, R_CHASSIS_SUDUKU_1_W, 0);
-
+                    taskEXIT_CRITICAL();
                        
                         if (CZ_put_pos == M1)
                         { CZ_SUDUKU_X = R_CHASSIS_SUDUKU_3_X; CZ_SUDUKU_Y = R_CHASSIS_SUDUKU_3_Y; CZ_SUDUKU_W = R_CHASSIS_SUDUKU_3_W; }
@@ -1928,18 +1932,29 @@ static BT_Status Act_CZ_Mission(void)
         case CZ_NAV_TO_SUDUKU:
         {
             /* 等待底盘到达目标九宫格列 */
-            // float tx, ty, tw;
-            // if (CZ_put_pos == M1)
-            //     { tx = R_CHASSIS_SUDUKU_3_X; ty = R_CHASSIS_SUDUKU_3_Y; tw = R_CHASSIS_SUDUKU_3_W; }
-            // else if (CZ_put_pos == M2)
-            //     { tx = R_CHASSIS_SUDUKU_2_X; ty = R_CHASSIS_SUDUKU_2_Y; tw = R_CHASSIS_SUDUKU_2_W; }
-            // else /* M3 */
-            //     { tx = R_CHASSIS_SUDUKU_1_X; ty = R_CHASSIS_SUDUKU_1_Y; tw = R_CHASSIS_SUDUKU_1_W; }
-
-            if (chassis_if_arrived(CZ_SUDUKU_X, CZ_SUDUKU_Y, CZ_SUDUKU_W))
+            if (chassis_if_arrived(CZ_SUDUKU_X, CZ_SUDUKU_Y, CZ_SUDUKU_W) && arm_if_arrived_xy(CZ_ARM_PLACE_1_X, CZ_ARM_PLACE_1_Y))
             {
-                osDelay(3000);  /* 用延时代替放置动作 */
+                /* 到位后下发机械臂放块动作 */
+                taskENTER_CRITICAL();
+                arm_queue_add_point(&arm_traj,
+                    CZ_ARM_PLACE_2_X, CZ_ARM_PLACE_2_Y, 0, CZ_ARM_PLACE_TIME, ARM_PUMP_RELEASE);
+                taskEXIT_CRITICAL();
 
+                CZ_bb.cz_mission_state = CZ_ARM_PLACE;
+                CZ_bb.cz_timer_ms = 0;
+            }
+            else if (++CZ_bb.cz_timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS*2)
+            {
+                return BT_FAILURE;
+            }
+            return BT_RUNNING;
+        }
+
+        case CZ_ARM_PLACE:
+        {
+            /* 等待机械臂放块完成 */
+            if (arm_if_arrived_xy(CZ_ARM_PLACE_2_X, CZ_ARM_PLACE_2_Y))
+            {
                 CZ_bb.scan_count++;
                 if (CZ_bb.scan_count >= 2)
                 {
@@ -1955,7 +1970,7 @@ static BT_Status Act_CZ_Mission(void)
                 }
                 CZ_bb.cz_timer_ms = 0;
             }
-            else if (++CZ_bb.cz_timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS*2)
+            else if (++CZ_bb.cz_timer_ms * 10 >= CZ_ARM_PLACE_TIMEOUT_MS)
             {
                 return BT_FAILURE;
             }

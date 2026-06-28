@@ -97,6 +97,11 @@ uint8_t task_flag = 0;           // 测试用：总开关，控制是否执行BT
 float debug_speed;               // 用于测试的速度变量
 int16_t leidai_speed_1 = 300;    //由于雷达建图的低速
 int16_t leidai_speed_2 = 1000;    //由于雷达建图的高速
+float arm_target_x = 0.0f;        //测试用：机械臂轨迹点
+float arm_target_y = 0.0f;
+uint8_t arm_pump = 0;
+uint8_t camera_command = 0;
+
 uint8_t traj_init_flag_arm = 0;     // 机械臂轨迹初始化标志位
 uint8_t traj_init_flag_lift = 0;    // 抬升轨迹初始化标志位
 uint8_t traj_init_flag_chassis = 0; // 底盘轨迹初始化标志位
@@ -350,7 +355,27 @@ void entry_robotic_arm(void const * argument)
         arm_queue_add_point(&arm_traj, PICK_REST_X, PICK_REST_Y, 0.0f, 500, 0);
         traj_init_flag_arm = 1;
       }
-
+      if(point_add == 1)
+      {
+        arm_queue_add_point(&arm_traj,arm_target_x,arm_target_y,0,0,arm_pump);
+        point_add=0;
+      }
+      if(point_add == 2)
+      {
+        arm_queue_add_point(&arm_traj,PICK_REST_X,PICK_REST_Y,0,0,1);
+        point_add=0;
+      }
+			 if(point_add == 3)
+      {
+        arm_queue_add_point(&arm_traj,PICK_REST_X,PICK_REST_Y,0,0,2);
+        point_add=0;
+      }
+			if(point_add == 4)
+      {
+        arm_queue_add_point(&arm_traj,0.1f,1.0f,0,0,0);
+				arm_queue_add_point(&arm_traj,0.2f,1.0f,0,500,0);
+        point_add=0;
+      }
       // 保持执行器水平
       if (m3508_fdcan1[0].Initial_flag == 200 && arm.mode != ARM_MODE_TRANSITION)
       {
@@ -502,32 +527,32 @@ void entry_chassis(void const * argument)
     //     point_add1 = 0;
     //  }
     //  //测试用添加路径点
-     if (point_add == 1)
-     {
-       chassis_route_point_add(&chassis_route_traj, R_CHASSIS_CZ_INIT_X, R_CHASSIS_CZ_INIT_Y, R_CHASSIS_CZ_INIT_W, 0);
-       point_add = 0;
-     }
-     if (point_add == 2)
-     {
-       chassis_route_point_add(&chassis_route_traj, R_CHASSIS_SUDUKU_1_X, R_CHASSIS_SUDUKU_1_Y, R_CHASSIS_SUDUKU_1_W, 0);
-       point_add = 0;
-     }
-     if (point_add == 3)
-     {
-       chassis_route_point_add(&chassis_route_traj, R_CHASSIS_SUDUKU_2_X, R_CHASSIS_SUDUKU_2_Y, R_CHASSIS_SUDUKU_2_W, 0);
-       point_add = 0;
-     }
-     if (point_add == 4)
-     {
-       chassis_route_point_add(&chassis_route_traj, R_CHASSIS_SUDUKU_3_X, R_CHASSIS_SUDUKU_3_Y, R_CHASSIS_SUDUKU_3_W, 0);
-       point_add = 0;
-     }
-     
-     if (point_add1 == 1)
-     {
-       chassis_route_point_add(&chassis_route_traj, 11100.0f, -3000.0f, 90.0f, 0);
-       point_add1 = 0;
-     }
+//     if (point_add == 1)
+//     {
+//       chassis_route_point_add(&chassis_route_traj, R_CHASSIS_CZ_INIT_X, R_CHASSIS_CZ_INIT_Y, R_CHASSIS_CZ_INIT_W, 0);
+//       point_add = 0;
+//     }
+//     if (point_add == 2)
+//     {
+//       chassis_route_point_add(&chassis_route_traj, R_CHASSIS_SUDUKU_1_X, R_CHASSIS_SUDUKU_1_Y, R_CHASSIS_SUDUKU_1_W, 0);
+//       point_add = 0;
+//     }
+//     if (point_add == 3)
+//     {
+//       chassis_route_point_add(&chassis_route_traj, R_CHASSIS_SUDUKU_2_X, R_CHASSIS_SUDUKU_2_Y, R_CHASSIS_SUDUKU_2_W, 0);
+//       point_add = 0;
+//     }
+//     if (point_add == 4)
+//     {
+//       chassis_route_point_add(&chassis_route_traj, R_CHASSIS_SUDUKU_3_X, R_CHASSIS_SUDUKU_3_Y, R_CHASSIS_SUDUKU_3_W, 0);
+//       point_add = 0;
+//     }
+//     
+//     if (point_add1 == 1)
+//     {
+//       chassis_route_point_add(&chassis_route_traj, 11100.0f, -3000.0f, 90.0f, 0);
+//       point_add1 = 0;
+//     }
     //上坡测试
 //     if (point_add == 1)
 //     {
@@ -549,6 +574,11 @@ void entry_chassis(void const * argument)
 //        chassis_route_point_add(&chassis_route_traj, 11100,-2400.0f, 180.0f, 0);
 //        point_add = 0;
 //      }
+    //  if (point_add == 1)
+    //   {
+    //     chassis_route_point_add(&chassis_route_traj, 11080,-3055.0f, 90.0f, 0);
+    //     point_add = 0;
+    //   }
 
 
       // 滤波后的雷达数据更新
@@ -771,6 +801,7 @@ void entry_cmd_task(void const * argument)
   /* Infinite loop */
   for (;;)
   {
+		 MF_Scan_Command_Send(camera_command);
     if (task_flag == 1)
     {
       BT_MASTER_Start_Task();
