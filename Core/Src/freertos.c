@@ -243,10 +243,10 @@ void StartDefaultTask(void const * argument)
     //=======================================================================
     // vofa显示调试信息
 
-    // data_send_vofa[0] = arm.x0_now;
+    data_send_vofa[0] = arm.x0_now;
     // data_send_vofa[1] = arm_traj.traj_x.out_pos;
     // data_send_vofa[2] = arm_traj.traj_queue_x.points[arm_traj.traj_queue_x.tail > 0 ? arm_traj.traj_queue_x.tail - 1 : 0];
-    // data_send_vofa[3] = arm.y0_now;
+    data_send_vofa[3] = arm.y0_now;
     // data_send_vofa[4] = arm_traj.traj_y.out_pos;
     // data_send_vofa[5] = arm_traj.traj_queue_y.points[arm_traj.traj_queue_y.tail > 0 ? arm_traj.traj_queue_y.tail - 1 : 0];
 
@@ -299,7 +299,7 @@ void entry_robotic_arm(void const * argument)
   arm_joint_parameter_init(&arm);
 
   // 机械臂上的3508参数初始化
-   m3508_parameter_init(&m3508_fdcan1[0], 1.5f, 0.0f, 1.5f, 3.0f, 0.0f, 20.0f);
+  m3508_parameter_init(&m3508_fdcan1[0], 1.5f, 0.0f, 1.5f, 3.0f, 0.0f, 20.0f);
   // m3508_parameter_init(&m3508_fdcan1[0], 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
 
   // 末端执行器默认目标姿态
@@ -339,6 +339,15 @@ void entry_robotic_arm(void const * argument)
     // if(debug_flag == 6){
     //   debug_flag = 0;
     //   arm_queue_add_point(&arm_traj, -0.5, 0.5, 0.0f, 500, 0);
+    // }
+
+    // if(debug_flag == 0)
+    // {
+    //   HAL_GPIO_WritePin(GPIOD, GPIO_PIN_6, GPIO_PIN_RESET);
+    // }
+    // if(debug_flag == 1)
+    // {
+    //   HAL_GPIO_WritePin(GPIOD, GPIO_PIN_6, GPIO_PIN_SET);
     // }
 
     // 等待初始化完成
@@ -658,21 +667,21 @@ void entry_chassis(void const * argument)
       // chassis_lift_wheel_excute(debug_speed, 2.0f, 0.2f);
       // chassis_lift_wheel_excute(debug_speed, 0.0f, 0.0f);
 
-      if(debug_flag == 1)
-      {
-        debug_flag = 0;
-        chassis_lift_queue_add_point(&chassis_lift_traj, -0.200f, -0.200f, 0);
-      }
-      if(debug_flag == 2)
-      {
-        debug_flag = 0;
-        chassis_lift_queue_add_point(&chassis_lift_traj, -0.400f, -0.400f, 0);
-      }
-      if(debug_flag == 3)
-      {
-        debug_flag = 0;
-        chassis_lift_queue_add_point(&chassis_lift_traj, LIFT_RETRACT_HEIGHT, LIFT_RETRACT_HEIGHT, 0);
-      }
+      // if(debug_flag == 1)
+      // {
+      //   debug_flag = 0;
+      //   chassis_lift_queue_add_point(&chassis_lift_traj, -0.200f, -0.200f, 0);
+      // }
+      // if(debug_flag == 2)
+      // {
+      //   debug_flag = 0;
+      //   chassis_lift_queue_add_point(&chassis_lift_traj, -0.400f, -0.400f, 0);
+      // }
+      // if(debug_flag == 3)
+      // {
+      //   debug_flag = 0;
+      //   chassis_lift_queue_add_point(&chassis_lift_traj, LIFT_RETRACT_HEIGHT, LIFT_RETRACT_HEIGHT, 0);
+      // }
 
       // 根据 lift FSM 设置的控制模式执行
       switch (g_lift_ctrl_mode) {

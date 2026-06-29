@@ -798,14 +798,39 @@ uint8_t mf_picked_phase1 = 0;               /* Phase1 已拾取 R2KFS 数量 */
 uint8_t arm_if_send_point = 0; /* 机械臂是否已经下发轨迹点标志位，避免重复下发 */
 
 uint8_t arm_store_request = 0;  /* 机械臂存储服务请求标志 */
-uint8_t arm_store_busy = 0;     /* 机械臂存储服务占用机械臂标志，后台收尾期间仍为 1 */
-uint8_t arm_store_payload_done = 0; /* 块已经放入槽位，MF 可以推进 */
-uint8_t arm_store_done = 0;     /* 存块逻辑完成标志：块已放入槽位，上层 MF 可推进 */
-uint8_t arm_store_failed = 0;   /* 机械臂存储服务失败标志 */
-uint8_t arm_store_slot = 0;                  /* 本次存储使用的槽位: 0=A, 1=B, 2=C */
+uint8_t arm_store_slot = 0;     /* 本次存储使用的槽位: 0=A, 1=B, 2=C */
 
 ArmStoreState arm_store_state = ARM_STORE_IDLE; /* 机械臂存储服务状态机 */
 uint32_t arm_store_timer_ms = 0;                 /* 机械臂存储服务计时器 */
+
+/* ---------- 机械臂存储服务辅助判断函数 ---------- */
+
+/**
+ * @brief 判断存块服务是否可以接受新请求（IDLE 或 FAILED 状态）
+ */
+static inline uint8_t arm_store_can_accept(void)
+{
+    return (arm_store_state == ARM_STORE_IDLE || arm_store_state == ARM_STORE_FAILED);
+}
+
+/**
+ * @brief 判断存块服务是否正在忙碌（不可推进上层 MF）
+ * @note ARM_STORE_REQ_B2F 及之后 = A/B 槽已放入，上层可以推进
+ */
+static inline uint8_t arm_store_is_busy(void)
+{
+    return (arm_store_state != ARM_STORE_IDLE &&
+            arm_store_state < ARM_STORE_REQ_B2F);
+}
+
+/**
+ * @brief 判断存块服务是否已完成（上层 MF 可推进到下一个动作）
+ * @note DONE 状态表示本次存块全流程已完成
+ */
+static inline uint8_t arm_store_is_done(void)
+{
+    return (arm_store_state == ARM_STORE_DONE);
+}
 
 /**
  * @brief 将 MF 方向转对应的底盘朝向角度(yaw)
@@ -962,10 +987,13 @@ static uint8_t Arm_Store_SendPath(uint8_t slot)
     taskENTER_CRITICAL();
 
     if (slot == 0) {
+        /* 水平存块区需要让吸盘竖直向下 */
+        // arm.effector_pitch_target = 270.0f/180.0f * PI; /* 机械臂末端执行器俯仰角度，单位 rad */
         arm_queue_add_point(&arm_traj, STORE_A_PRE_X, STORE_A_PRE_Y, 0, 0, ARM_PUMP_KEEP);
         arm_queue_add_point(&arm_traj, STORE_A_X, STORE_A_Y, 0, STORE_TIME, ARM_PUMP_KEEP);
         arm_queue_add_point(&arm_traj, STORE_PRE_TRANS_X, STORE_PRE_TRANS_Y, 0, 0, ARM_PUMP_RELEASE);
     } else if (slot == 1) {
+        HAL_GPIO_WritePin(GPIOD, GPIO_PIN_5, GPIO_PIN_SET); // 开启存块气泵
         arm_queue_add_point(&arm_traj, STORE_B_PRE_X, STORE_B_PRE_Y, 0, 0, ARM_PUMP_KEEP);
         arm_queue_add_point(&arm_traj, STORE_B_X, STORE_B_Y, 0, STORE_TIME, ARM_PUMP_KEEP);
         arm_queue_add_point(&arm_traj, STORE_PRE_TRANS_X, STORE_PRE_TRANS_Y, 0, 0, ARM_PUMP_RELEASE);
@@ -983,7 +1011,7 @@ static uint8_t Arm_Store_SendPath(uint8_t slot)
 
 /**
  * @brief 机械臂存储服务，负责 后向切换 -> 存储 -> 返回前向
- * @note 上层只通过 arm_store_request/busy/done/failed 与本服务通信
+ * @note 上层只通过 arm_store_state 与本服务通信
  */
 static void Arm_Store_Service_Tick(void)
 {
@@ -991,10 +1019,6 @@ static void Arm_Store_Service_Tick(void)
     case ARM_STORE_IDLE:
         if (arm_store_request) {
             arm_store_request = 0;
-            arm_store_busy = 1;
-            arm_store_payload_done = 0;
-            arm_store_done = 0;
-            arm_store_failed = 0;
             arm_store_state = ARM_STORE_REQ_F2B;
             arm_store_timer_ms = 0;
         }
@@ -1004,7 +1028,6 @@ static void Arm_Store_Service_Tick(void)
         taskENTER_CRITICAL();
         arm_mode_switch_to_transition(&arm, &arm_traj, &arm_trans_traj, ARM_TRANS_FRONT_TO_BACK);
         taskEXIT_CRITICAL();
-
         arm_store_state = ARM_STORE_WAIT_BACK;
         arm_store_timer_ms = 0;
         break;
@@ -1029,16 +1052,16 @@ static void Arm_Store_Service_Tick(void)
 
     case ARM_STORE_WAIT_DONE:
         if (arm_store_slot == 2) {
+            /* C 槽：到达 STORE_C 即完成全流程 */
             if (arm_if_arrived_xy(STORE_C_X, STORE_C_Y)) {
-                arm_store_done = 1;       /* 第三个块已被机械臂拿在手上，MF 可以推进 */
                 arm_store_state = ARM_STORE_DONE;
                 arm_store_timer_ms = 0;
             } else if (++arm_store_timer_ms * 10 >= ARM_STORE_PATH_TIMEOUT_MS) {
                 arm_store_state = ARM_STORE_FAILED;
             }
         } else {
+            /* A/B 槽：到达过渡点 → 切换回前向 */
             if (arm_if_arrived_xy(STORE_PRE_TRANS_X, STORE_PRE_TRANS_Y)) {
-                arm_store_payload_done = 1;       /* A/B 已经放入槽位，MF 可以推进 */
                 arm_store_state = ARM_STORE_REQ_B2F;
                 arm_store_timer_ms = 0;
             } else if (++arm_store_timer_ms * 10 >= ARM_STORE_PATH_TIMEOUT_MS) {
@@ -1048,45 +1071,37 @@ static void Arm_Store_Service_Tick(void)
         break;
 
     case ARM_STORE_REQ_B2F:
-        taskENTER_CRITICAL();
-        if(arm_store_slot == 2) {
-            /* C 槽不需要后向转前向 */
-            /* 其实在ARM_STORE_WAIT_DONE中就已经设为了ARM_STORE_DONE */
+        if (arm_store_slot == 2) {
+            /* C 槽已在 WAIT_DONE 中直接跳到 DONE，此处为兜底 */
             arm_store_state = ARM_STORE_DONE;
-            taskEXIT_CRITICAL();
             break;
         }
+        taskENTER_CRITICAL();
         arm_mode_switch_to_transition(&arm, &arm_traj, &arm_trans_traj, ARM_TRANS_BACK_TO_FRONT);
         taskEXIT_CRITICAL();
-
         arm_store_state = ARM_STORE_WAIT_FRONT;
         arm_store_timer_ms = 0;
         break;
 
     case ARM_STORE_WAIT_FRONT:
-        taskENTER_CRITICAL();
         if (arm.mode == ARM_MODE_FRONT) {
             arm_store_state = ARM_STORE_SEND_REST;
             arm_store_timer_ms = 0;
         } else if (++arm_store_timer_ms * 10 >= ARM_STORE_TRANS_TIMEOUT_MS) {
             arm_store_state = ARM_STORE_FAILED;
         }
-        taskEXIT_CRITICAL();
         break;
 
     case ARM_STORE_SEND_REST:
         taskENTER_CRITICAL();
         arm_queue_add_point(&arm_traj, PICK_REST_X, PICK_REST_Y, 0, 0, ARM_PUMP_RELEASE);
         taskEXIT_CRITICAL();
-
         arm_store_state = ARM_STORE_WAIT_REST;
         arm_store_timer_ms = 0;
         break;
 
     case ARM_STORE_WAIT_REST:
         if (arm_if_arrived_xy(PICK_REST_X, PICK_REST_Y)) {
-            arm_store_busy = 0;
-            arm_store_done = 1;
             arm_store_state = ARM_STORE_DONE;
         } else if (++arm_store_timer_ms * 10 >= ARM_STORE_REST_TIMEOUT_MS) {
             arm_store_state = ARM_STORE_FAILED;
@@ -1094,15 +1109,12 @@ static void Arm_Store_Service_Tick(void)
         break;
 
     case ARM_STORE_DONE:
-        if (arm_store_done && arm_store_payload_done) {
-            arm_store_state = ARM_STORE_IDLE;
-        }
+        /* 由上层消费后重置 */
         break;
 
     case ARM_STORE_FAILED:
     default:
-        arm_store_busy = 0;
-        arm_store_failed = 1;
+        /* 由上层检测后重置 */
         break;
     }
 }
@@ -1311,7 +1323,7 @@ static BT_Status Act_MF_Execute_Action(void)
                 * 🟡 你需要预先测试好不同高度差下机械臂的拾取坐标，
                 *    然后在此处根据 height_pick_diff 查表或计算。
                 */
-            if(arm_store_busy) {
+            if(arm_store_is_busy()) {
                 /* 机械臂存储服务正在忙，等待其完成 */
                 return BT_RUNNING;
             }
@@ -1608,6 +1620,7 @@ static BT_Status Act_MF_Execute_Action(void)
             arm_if_send_point = 1;  // 机械臂轨迹队列允许发送点
             if(act.height_pick_diff == -200)    // KFS 在 R2 下方 200mm
             {
+                // arm.effector_pitch_target = 0.0f; /* 水平拾取：平行地面 */
                 arm_queue_add_point(&arm_traj, PICK_N200_APR_X_1, PICK_N200_APR_Y_1, 0, 0, ARM_PUMP_RELEASE);   // 预抓取点1
                 arm_queue_add_point(&arm_traj, PICK_N200_TARGET_X, PICK_N200_TARGET_Y, 0, PICK_TIME, ARM_PUMP_SUCK);  // 最终抓取点
                 arm_queue_add_point(&arm_traj, PICK_PRE_TRANS_X, PICK_PRE_TRANS_Y, 0, 0, ARM_PUMP_SUCK);                // 此处应换成放置点坐标，用待机位置做占位
@@ -1632,7 +1645,7 @@ static BT_Status Act_MF_Execute_Action(void)
             }
         }
 
-        if (!arm_store_busy && !arm_store_request &&  !arm_store_payload_done && !arm_store_done && !arm_store_failed)
+        if (arm_store_can_accept())
         {
             if (arm_if_arrived_xy(PICK_PRE_TRANS_X, PICK_PRE_TRANS_Y))
             {
@@ -1647,28 +1660,21 @@ static BT_Status Act_MF_Execute_Action(void)
             }
         }
 
-        if (arm_store_payload_done)
+        if (arm_store_is_done())
         {
-            /* arm_store_payload_done 应在机械臂全流程完成之后清零 */
-            // arm_store_payload_done = 0;
-            arm_if_send_point = 0;  // 存完块之后机械臂轨迹队列允许发送点
+            arm_store_state = ARM_STORE_IDLE;  /* 消费 DONE，重置状态 */
+            arm_if_send_point = 0;  /* 存完块之后机械臂轨迹队列允许发送点 */
 
             mf_bb.kfs_stored++;
             MFPlanner_AdvanceAction(&mf_planner_ctx);
             mf_exec_state = MF_EXEC_IDLE;
             mf_exec_timer_ms = 0;
         }
-        else if (arm_store_failed)
+        else if (arm_store_state == ARM_STORE_FAILED)
         {
-            arm_store_failed = 0;
+            arm_store_state = ARM_STORE_IDLE;  /* 消费 FAILED，重置状态 */
             mf_exec_state = MF_EXEC_FAILED;
         }
-
-        // arm_store_payload_done = 1;
-        // mf_bb.kfs_stored++;
-        // MFPlanner_AdvanceAction(&mf_planner_ctx);
-        // mf_exec_state = MF_EXEC_IDLE;
-        // mf_exec_timer_ms = 0;
 
         return BT_RUNNING;
     }
@@ -1729,10 +1735,6 @@ static BT_Status Act_MF_Finish_Cleanup(void)
     mf_picked_phase1 = 0;
 
     arm_store_request = 0;
-    arm_store_busy = 0;
-    arm_store_payload_done = 0;
-    arm_store_done = 0;
-    arm_store_failed = 0;
     arm_store_slot = 0;
     arm_store_state = ARM_STORE_IDLE;
     arm_store_timer_ms = 0;
@@ -1792,10 +1794,6 @@ void BT_MF_Init_Task(void)
     mf_picked_phase1 = 0;
 
     arm_store_request = 0;
-    arm_store_busy = 0;
-    arm_store_done = 0;
-    arm_store_payload_done = 0;
-    arm_store_failed = 0;
     arm_store_slot = 0;
     arm_store_state = ARM_STORE_IDLE;
     arm_store_timer_ms = 0;
@@ -2228,7 +2226,7 @@ static BT_Status Act_MF_Task_Wrapper(void)
         /* 运行 MF 行为树 */
         BT_Status mf_status = BT_MF_Task_Tree_Root();
         if (mf_status == BT_SUCCESS) {
-            if(arm_store_busy || arm_store_request || !arm_store_payload_done) {
+            if (arm_store_is_busy() || arm_store_request) {
                 /* 机械臂存储服务仍在忙，等待其完成 */
                 return BT_RUNNING;
             }

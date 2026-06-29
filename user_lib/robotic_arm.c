@@ -324,7 +324,7 @@ void arm_linear_interpolation_update(robotic_arm_stu *arm, robotic_arm_traj_stu 
     if(blend_radius < 0.001f) blend_radius = 0.001f;
 
     // 如果任意一个轴的队列为空，说明点位不齐，不进行出队（保证X/Y/W同步出队）
-    if(arm_traj->traj_queue_x.count == 0 || arm_traj->traj_queue_y.count == 0 || arm_traj->traj_queue_w.count == 0) return;
+    if(arm_traj->traj_queue_x.count == 0 || arm_traj->traj_queue_y.count == 0) return;
 
     // // 如果当前这个点要求了延停，我们必须强制要求 blend = 0，使得机械臂 is_finished == 1 才能触发！
     // float current_blend = (arm_traj->target_delay_ms > 0) ? 0.0f : blend_radius;
@@ -441,12 +441,12 @@ void arm_linear_interpolation_update(robotic_arm_stu *arm, robotic_arm_traj_stu 
  * @param target_y 柱坐标系下期望的 Y 坐标 (向上为正，向下为负)
  * @param target_w 柱坐标系下期望的云台旋转角 W (从上方看，逆时针为正，顺时针为负)
  * @param delay_ms 目标点到达后的延时时间(ms)
- * @param pump_state 气泵控制标志，0为不控制，1为吸，2为吹（预留接口，目前未实现）
+ * @param pump_state 气泵控制标志
  */
 void arm_queue_add_point(robotic_arm_traj_stu *arm_traj, float target_x, float target_y, float target_w,
                          uint16_t delay_time_ms, uint8_t pump_state)
 {
-    float max_radius = 0.95f; // 最大物理伸展半径
+    float max_radius = 1.0f; // 最大物理伸展半径
     float min_radius = 0.30f; // 最小物理收缩半径 (机械结构限制)
     
     // 计算圆心（云台原点0,0）到该点的直线距离（半径L）
@@ -535,23 +535,23 @@ void arm_mode_switch_to_transition(robotic_arm_stu *arm, robotic_arm_traj_stu *a
         arm->joint_parameters[1].theta,
         arm->trans_target_theta1,
         TRANS_V_MAX,          // 最大速度：2pi rad/s，可根据实机调
-        TRANS_A_MAX,          // 最大加速度：3pi rad/s^2
+        TRANS_A_MAX * 0.5f,          // 最大加速度：3pi rad/s^2
         PI / 24.0f            // 最大跟随误差：10 deg
     );
     Traj_Adaptive_Init(
         &arm_trans_traj->traj_theta2,
         arm->joint_parameters[2].theta,
         arm->trans_target_theta2,
-        TRANS_V_MAX * 1.25f,  // 小臂速度可以更快一些
-        TRANS_A_MAX * 1.25f,  // 小臂加速度也可以更快一些
-        PI / 15.0f           // 小臂跟随误差可以更大一些
+        TRANS_V_MAX * 1.5f,  // 小臂速度可以更快一些
+        TRANS_A_MAX,  // 小臂加速度也可以更快一些
+        PI / 12.0f           // 小臂跟随误差可以更大一些
     );
     Traj_Adaptive_Init(
         &arm_trans_traj->traj_pitch,
         arm->joint_pitch[2],
         arm->trans_target_pitch,
-        TRANS_V_MAX * 0.75f,    // pitch 速度可以稍微慢一些，防止运动过猛块飞了
-        TRANS_A_MAX * 0.75f,    // pitch 加速度也可以稍微慢一些
+        TRANS_V_MAX * 0.8f,    // pitch 速度可以稍微慢一些，防止运动过猛块飞了
+        TRANS_A_MAX * 0.8f,    // pitch 加速度也可以稍微慢一些
         PI / 9.0f
     );
 

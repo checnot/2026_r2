@@ -319,9 +319,9 @@ typedef struct
 #define MF_WAIT_R1_TIMEOUT_MS 10000 /* 🟡 等待 R1 清理的超时，超时后强行跳过 */
 
 /* 🟡【需实测】机械臂存储服务超时时间 */
-#define ARM_STORE_TRANS_TIMEOUT_MS 5000 /* 工作区切换超时时间 */
-#define ARM_STORE_PATH_TIMEOUT_MS 8000  /* 后向存储路径超时时间 */
-#define ARM_STORE_REST_TIMEOUT_MS 5000  /* 返回前向待机点超时时间 */
+#define ARM_STORE_TRANS_TIMEOUT_MS 10000 /* 工作区切换超时时间 */
+#define ARM_STORE_PATH_TIMEOUT_MS 30000  /* 后向存储路径超时时间 */
+#define ARM_STORE_REST_TIMEOUT_MS 10000  /* 返回前向待机点超时时间 */
 
 /* ============================== 🟡（待定）机械臂预设拾取路径点 ============================== */
 
@@ -356,12 +356,12 @@ extern uint8_t arm_store_slot;
 #define PICK_HANDS_UP_X 0.15f       /* 演示用抬手坐标 */
 #define PICK_HANDS_UP_Y 0.9f       /* 演示用抬手坐标 */
 
-#define PICK_N200_APR_X_1 0.568f          /* ！！！！待测试！！！！-200预抓取点1 X */
-#define PICK_N200_APR_Y_1 0.065f          /* ！！！！待测试！！！！！-200预抓取点1 Y */
+#define PICK_N200_APR_X_1 0.75f          /* ！！！！待测试！！！！-200预抓取点1 X */
+#define PICK_N200_APR_Y_1 0.10f          /* ！！！！待测试！！！！！-200预抓取点1 Y */
 // #define PICK_N200_APR_X_2 0.5f          /* ！！！！待测试！！！！！-200预抓取点2 X */
 // #define PICK_N200_APR_Y_2 0.5f          /* ！！！！待测试！！！！！-200预抓取点2 Y */
-#define PICK_N200_TARGET_X 0.618f         /* ！！！！待测试！！！！！-200抓取点 X */
-#define PICK_N200_TARGET_Y 0.065f         /* ！！！！待测试！！！！！-200抓取点 Y */
+#define PICK_N200_TARGET_X 0.75         /* ！！！！待测试！！！！！-200抓取点 X */
+#define PICK_N200_TARGET_Y 0.02f         /* ！！！！待测试！！！！！-200抓取点 Y */
 
 #define PICK_0_APR_X_1 0.568f             /* 0预抓取点1 X */
 #define PICK_0_APR_Y_1 (-0.135f)          /* 0预抓取点1 Y */
@@ -388,18 +388,20 @@ extern uint8_t arm_store_slot;
 #define PICK_PRE_TRANS_Y 0.6f         /* 抓取完毕之后的过渡准备点 Y */
 #define PICK_TIME 1000       /* 抓取点停留时间 (ms) */
 
-#define STORE_A_PRE_X -0.4f         /* 存储点a过渡点 X */
-#define STORE_A_PRE_Y 0.6f         /* 存储点a过渡点 Y */
-#define STORE_A_X -0.4f         /* 存储点a X */
+#define STORE_A_PRE_X -0.75f         /* 存储点a过渡点 X */
+#define STORE_A_PRE_Y 0.4f         /* 存储点a过渡点 Y */
+#define STORE_A_X -0.7f         /* 存储点a X */
 #define STORE_A_Y 0.4f         /* 存储点a Y */
-#define STORE_B_PRE_X -0.4f         /* 存储点b过渡点 X */
-#define STORE_B_PRE_Y 0.6f         /* 存储点b过渡点 Y */
-#define STORE_B_X -0.4f        /* 存储点b X */
-#define STORE_B_Y 0.4f         /* 存储点b Y */
-#define STORE_C_X -0.4f         /* ！！！ 待定 存储点c X */
-#define STORE_C_Y 0.7f         /* ！！！ 待定存储点c Y */
 
-#define STORE_PRE_TRANS_X -0.2f         /* 存储完毕之后的过渡准备点 X */
+#define STORE_B_PRE_X 0.0f         /* 存储点b过渡点 X */
+#define STORE_B_PRE_Y 0.4f         /* 存储点b过渡点 Y */
+#define STORE_B_X 0.0f        /* 存储点b X */
+#define STORE_B_Y 0.295f         /* 存储点b Y */
+
+#define STORE_C_X 0.4f         /* ！！！ 待定 存储点c X */
+#define STORE_C_Y 0.4f         /* ！！！ 待定存储点c Y */
+
+#define STORE_PRE_TRANS_X 0.0f         /* 存储完毕之后的过渡准备点 X */
 #define STORE_PRE_TRANS_Y 0.7f         /* 存储完毕之后的过渡准备点 Y */
 #define STORE_TIME 1000       /* 存储点停留时间 (ms) */
 
