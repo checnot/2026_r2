@@ -356,37 +356,37 @@ extern uint8_t arm_store_slot;
 #define PICK_HANDS_UP_X 0.15f       /* 演示用抬手坐标 */
 #define PICK_HANDS_UP_Y 0.9f       /* 演示用抬手坐标 */
 
-#define PICK_N200_APR_X_1 0.568f          /* ！！！！待测试！！！！-200预抓取点1 X */
-#define PICK_N200_APR_Y_1 0.065f          /* ！！！！待测试！！！！！-200预抓取点1 Y */
+#define PICK_N200_APR_X_1 0.83f          /* ！！！！待测试！！！！-200预抓取点1 X */
+#define PICK_N200_APR_Y_1 0.2f          /* ！！！！待测试！！！！！-200预抓取点1 Y */
 // #define PICK_N200_APR_X_2 0.5f          /* ！！！！待测试！！！！！-200预抓取点2 X */
 // #define PICK_N200_APR_Y_2 0.5f          /* ！！！！待测试！！！！！-200预抓取点2 Y */
-#define PICK_N200_TARGET_X 0.618f         /* ！！！！待测试！！！！！-200抓取点 X */
-#define PICK_N200_TARGET_Y 0.065f         /* ！！！！待测试！！！！！-200抓取点 Y */
+#define PICK_N200_TARGET_X 0.83f         /* ！！！！待测试！！！！！-200抓取点 X */
+#define PICK_N200_TARGET_Y -0.10f         /* ！！！！待测试！！！！！-200抓取点 Y */
 
 #define PICK_0_APR_X_1 0.568f             /* 0预抓取点1 X */
 #define PICK_0_APR_Y_1 (-0.135f)          /* 0预抓取点1 Y */
 // #define PICK_0_APR_X_2 0.5f             /* 0预抓取点2 X */
 // #define PICK_0_APR_Y_2 0.5f             /* 0预抓取点2 Y */
-#define PICK_0_TARGET_X 0.618f            /* 0抓取点 X */
+#define PICK_0_TARGET_X 0.638f            /* 0抓取点 X */
 #define PICK_0_TARGET_Y (-0.135f)            /* 0抓取点 Y */
 
 #define PICK_P200_APR_X_1 0.568f     /* +200预抓取点1 X */
 #define PICK_P200_APR_Y_1 0.065f     /* +200预抓取点1 Y */
 // #define PICK_P200_APR_X_2 0.5f     /* +200预抓取点2 X */
 // #define PICK_P200_APR_Y_2 0.5f     /* +200预抓取点2 Y */
-#define PICK_P200_TARGET_X 0.618f         /* +200抓取点 X */
+#define PICK_P200_TARGET_X 0.638f         /* +200抓取点 X */
 #define PICK_P200_TARGET_Y 0.065f         /* +200抓取点 Y */
 
 #define PICK_P400_APR_X_1 0.568f     /* +400预抓取点1 X */
 #define PICK_P400_APR_Y_1 0.265f     /* +400预抓取点1 Y */
 // #define PICK_P400_APR_X_2 0.5f     /* +400预抓取点2 X */
 // #define PICK_P400_APR_Y_2 0.5f     /* +400预抓取点2 Y */
-#define PICK_P400_TARGET_X 0.618f         /* +400抓取点 X */
+#define PICK_P400_TARGET_X 0.638f         /* +400抓取点 X */
 #define PICK_P400_TARGET_Y 0.265f         /* +400抓取点 Y */
 
 #define PICK_PRE_TRANS_X 0.4f         /* 抓取完毕之后的过渡准备点 X */
 #define PICK_PRE_TRANS_Y 0.6f         /* 抓取完毕之后的过渡准备点 Y */
-#define PICK_TIME 1000       /* 抓取点停留时间 (ms) */
+#define PICK_TIME 500       /* 抓取点停留时间 (ms) */
 
 #define STORE_A_PRE_X -0.4f         /* 存储点a过渡点 X */
 #define STORE_A_PRE_Y 0.6f         /* 存储点a过渡点 Y */
@@ -401,7 +401,7 @@ extern uint8_t arm_store_slot;
 #define STORE_C_X -0.4f         /* ！！！ 待定 存储点c X */
 #define STORE_C_Y 0.7f         /* ！！！ 待定存储点c Y */
 
-#define STORE_PRE_TRANS_X -0.2f         /* 存储完毕之后的过渡准备点 X */
+#define STORE_PRE_TRANS_X 0.1f         /* 存储完毕之后的过渡准备点 X */
 #define STORE_PRE_TRANS_Y 0.7f         /* 存储完毕之后的过渡准备点 Y */
 #define STORE_TIME 1000       /* 存储点停留时间 (ms) */
 

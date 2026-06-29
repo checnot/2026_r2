@@ -18,6 +18,9 @@
 #define GLOBAL_V_MAX 2.0f  // 合成最大速度(m/s)
 #define GLOBAL_A_MAX 4.0f  // 合成最大加速度(m/s^2)
 
+#define PITCH_V_MAX (2.5f*PI)  // pitch 最大速度(rad/s)
+#define PITCH_A_MAX (1.25f*PI)  // pitch 最大加速度(rad/s^2)
+
 #define UPPERARM_OFFSET_DEG (180.0f-23.8f)  //实测初始状态大臂与云台平面的夹角约为"23.8度"
 #define FOREARM_OFFSET_DEG (28.7f)          //实测小臂与大臂的夹角约为28.7度
 #define WRIST_OFFSET_DEG (180.0f-56.4f)     //实测末端执行器与小臂的夹角约为"56.4度"
@@ -47,8 +50,8 @@ typedef struct
 #define UPPERARM_LIMIT_DEG_MAX (156.2f) //实测大臂与云台平面的夹角最大约为"180-23.8=156.2度"
 #define FOREARM_LIMIT_DEG_MIN (28.7f) //实测小臂与大臂的夹角最小约为28.7度
 #define FOREARM_LIMIT_DEG_MAX (340.8f) //实测小臂与大臂的夹角最大约为340.8度
-#define WRIST_LIMIT_DEG_MIN (-120.0f) //实测末端执行器与小臂的夹角最小约为-120度
-#define WRIST_LIMIT_DEG_MAX (120.0f) //实测末端执行器与小臂的夹角最大约为120度
+#define WRIST_LIMIT_DEG_MIN (-330.0f) //实测末端执行器与小臂的夹角最小约为-330度
+#define WRIST_LIMIT_DEG_MAX (330.0f) //实测末端执行器与小臂的夹角最大约为330度
 
 /* 前向→后向 过渡目标 （弧度制）*/
 #define TRANS_F2B_THETA1_TARGET   (100.0f / 180.0f * PI)   // 大臂 120°
@@ -92,6 +95,10 @@ typedef struct
 
     // ---- 气泵控制属性 ----
     uint8_t pump_queue[TRAJ_MAX_WAYPOINTS];     // 气泵控制标志，用于控制每个路径点的气泵状态
+
+    // ---- 6.30.0148末端pitch轨迹
+    Traj_Single_struct traj_pitch;          //末端执行器pitch角单轨迹
+    float pitch_queue[TRAJ_MAX_WAYPOINTS];  //末端执行器pitch角路径队列
 
 } robotic_arm_traj_stu;
 
@@ -170,7 +177,7 @@ void arm_actuator_stable_control(robotic_arm_stu *arm, float target_pitch, float
 uint8_t arm_effector_pitch_reachable_check(robotic_arm_stu *arm, float target_pitch);
 
 void arm_trajectory_init(robotic_arm_traj_stu *arm_traj, robotic_arm_stu *arm);
-void arm_queue_add_point(robotic_arm_traj_stu *arm_traj, float target_x, float target_y, float target_w, uint16_t delay_ms, uint8_t air_pump_flag);
+void arm_queue_add_point(robotic_arm_traj_stu *arm_traj, float target_x, float target_y, float target_w, uint16_t delay_ms, uint8_t air_pump_flag, float target_pitch);
 void arm_queue_add_point_cartesian(robotic_arm_traj_stu *arm_traj, float target_x, float target_y, float target_z, uint16_t delay_ms, uint8_t air_pump_flag);
 void arm_linear_interpolation_update(robotic_arm_stu *arm, robotic_arm_traj_stu *arm_traj, float blend_radius);
 

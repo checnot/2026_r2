@@ -256,7 +256,7 @@ static float arm_effector_pitch_clamp(robotic_arm_stu *arm, float target_pitch)
 
 /**
  * @brief 机械臂末端执行器稳定控制函数，输入末端执行器的目标pitch与自转角来控制末端执行器的姿态稳定，输入单位为rad
- * @param target_pitch 末端执行器的目标pitch角，平行地面为0，抬起为正
+ * @param target_pitch 末端执行器的目标pitch角，单位为rad，平行地面为0，抬起为正
  * @param theta4 末端执行器的自转角，面对吸盘逆时针为正
 */
 void arm_actuator_stable_control(robotic_arm_stu *arm, float target_pitch, float theta4)
@@ -309,6 +309,10 @@ void arm_trajectory_init(robotic_arm_traj_stu *arm_traj, robotic_arm_stu *arm)
     //机械臂延时控制参数初始化
     arm_traj->target_delay_ms = 0;
     arm_traj->wait_counter = 0;
+
+    Traj_Adaptive_Init(&arm_traj->traj_pitch, arm->joint_pitch[2],
+                       arm->effector_pitch_target,
+                        PITCH_V_MAX, PITCH_A_MAX, PI/6.0f); // 角速度/角加速度/死区
 
 }
 
@@ -380,6 +384,9 @@ void arm_linear_interpolation_update(robotic_arm_stu *arm, robotic_arm_traj_stu 
         arm_traj->target_delay_ms = next_delay;
         arm_traj->wait_counter = next_delay; // 为到达这个点后的停顿上满发条！
 
+        // === 新增：取出对应 pitch ===
+        float next_pitch = arm_traj->pitch_queue[arm_traj->traj_queue_x.tail];
+
         // 同步弹出点位
         arm_traj->traj_queue_x.tail = (arm_traj->traj_queue_x.tail + 1) % TRAJ_MAX_WAYPOINTS;
         arm_traj->traj_queue_x.count--;
@@ -428,6 +435,22 @@ void arm_linear_interpolation_update(robotic_arm_stu *arm, robotic_arm_traj_stu 
             // if(arm_traj->traj_w.a_max < 0.002f) arm_traj->traj_w.a_max = 0.002f;
             // arm_traj->traj_w.target_pos = next_w;
             // arm_traj->traj_w.is_finished = 0;
+
+            float delta_pitch = fabsf(next_pitch - arm->joint_pitch[2]);
+            if(delta_pitch > 0.02f)
+            {
+                float pp = delta_pitch / distance_total;
+                arm_traj->traj_pitch.v_max = GLOBAL_V_MAX * pp * PI; // 角速度映射系数
+                arm_traj->traj_pitch.a_max = GLOBAL_A_MAX * pp * 0.3f * PI;
+                if (arm_traj->traj_pitch.v_max < 0.01f)  arm_traj->traj_pitch.v_max  = 0.01f;
+                if (arm_traj->traj_pitch.a_max < 0.01f)  arm_traj->traj_pitch.a_max  = 0.01f;
+                arm_traj->traj_pitch.target_pos = next_pitch;
+                arm_traj->traj_pitch.is_finished = 0;
+            } else {
+                // 距离太小或 pitch 变化太小：直接跳到位
+                arm_traj->traj_pitch.target_pos = next_pitch;
+                arm_traj->traj_pitch.is_finished = 0;
+            }
         }
         
         return; 
@@ -441,10 +464,11 @@ void arm_linear_interpolation_update(robotic_arm_stu *arm, robotic_arm_traj_stu 
  * @param target_y 柱坐标系下期望的 Y 坐标 (向上为正，向下为负)
  * @param target_w 柱坐标系下期望的云台旋转角 W (从上方看，逆时针为正，顺时针为负)
  * @param delay_ms 目标点到达后的延时时间(ms)
- * @param pump_state 气泵控制标志，0为不控制，1为吸，2为吹（预留接口，目前未实现）
+ * @param pump_state 气泵控制标志，0为不控制，1为吸，2为松开
+ * @param target_pitch 末端执行器的目标pitch角，单位为rad
  */
 void arm_queue_add_point(robotic_arm_traj_stu *arm_traj, float target_x, float target_y, float target_w,
-                         uint16_t delay_time_ms, uint8_t pump_state)
+                         uint16_t delay_time_ms, uint8_t pump_state, float target_pitch)
 {
     float max_radius = 0.95f; // 最大物理伸展半径
     float min_radius = 0.30f; // 最小物理收缩半径 (机械结构限制)
@@ -475,6 +499,8 @@ void arm_queue_add_point(robotic_arm_traj_stu *arm_traj, float target_x, float t
     arm_traj->delay_queue[arm_traj->traj_queue_x.head] = delay_time_ms;
     // 将气泵控制标志存储到轨迹实例中，和点位队列下标同步
     arm_traj->pump_queue[arm_traj->traj_queue_x.head] = pump_state;
+    // === 新增：pitch 角度入队（与 delay/pump 同步，用当前 head） ===
+    arm_traj->pitch_queue[arm_traj->traj_queue_x.head] = target_pitch;
 
     // 将合法化后的安全坐标压入各自队列
     Traj_Path_Queue_AddPoint(&arm_traj->traj_queue_w, target_w);
@@ -499,11 +525,12 @@ void arm_mode_switch_to_transition(robotic_arm_stu *arm, robotic_arm_traj_stu *a
     Traj_Path_Queue_Init(&arm_traj->traj_queue_y, 0.025f);
     Traj_Path_Queue_Init(&arm_traj->traj_queue_w, PI/72.0f);
     
-    // 2. 重置延时状态
+    // 2. 重置延时/pitch状态
     arm_traj->target_delay_ms = 0;
     arm_traj->wait_counter = 0;
     arm->pump_state = ARM_PUMP_KEEP; // 过渡阶段保持当前气泵状态
     
+
     // 3. 设定过渡方向
     arm->trans_dir = dir;
     
@@ -550,8 +577,8 @@ void arm_mode_switch_to_transition(robotic_arm_stu *arm, robotic_arm_traj_stu *a
         &arm_trans_traj->traj_pitch,
         arm->joint_pitch[2],
         arm->trans_target_pitch,
-        TRANS_V_MAX * 0.75f,    // pitch 速度可以稍微慢一些，防止运动过猛块飞了
-        TRANS_A_MAX * 0.75f,    // pitch 加速度也可以稍微慢一些
+        PITCH_V_MAX,    // pitch 速度可以稍微慢一些，防止运动过猛块飞了
+        PITCH_A_MAX,    // pitch 加速度也可以稍微慢一些
         PI / 9.0f
     );
 
@@ -571,14 +598,16 @@ void arm_mode_switch_to_transition(robotic_arm_stu *arm, robotic_arm_traj_stu *a
  * @note 这是你放在 1ms 任务中最核心的调度函数
  * @note m8010和a1的参数大小关系不同
  * @note 过渡模式的位置和参数需要根据实际测试进行调整
- * @warning 代替了原有 task 中最后的 arm_route_execute 和 arm_route_point_calculate 的调用
+ * @warning 代替了原有 task 中最后的 arm_route_execute 和 arm_route_point_calculate 和 arm_effector_control 的调用
  */
 void arm_mode_update_execute(robotic_arm_stu *arm, robotic_arm_traj_stu *arm_traj, robotic_arm_trans_traj_stu *arm_trans_traj, float m8010_kp, float m8010_kw, float a1_kp, float a1_kw)
 {
-    switch (arm->mode) {
+    switch (arm->mode) 
+    {
         
     // ========== 前向工作模式 ==========
     case ARM_MODE_FRONT:
+    {
         // 正常流程：轨迹规划 → 逆解算 → 可到达检查 → 执行
         arm_route_point_calculate_front(arm);
         if (arm_route_reachable_check_front(arm) == IK_REACHABLE) {
@@ -586,8 +615,19 @@ void arm_mode_update_execute(robotic_arm_stu *arm, robotic_arm_traj_stu *arm_tra
             arm_route_execute(arm, m8010_kp, m8010_kw, a1_kp, a1_kw);
         }
         // 注意：从 FRONT 切到 TRANSITION 由上层（行为树/手动指令）触发
+
+        // === 新增：pitch 轨迹推进 + 执行 ===
+        Traj_Adaptive_Update(&arm_traj->traj_pitch, arm->joint_pitch[2], 0.001f);
+        float safe_pitch = arm_effector_pitch_clamp(arm, arm_traj->traj_pitch.out_pos);
+        if (arm_traj->traj_pitch.is_finished) {
+            safe_pitch = arm_effector_pitch_clamp(arm, arm_traj->traj_pitch.target_pos);
+        }
+        arm_actuator_stable_control(arm, safe_pitch, arm->theta_target[4]);
+        if (arm_traj->traj_pitch.is_finished) {
+            arm->effector_pitch_target = arm_traj->traj_pitch.target_pos;
+        }
         break;
-        
+    }
     // ========== 过渡模式 ==========
     case ARM_MODE_TRANSITION:
     {
@@ -623,7 +663,8 @@ void arm_mode_update_execute(robotic_arm_stu *arm, robotic_arm_traj_stu *arm_tra
             } else {
                 arm->mode = ARM_MODE_FRONT;
             }
-            // 以当前位置重新初始化笛卡尔轨迹规划器
+
+            // 过渡完成后以当前位置重新初始化笛卡尔轨迹规划器
             arm_trajectory_init(arm_traj, arm);
         }
 
@@ -632,12 +673,25 @@ void arm_mode_update_execute(robotic_arm_stu *arm, robotic_arm_traj_stu *arm_tra
         
     // ========== 后向工作模式 ==========
     case ARM_MODE_BACK:
+    {
         // 反向逆解算 → 可到达检查 → 轨迹规划 → 执行
         arm_route_point_calculate_back(arm);
         if (arm_route_reachable_check_back(arm) == IK_REACHABLE) {
             arm_route_execute(arm, m8010_kp, m8010_kw, a1_kp, a1_kw);
         }
+
+        // === 新增：pitch 轨迹推进 + 执行（与 FRONT 相同） ===
+        Traj_Adaptive_Update(&arm_traj->traj_pitch, arm->joint_pitch[2], 0.001f);
+        float safe_pitch = arm_effector_pitch_clamp(arm, arm_traj->traj_pitch.out_pos);
+        if (arm_traj->traj_pitch.is_finished) {
+            safe_pitch = arm_effector_pitch_clamp(arm, arm_traj->traj_pitch.target_pos);
+        }
+        arm_actuator_stable_control(arm, safe_pitch, arm->theta_target[4]);
+        if (arm_traj->traj_pitch.is_finished) {
+            arm->effector_pitch_target = arm_traj->traj_pitch.target_pos;
+        }
         break;
+    }
     }
 }
 
@@ -674,67 +728,55 @@ void arm_mode_update_execute(robotic_arm_stu *arm, robotic_arm_traj_stu *arm_tra
 //     uint16_t delay_ms_arm = delay_time_ms;
 //     arm_queue_add_point(arm_traj, x_arm, y_arm, w_arm, delay_ms_arm, air_pump_flag);
 // }
-
-
-/**
- * @brief 预设机械臂轨迹测试函数，向轨迹队列中添加一系列点位，形成一个预设的轨迹，供测试使用
-*/
-void arm_load_test_waypoints_clockwise(void)
-{
-    //起始点
-    arm_queue_add_point(&arm_traj, 0.3f, 0.3f, 0.0f, 0, 0);
-
-    arm_queue_add_point(&arm_traj, 0.3f, 0.6f, 0.0f, 0, 0);
-    arm_queue_add_point(&arm_traj, 0.6f, 0.6f, 0.0f, 0, 0);
-    arm_queue_add_point(&arm_traj, 0.6f, 0.3f, 0.0f, 0, 0);
-
-    arm_queue_add_point(&arm_traj, 0.3f, 0.3f, 0.0f, 0, 0);
-}
-
-/**
- * @brief 预设机械臂轨迹测试函数，向轨迹队列中添加一系列点位，形成一个预设的轨迹，供测试使用
-*/
-void arm_load_test_waypoints_counterclockwise(void)
-{
-    //起始点
-    arm_queue_add_point(&arm_traj, 0.3f, 0.3f, 0.0f, 0, 0);
-
-    arm_queue_add_point(&arm_traj, 0.6f, 0.3f, 0.0f, 0, 0);
-    arm_queue_add_point(&arm_traj, 0.6f, 0.6f, 0.0f, 0, 0);
-    arm_queue_add_point(&arm_traj, 0.3f, 0.6f, 0.0f, 0, 0);
-
-    arm_queue_add_point(&arm_traj, 0.3f, 0.3f, 0.0f, 0, 0);
-}
-
-/**
- * @brief 预设机械臂轨迹测试函数，向轨迹队列中添加一系列点位，形成一个预设的轨迹，供测试使用
-*/
-void arm_load_test_waypoints_rotate(void)
-{
-    //起始点
-    arm_queue_add_point(&arm_traj, 0.3f, 0.3f, 0.0f, 1000, 0);
-
-    arm_queue_add_point(&arm_traj, 0.3f, 0.3f, PI/6.0f, 1000, 0);
-    arm_queue_add_point(&arm_traj, 0.3f, 0.3f, -PI/6.0f, 1000, 0);
-    arm_queue_add_point(&arm_traj, 0.3f, 0.3f, PI/6.0f, 1000, 0);
-    arm_queue_add_point(&arm_traj, 0.3f, 0.3f, -PI/6.0f, 1000, 0);
-
-    arm_queue_add_point(&arm_traj, 0.3f, 0.3f, 0.0f, 1000, 0);
-}
-
-/**
- * @brief 自定义机械臂轨迹
-*/
-void arm_load_test_waypoints_custom(void)
-{
-    arm_queue_add_point(&arm_traj, 0.3f, 0.3f, 0.0f, 0, 0);
-    arm_queue_add_point(&arm_traj, 0.3f, 0.45f, 0.0f, 0, 0);
-    arm_queue_add_point(&arm_traj, 0.80f, 0.45f, 0.0f, 500, 0);
-    arm_queue_add_point(&arm_traj, 0.80f, 0.36f, 0.0f, 1500, 1);
-    arm_queue_add_point(&arm_traj, 0.4f, 0.36f, 0.0f, 500, 1);
-    arm_queue_add_point(&arm_traj, 0.4f, 0.5f, 0.0f, 500, 1);
-
-}
+// /**
+//  * @brief 预设机械臂轨迹测试函数，向轨迹队列中添加一系列点位，形成一个预设的轨迹，供测试使用
+// */
+// void arm_load_test_waypoints_clockwise(void)
+// {
+//     //起始点
+//     arm_queue_add_point(&arm_traj, 0.3f, 0.3f, 0.0f, 0, 0);
+//     arm_queue_add_point(&arm_traj, 0.3f, 0.6f, 0.0f, 0, 0);
+//     arm_queue_add_point(&arm_traj, 0.6f, 0.6f, 0.0f, 0, 0);
+//     arm_queue_add_point(&arm_traj, 0.6f, 0.3f, 0.0f, 0, 0);
+//     arm_queue_add_point(&arm_traj, 0.3f, 0.3f, 0.0f, 0, 0);
+// }
+// /**
+//  * @brief 预设机械臂轨迹测试函数，向轨迹队列中添加一系列点位，形成一个预设的轨迹，供测试使用
+// */
+// void arm_load_test_waypoints_counterclockwise(void)
+// {
+//     //起始点
+//     arm_queue_add_point(&arm_traj, 0.3f, 0.3f, 0.0f, 0, 0);
+//     arm_queue_add_point(&arm_traj, 0.6f, 0.3f, 0.0f, 0, 0);
+//     arm_queue_add_point(&arm_traj, 0.6f, 0.6f, 0.0f, 0, 0);
+//     arm_queue_add_point(&arm_traj, 0.3f, 0.6f, 0.0f, 0, 0);
+//     arm_queue_add_point(&arm_traj, 0.3f, 0.3f, 0.0f, 0, 0);
+// }
+// /**
+//  * @brief 预设机械臂轨迹测试函数，向轨迹队列中添加一系列点位，形成一个预设的轨迹，供测试使用
+// */
+// void arm_load_test_waypoints_rotate(void)
+// {
+//     //起始点
+//     arm_queue_add_point(&arm_traj, 0.3f, 0.3f, 0.0f, 1000, 0);
+//     arm_queue_add_point(&arm_traj, 0.3f, 0.3f, PI/6.0f, 1000, 0);
+//     arm_queue_add_point(&arm_traj, 0.3f, 0.3f, -PI/6.0f, 1000, 0);
+//     arm_queue_add_point(&arm_traj, 0.3f, 0.3f, PI/6.0f, 1000, 0);
+//     arm_queue_add_point(&arm_traj, 0.3f, 0.3f, -PI/6.0f, 1000, 0);
+//     arm_queue_add_point(&arm_traj, 0.3f, 0.3f, 0.0f, 1000, 0);
+// }
+// /**
+//  * @brief 自定义机械臂轨迹
+// */
+// void arm_load_test_waypoints_custom(void)
+// {
+//     arm_queue_add_point(&arm_traj, 0.3f, 0.3f, 0.0f, 0, 0);
+//     arm_queue_add_point(&arm_traj, 0.3f, 0.45f, 0.0f, 0, 0);
+//     arm_queue_add_point(&arm_traj, 0.80f, 0.45f, 0.0f, 500, 0);
+//     arm_queue_add_point(&arm_traj, 0.80f, 0.36f, 0.0f, 1500, 1);
+//     arm_queue_add_point(&arm_traj, 0.4f, 0.36f, 0.0f, 500, 1);
+//     arm_queue_add_point(&arm_traj, 0.4f, 0.5f, 0.0f, 500, 1);
+// }
 
 
 //================================ 遥控器手动控制 ======================================================

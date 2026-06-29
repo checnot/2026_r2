@@ -299,7 +299,7 @@ void entry_robotic_arm(void const * argument)
   arm_joint_parameter_init(&arm);
 
   // 机械臂上的3508参数初始化
-   m3508_parameter_init(&m3508_fdcan1[0], 1.5f, 0.0f, 1.5f, 3.0f, 0.0f, 20.0f);
+   m3508_parameter_init(&m3508_fdcan1[0], 2.0f, 0.0f, 2.0f, 4.5f, 0.0f, 25.0f);
   // m3508_parameter_init(&m3508_fdcan1[0], 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
 
   // 末端执行器默认目标姿态
@@ -342,20 +342,22 @@ void entry_robotic_arm(void const * argument)
     // }
 
     // 等待初始化完成
-    if(A1_debug_485_2[0].Pos_init_flag == 200 && m8010_bus_1.motors[2].measure.Pos_init_flag == 200)
+    if(A1_debug_485_2[0].Pos_init_flag == 200 
+      && m8010_bus_1.motors[2].measure.Pos_init_flag == 200 
+      && m3508_fdcan1[0].Initial_flag == 200)
     {
       if (traj_init_flag_arm == 0)
       {
         arm_trajectory_init(&arm_traj, &arm);   // 以当前位置初始化轨迹系统
-        arm_queue_add_point(&arm_traj, PICK_REST_X, PICK_REST_Y, 0.0f, 500, 0);
+        arm_queue_add_point(&arm_traj, PICK_REST_X, PICK_REST_Y, 0.0f, 500, 0, 0.0f);
         traj_init_flag_arm = 1;
       }
 
       // 保持执行器水平
-      if (m3508_fdcan1[0].Initial_flag == 200 && arm.mode != ARM_MODE_TRANSITION)
-      {
-        arm_actuator_stable_control(&arm, arm.effector_pitch_target, arm.theta_target[4]);
-      }
+      // if (m3508_fdcan1[0].Initial_flag == 200 && arm.mode != ARM_MODE_TRANSITION)
+      // {
+      //   arm_actuator_stable_control(&arm, arm.effector_pitch_target, arm.theta_target[4]);
+      // }
 
       // 1. 调用多段直线插补协调器 (它会从队列中成组提取路点)
       arm_linear_interpolation_update(&arm, &arm_traj, 0.05f);
