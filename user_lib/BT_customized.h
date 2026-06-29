@@ -392,10 +392,12 @@ extern uint8_t arm_store_slot;
 #define STORE_A_PRE_Y 0.6f         /* 存储点a过渡点 Y */
 #define STORE_A_X -0.4f         /* 存储点a X */
 #define STORE_A_Y 0.4f         /* 存储点a Y */
-#define STORE_B_PRE_X -0.4f         /* 存储点b过渡点 X */
-#define STORE_B_PRE_Y 0.6f         /* 存储点b过渡点 Y */
-#define STORE_B_X -0.4f        /* 存储点b X */
-#define STORE_B_Y 0.4f         /* 存储点b Y */
+
+#define STORE_B_PRE_X -0.005f         /* 存储点b过渡点 X */
+#define STORE_B_PRE_Y 0.45f         /* 存储点b过渡点 Y */
+#define STORE_B_X -0.005f        /* 存储点b X */
+#define STORE_B_Y 0.29f         /* 存储点b Y */
+
 #define STORE_C_X -0.4f         /* ！！！ 待定 存储点c X */
 #define STORE_C_Y 0.7f         /* ！！！ 待定存储点c Y */
 

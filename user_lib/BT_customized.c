@@ -966,6 +966,7 @@ static uint8_t Arm_Store_SendPath(uint8_t slot)
         arm_queue_add_point(&arm_traj, STORE_A_X, STORE_A_Y, 0, STORE_TIME, ARM_PUMP_KEEP);
         arm_queue_add_point(&arm_traj, STORE_PRE_TRANS_X, STORE_PRE_TRANS_Y, 0, 0, ARM_PUMP_RELEASE);
     } else if (slot == 1) {
+        HAL_GPIO_WritePin(GPIOD, GPIO_PIN_5, GPIO_PIN_SET); // 存块吸盘保持吸附
         arm_queue_add_point(&arm_traj, STORE_B_PRE_X, STORE_B_PRE_Y, 0, 0, ARM_PUMP_KEEP);
         arm_queue_add_point(&arm_traj, STORE_B_X, STORE_B_Y, 0, STORE_TIME, ARM_PUMP_KEEP);
         arm_queue_add_point(&arm_traj, STORE_PRE_TRANS_X, STORE_PRE_TRANS_Y, 0, 0, ARM_PUMP_RELEASE);
@@ -1094,7 +1095,8 @@ static void Arm_Store_Service_Tick(void)
         break;
 
     case ARM_STORE_DONE:
-        if (arm_store_done && arm_store_payload_done) {
+        if (arm_store_done) {
+            arm_store_done = 0;
             arm_store_state = ARM_STORE_IDLE;
         }
         break;
@@ -1311,7 +1313,7 @@ static BT_Status Act_MF_Execute_Action(void)
                 * 🟡 你需要预先测试好不同高度差下机械臂的拾取坐标，
                 *    然后在此处根据 height_pick_diff 查表或计算。
                 */
-            if(arm_store_busy) {
+            if(arm_store_busy || arm_store_state != ARM_STORE_IDLE) {
                 /* 机械臂存储服务正在忙，等待其完成 */
                 return BT_RUNNING;
             }
@@ -1636,10 +1638,22 @@ static BT_Status Act_MF_Execute_Action(void)
         {
             if (arm_if_arrived_xy(PICK_PRE_TRANS_X, PICK_PRE_TRANS_Y))
             {
-                /* 拾取完成后请求机械臂存储服务接管 */
-                arm_store_slot = mf_bb.kfs_stored;
-                arm_store_request = 1;
-                mf_exec_timer_ms = 0;
+                if(mf_bb.kfs_stored < 2)
+                {
+                    /* 拾取完成后请求机械臂存储服务接管 */
+                    arm_store_slot = mf_bb.kfs_stored;
+                    arm_store_request = 1;
+                    mf_exec_timer_ms = 0;
+                }
+                else
+                {
+                    /* 槽位已满（C 槽或其他情况）：跳过存储，直接推进 */
+                    arm_if_send_point = 0;
+                    mf_bb.kfs_stored++;
+                    MFPlanner_AdvanceAction(&mf_planner_ctx);
+                    mf_exec_state = MF_EXEC_IDLE;
+                    mf_exec_timer_ms = 0;
+                }
             }
             else if (++mf_exec_timer_ms * 10 >= MF_PICK_TIMEOUT_MS)
             {
@@ -1650,8 +1664,9 @@ static BT_Status Act_MF_Execute_Action(void)
         if (arm_store_payload_done)
         {
             /* arm_store_payload_done 应在机械臂全流程完成之后清零 */
-            // arm_store_payload_done = 0;
+            arm_store_payload_done = 0;
             arm_if_send_point = 0;  // 存完块之后机械臂轨迹队列允许发送点
+            arm_store_done = 0;
 
             mf_bb.kfs_stored++;
             MFPlanner_AdvanceAction(&mf_planner_ctx);
