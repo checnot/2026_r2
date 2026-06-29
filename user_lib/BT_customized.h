@@ -119,13 +119,13 @@
 #define R_CHASSIS_CZ_CENTER_W 90.0f           /* 红区 对抗区扫描 W (deg) */
 
 #define R_CHASSIS_SUDUKU_1_X 11290.0f         /* 红区 九宫格第一列 X (mm) */
-#define R_CHASSIS_SUDUKU_1_Y -640.0f          /* 红区 九宫格第一列 Y (mm) */
+#define R_CHASSIS_SUDUKU_1_Y -1200.0f          /* 红区 九宫格第一列 Y (mm) */
 #define R_CHASSIS_SUDUKU_1_W 90.0f            /* 红区 九宫格第一列 W (deg) */
 #define R_CHASSIS_SUDUKU_2_X 10750.0f         /* 红区 九宫格第二列 X (mm) */
-#define R_CHASSIS_SUDUKU_2_Y -640.0f          /* 红区 九宫格第二列 Y (mm) */
+#define R_CHASSIS_SUDUKU_2_Y -1200.0f          /* 红区 九宫格第二列 Y (mm) */
 #define R_CHASSIS_SUDUKU_2_W 90.0f            /* 红区 九宫格第二列 W (deg) */
 #define R_CHASSIS_SUDUKU_3_X 10210.0f         /* 红区 九宫格第三列 X (mm) */
-#define R_CHASSIS_SUDUKU_3_Y -640.0f          /* 红区 九宫格第三列 Y (mm) */
+#define R_CHASSIS_SUDUKU_3_Y -1200.0f          /* 红区 九宫格第三列 Y (mm) */
 #define R_CHASSIS_SUDUKU_3_W 90.0f            /* 红区 九宫格第三列 W (deg) */
 
 /***************************************
@@ -430,12 +430,30 @@ void BT_Customized_Tick1ms_MF(void);
 #define CZ_POS_STABLE_CONDITION 50  /* 扫描位置稳定次数阈值，类似MC取矛头 */
 
 /* 对抗区机械臂放块坐标 */
-#define CZ_ARM_PLACE_1_X 0.1f       /* 对抗区放块机械臂抬高目标 X */
-#define CZ_ARM_PLACE_1_Y 0.95f       /* 对抗区放块机械臂抬高目标 Y */
-#define CZ_ARM_PLACE_2_X 0.2f       /* 对抗区放块机械臂前伸放置目标 X */
-#define CZ_ARM_PLACE_2_Y 0.95f       /* 对抗区放块机械臂前伸放置目标 Y */
-#define CZ_ARM_PLACE_TIME 1000    /* 放块停留时间 (ms) */
+#define CZ_ARM_PLACE_1_X 0.25f       /* 对抗区放块机械臂抬高目标 X */
+#define CZ_ARM_PLACE_1_Y 0.85f       /* 对抗区放块机械臂抬高目标 Y */
+#define CZ_ARM_PLACE_PITCH 40.0f       /* 对抗区放块机械臂抬高目标 pitch */
+#define CZ_ARM_PLACE_2_X 0.25f       /* 对抗区放块机械臂前伸放置目标 X */
+#define CZ_ARM_PLACE_2_Y 0.85f       /* 对抗区放块机械臂前伸放置目标 Y */
+#define CZ_ARM_PLACE_TIME 500    /* 放块停留时间 (ms) */
 #define CZ_ARM_PLACE_TIMEOUT_MS 8000 /* 放块超时时间 (ms) */
+#define CZ_PUMP_WAIT_MS 3000      /* 关气泵后等待时间 (ms) */
+
+/* R1 平台等待 & 九宫格第三层坐标 (🟡需实测填入真实值) */
+#define R_CHASSIS_R1_WAIT_X 11500.0f     /* 🟡 R1平台等待点 X */
+#define R_CHASSIS_R1_WAIT_Y -800.0f     /* 🟡 R1平台等待点 Y */
+#define R_CHASSIS_R1_WAIT_W 180.0f         /* 🟡 R1平台等待点 W */
+#define R_CHASSIS_R1_STEP_APPROACH_X 9200.0f  /* 🟡 台阶接近点 X (台阶边缘前) */
+#define R_CHASSIS_R1_STEP_APPROACH_Y -5000.0f /* 🟡 台阶接近点 Y */
+#define R_CHASSIS_R1_STEP_APPROACH_W 0.0f     /* 🟡 台阶接近点 W (面朝台阶方向) */
+#define R_CHASSIS_R1_PLATFORM_X 9000.0f  /* 🟡 R1平台上面 X (台阶后) */
+#define R_CHASSIS_R1_PLATFORM_Y -5000.0f /* 🟡 R1平台上面 Y */
+#define R_CHASSIS_R1_PLATFORM_W 0.0f     /* 🟡 R1平台上面 W */
+#define CZ_ARM_PLACE_L3_X 0.25f          /* 🟡 九宫格第三层机械臂抬升 X */
+#define CZ_ARM_PLACE_L3_Y 1.05f          /* 🟡 九宫格第三层机械臂抬升 Y (比第一层更高) */
+#define CZ_ARM_PLACE_L3_FWD_X 0.50f      /* 🟡 九宫格第三层机械臂前送 X (往前伸) */
+#define CZ_ARM_PLACE_L3_FWD_Y 1.05f      /* 🟡 九宫格第三层机械臂前送 Y */
+#define CZ_ARM_PLACE_L3_PITCH 50.0f      /* 🟡 九宫格第三层 pitch */
 
 /* 对抗区任务状态机 */
 typedef enum
@@ -443,12 +461,32 @@ typedef enum
     CZ_IDLE = 0,
     CZ_NAV_TO_SLOPE_START,
     CZ_NAV_TO_SLOPE_END,
+    CZ_ROTATE_90,          /* 坡道终点原地慢转90° */
     CZ_NAV_TO_SCAN,
     CZ_CAMERA_SCAN,
     CZ_NAV_TO_SUDUKU,
-    CZ_ARM_PLACE,
+    CZ_ARM_RAISE,          /* 抬机械臂到放置位置 */
+    CZ_ARM_RAISE_WAIT,     /* 等待机械臂到位 */
+    CZ_FORWARD_PUSH,       /* 底盘前进送块 */
+    CZ_ARM_PLACE,          /* 关气泵释放块 */
+    CZ_PUMP_WAIT,          /* 关气泵后等待 */
     CZ_RETURN_TO_SCAN,
-    CZ_DONE
+    CZ_PICK_STORE_AT_SCAN, /* 🟡 到扫描点后取存块-仅机械臂（暂空，立即完成） */
+    CZ_PICK_STORE,         /* 🟡 两次放置后取存块（暂空，立即完成） */
+    CZ_DONE,               /* 两轮放置完成 */
+    /* --- R1 平台阶段 --- */
+    CZ_NAV_TO_R1_WAIT,     /* 导航到R1平台等待点 */
+    CZ_WAIT_R1_PLATFORM,   /* 等待R1上平台指令 */
+    CZ_NAV_TO_R1_PLATFORM, /* 导航上R1平台 */
+    CZ_ON_R1_PLATFORM,     /* 在R1平台上等待 */
+    /* --- 九宫格第三层放块 --- */
+    CZ_NAV_TO_SUDUKU_L3,   /* 导航到九宫格第三层列 */
+    CZ_ARM_RAISE_L3,       /* 抬机械臂到第三层高度 */
+    CZ_ARM_RAISE_WAIT_L3,  /* 等待机械臂L3到位 */
+    CZ_FORWARD_PUSH_L3,    /* 底盘前进送块L3 */
+    CZ_ARM_PLACE_L3,       /* 关气泵释放块L3 */
+    CZ_PUMP_WAIT_L3,       /* 关气泵后等待L3 */
+    CZ_FINAL_DONE           /* 最终完成 */
 } R2_CZ_MISSION_STATE;
 
 /* 对抗区黑板 */
@@ -461,6 +499,8 @@ typedef struct
     uint8_t camera_scan_done;
     uint8_t scan_count;           /* 扫描次数: 0=第一次, 1=第二次 */
     uint16_t pos_stable_times;    /* 扫描位置稳定计数 */
+    uint8_t r1_platform_cmd;      /* R1 发来的上平台指令 */
+    uint8_t r1_place_cmd;         /* R1 发来的放块指令  */
 } CZ_Blackboard;
 
 extern CZ_Blackboard CZ_bb;

@@ -341,7 +341,7 @@ static BT_Status Act_R2_MC_Mission(void)
         }
         case NIVEGATE_TO_RACK:
         {
-            if(abs_int32(m3508_fdcan2[0].Angle_Sum - CLAMP_LIFT_SPECIAL_POSITION2) < 4000)
+            if(abs_int32(m3508_fdcan2[0].Angle_Sum - CLAMP_LIFT_SPECIAL_POSITION2) < 5000)
             {
             /* 进入这个状态后,执行寻路到达RACK点的动作 */
             taskENTER_CRITICAL(); 
@@ -618,7 +618,7 @@ static BT_Status Act_R2_MC_Mission(void)
             taskENTER_CRITICAL();
             chassis_route_point_add(&chassis_route_traj, R_CHASSIS_DOCKING_X, R_CHASSIS_DOCKING_Y, R_CHASSIS_DOCKING_W, 0);
             taskEXIT_CRITICAL();
-            clamp.lift_flag = 0;
+           
 
             MC_bb.mc_mission_state = WAIT_DOCKING_COMPLETE;
             MC_bb.R2_MC_timer_ms = 0;
@@ -626,6 +626,12 @@ static BT_Status Act_R2_MC_Mission(void)
         }
         case WAIT_DOCKING_COMPLETE:
         {
+            if(chassis_if_arrived(R_CHASSIS_DOCKING_X,R_CHASSIS_DOCKING_Y,R_CHASSIS_DOCKING_W))
+            {
+                clamp.lift_flag = 0;
+                chassis_set_lock(1);  /* 到达对接点，四轮锁止 */
+            }
+        
             /* 进入这个状态后,等待对接完成的动作*/
             if(MC_bb.DOCKING_SUCCESS == 1)
             {
@@ -633,6 +639,7 @@ static BT_Status Act_R2_MC_Mission(void)
                 osDelay(800);
                 clamp.rotate_flag = 0;
 
+                chassis_set_lock(0);  /* 解锁，恢复底盘控制 */
                 MC_bb.mc_mission_state = WAIT_MF_INSTRUCTION;
                 MC_bb.R2_MC_timer_ms = 0;
             }
@@ -1847,7 +1854,8 @@ static BT_Status Cond_Has_CZ_Request(void)
 
 /**
  * @brief [动作节点] 对抗区任务执行
- * @note 流程：坡道起点 → 上坡（坡道终点）→ 中央扫描位置 → 摄像头扫描 → 策略执行
+ * @note 流程：坡道起点 → 上坡（坡道终点）→ 原地慢转90° → 中央扫描位置 → 摄像头扫描
+ *       → 九宫格列 → 抬机械臂 → 等待机械臂到位 → 底盘前进送块 → 关气泵 → 等待 → 策略分支
  */
 static BT_Status Act_CZ_Mission(void)
 {
@@ -1888,9 +1896,34 @@ static BT_Status Act_CZ_Mission(void)
             if (chassis_if_arrived(R_CHASSIS_SLOPE_END_X, R_CHASSIS_SLOPE_END_Y, R_CHASSIS_SLOPE_END_W))
             {
                 chassis_route_set_slope_mode(0);  /* 上坡完成，恢复平地参数 */
-                 taskENTER_CRITICAL();
+
+                /* 原地慢速旋转90° */
+                chassis_route_set_rotate_slow(1);
+                taskENTER_CRITICAL();
                 chassis_route_point_add(&chassis_route_traj,
-                R_CHASSIS_CZ_CENTER_X, R_CHASSIS_CZ_CENTER_Y, R_CHASSIS_CZ_CENTER_W, 0);
+                    R_CHASSIS_SLOPE_END_X, R_CHASSIS_SLOPE_END_Y, 90.0f, 0);
+                taskEXIT_CRITICAL();
+
+                CZ_bb.cz_mission_state = CZ_ROTATE_90;
+                CZ_bb.cz_timer_ms = 0;
+            }
+            else if (++CZ_bb.cz_timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS)
+            {
+                return BT_FAILURE;
+            }
+            return BT_RUNNING;
+        }
+
+        case CZ_ROTATE_90:
+        {
+            /* 等待原地旋转90°完成，旋转速度较慢 */
+            if (chassis_if_arrived(R_CHASSIS_SLOPE_END_X, R_CHASSIS_SLOPE_END_Y, 90.0f))
+            {
+                chassis_route_set_rotate_slow(0);  /* 旋转完成，恢复正常角速度 */
+
+                taskENTER_CRITICAL();
+                chassis_route_point_add(&chassis_route_traj,
+                    R_CHASSIS_CZ_CENTER_X, R_CHASSIS_CZ_CENTER_Y, R_CHASSIS_CZ_CENTER_W, 0);
                 taskEXIT_CRITICAL();
 
                 CZ_bb.cz_mission_state = CZ_NAV_TO_SCAN;
@@ -1898,6 +1931,7 @@ static BT_Status Act_CZ_Mission(void)
             }
             else if (++CZ_bb.cz_timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS)
             {
+                chassis_route_set_rotate_slow(0);  /* 超时也要恢复 */
                 return BT_FAILURE;
             }
             return BT_RUNNING;
@@ -1934,11 +1968,11 @@ static BT_Status Act_CZ_Mission(void)
                        KFS_PUT: CZ_put_pos 一定是 M1/M2/M3
                        WAIT:    CZ_put_pos 一定是 Invalid(9)
                        RESCAN:  CZ_put_pos 一定是 Invalid(9) */
+                       taskENTER_CRITICAL();
                     switch (CZ_action)
                     {
                     case KFS_PUT:
-                    taskENTER_CRITICAL();
-                    arm_queue_add_point(&arm_traj,CZ_ARM_PLACE_1_X,CZ_ARM_PLACE_1_Y,0,0,ARM_PUMP_KEEP);
+                        /* 先只下发底盘路径去九宫格，机械臂等底盘到位后再抬 */
                         if (CZ_put_pos == M1)
                             chassis_route_point_add(&chassis_route_traj,
                                 R_CHASSIS_SUDUKU_3_X, R_CHASSIS_SUDUKU_3_Y, R_CHASSIS_SUDUKU_3_W, 0);
@@ -1997,43 +2031,44 @@ static BT_Status Act_CZ_Mission(void)
 
         case CZ_NAV_TO_SUDUKU:
         {
-            /* 等待底盘到达目标九宫格列 */
-            if (chassis_if_arrived(CZ_SUDUKU_X, CZ_SUDUKU_Y, CZ_SUDUKU_W) && arm_if_arrived_xy(CZ_ARM_PLACE_1_X, CZ_ARM_PLACE_1_Y))
+            /* 等待底盘到达目标九宫格列（只检查底盘，不检查机械臂） */
+            if (chassis_if_arrived(CZ_SUDUKU_X, CZ_SUDUKU_Y, CZ_SUDUKU_W))
             {
-                /* 到位后下发机械臂放块动作 */
-                taskENTER_CRITICAL();
-                arm_queue_add_point(&arm_traj,
-                    CZ_ARM_PLACE_2_X, CZ_ARM_PLACE_2_Y, 0, CZ_ARM_PLACE_TIME, ARM_PUMP_RELEASE);
-                taskEXIT_CRITICAL();
-
-                CZ_bb.cz_mission_state = CZ_ARM_PLACE;
+                CZ_bb.cz_mission_state = CZ_ARM_RAISE;
                 CZ_bb.cz_timer_ms = 0;
             }
-            else if (++CZ_bb.cz_timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS*2)
+            else if (++CZ_bb.cz_timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS * 2)
             {
                 return BT_FAILURE;
             }
             return BT_RUNNING;
         }
 
-        case CZ_ARM_PLACE:
+        case CZ_ARM_RAISE:
         {
-            /* 等待机械臂放块完成 */
-            if (arm_if_arrived_xy(CZ_ARM_PLACE_2_X, CZ_ARM_PLACE_2_Y))
+            /* 底盘已到九宫格，下发机械臂抬升到放置位置 */
+            taskENTER_CRITICAL();
+            arm_queue_add_point(&arm_traj, CZ_ARM_PLACE_1_X, CZ_ARM_PLACE_1_Y, 0, 0, ARM_PUMP_KEEP);
+            arm.effector_pitch_target = CZ_ARM_PLACE_PITCH * 3.14f / 180.0f;
+            taskEXIT_CRITICAL();
+            
+            CZ_bb.cz_mission_state = CZ_ARM_RAISE_WAIT;
+            CZ_bb.cz_timer_ms = 0;
+            return BT_RUNNING;
+        }
+
+        case CZ_ARM_RAISE_WAIT:
+        {
+            /* 等待机械臂到达放置位置 */
+            if (arm_if_arrived_xy(CZ_ARM_PLACE_1_X, CZ_ARM_PLACE_1_Y))
             {
-                CZ_bb.scan_count++;
-                if (CZ_bb.scan_count >= 2)
-                {
-                    /* 两次放置完成 */
-                    CZ_bb.cz_mission_state = CZ_DONE;
-                }
-                else
-                {
-                    /* 返回扫描点进行第二次扫描 */
-                    chassis_route_point_add(&chassis_route_traj,
-                        R_CHASSIS_CZ_CENTER_X, R_CHASSIS_CZ_CENTER_Y, R_CHASSIS_CZ_CENTER_W, 0);
-                    CZ_bb.cz_mission_state = CZ_RETURN_TO_SCAN;
-                }
+                /* 机械臂到位后，底盘往前送块一小段 */
+                taskENTER_CRITICAL();
+                chassis_route_point_add(&chassis_route_traj,
+                    CZ_SUDUKU_X, CZ_SUDUKU_Y + 500.0f, CZ_SUDUKU_W, 0);
+                taskEXIT_CRITICAL();
+
+                CZ_bb.cz_mission_state = CZ_FORWARD_PUSH;
                 CZ_bb.cz_timer_ms = 0;
             }
             else if (++CZ_bb.cz_timer_ms * 10 >= CZ_ARM_PLACE_TIMEOUT_MS)
@@ -2043,14 +2078,70 @@ static BT_Status Act_CZ_Mission(void)
             return BT_RUNNING;
         }
 
+        case CZ_FORWARD_PUSH:
+        {
+            /* 等待底盘前进送块到位 */
+            if (chassis_if_arrived(CZ_SUDUKU_X, CZ_SUDUKU_Y + 500.0f, CZ_SUDUKU_W))
+            {
+                CZ_bb.cz_mission_state = CZ_ARM_PLACE;
+                CZ_bb.cz_timer_ms = 0;
+            }
+            else if (++CZ_bb.cz_timer_ms * 10 >= CZ_ARM_PLACE_TIMEOUT_MS)
+            {
+                return BT_FAILURE;
+            }
+            return BT_RUNNING;
+        }
+
+        case CZ_ARM_PLACE:
+        {
+            /* 底盘到位，关气泵释放块 */
+            taskENTER_CRITICAL();
+            arm_queue_add_point(&arm_traj, CZ_ARM_PLACE_1_X, CZ_ARM_PLACE_1_Y, 0, 0, ARM_PUMP_RELEASE);
+            taskEXIT_CRITICAL();
+
+            CZ_bb.cz_mission_state = CZ_PUMP_WAIT;
+            CZ_bb.cz_timer_ms = 0;
+            return BT_RUNNING;
+        }
+
+        case CZ_PUMP_WAIT:
+        {
+            /* 关气泵后等待一段时间再让底盘离开 */
+            if (++CZ_bb.cz_timer_ms * 10 >= CZ_PUMP_WAIT_MS)
+            {
+                CZ_bb.scan_count++;
+                if (CZ_bb.scan_count >= 2)
+                {
+                    /* 两次放置完成，先去取存块 */
+                    CZ_bb.cz_mission_state = CZ_PICK_STORE;
+                }
+                else
+                {
+                    /* 返回扫描点进行第二次扫描 */
+                    taskENTER_CRITICAL();
+                    arm_queue_add_point(&arm_traj, PICK_REST_X, PICK_REST_Y, 0.0f, 0, 0);
+                    chassis_route_point_add(&chassis_route_traj,
+                        R_CHASSIS_CZ_CENTER_X, R_CHASSIS_CZ_CENTER_Y, R_CHASSIS_CZ_CENTER_W, 0);
+                    taskEXIT_CRITICAL();
+                    CZ_bb.cz_mission_state = CZ_RETURN_TO_SCAN;
+                }
+                CZ_bb.cz_timer_ms = 0;
+            }
+            return BT_RUNNING;
+        }
+
         case CZ_RETURN_TO_SCAN:
         {
             /* 返回中央扫描位置 */
             if (chassis_if_arrived(R_CHASSIS_CZ_CENTER_X, R_CHASSIS_CZ_CENTER_Y, R_CHASSIS_CZ_CENTER_W))
             {
-                CZ_bb.cz_mission_state = CZ_CAMERA_SCAN;
+                /* 到扫描点后先取存块（仅机械臂），再做第二次扫描 */
+                 taskENTER_CRITICAL();
+                    arm_queue_add_point(&arm_traj, PICK_REST_X, PICK_REST_Y, 0.0f, 0, 1);
+                    taskEXIT_CRITICAL();
+                CZ_bb.cz_mission_state = CZ_PICK_STORE_AT_SCAN;
                 CZ_bb.cz_timer_ms = 0;
-                CZ_bb.pos_stable_times = 0;
             }
             else if (++CZ_bb.cz_timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS)
             {
@@ -2059,7 +2150,211 @@ static BT_Status Act_CZ_Mission(void)
             return BT_RUNNING;
         }
 
+       
+        case CZ_PICK_STORE_AT_SCAN:
+        {
+            /*
+             * 🟡 到扫描点后取存块 — 仅机械臂动作，底盘不动（暂空，立即完成）
+             * TODO: 填写机械臂取存块的轨迹点
+             */
+            CZ_bb.cz_mission_state = CZ_CAMERA_SCAN;
+            CZ_bb.cz_timer_ms = 0;
+            CZ_bb.pos_stable_times = 0;
+            return BT_RUNNING;
+        }
+
+        case CZ_PICK_STORE:
+        {
+            /*
+             * 🟡取存块逻辑（暂空，立即完成）
+             * TODO: 填写取存块的机械臂/底盘动作
+             */
+            CZ_bb.cz_mission_state = CZ_DONE;
+            CZ_bb.cz_timer_ms = 0;
+            return BT_RUNNING;
+        }
+
         case CZ_DONE:
+        {
+            /* 两轮放置完成，前往 R1 平台等待点 */
+            clamp.lift_flag = 0;
+            taskENTER_CRITICAL();
+            chassis_route_point_add(&chassis_route_traj,
+                R_CHASSIS_R1_WAIT_X, R_CHASSIS_R1_WAIT_Y, R_CHASSIS_R1_WAIT_W, 0);
+            taskEXIT_CRITICAL();
+
+            CZ_bb.cz_mission_state = CZ_NAV_TO_R1_WAIT;
+            CZ_bb.cz_timer_ms = 0;
+            return BT_RUNNING;
+        }
+
+        /* ========== R1 平台阶段 ========== */
+
+        case CZ_NAV_TO_R1_WAIT:
+        {
+            /* 等待到达 R1 平台等待点 */
+            if (chassis_if_arrived(R_CHASSIS_R1_WAIT_X, R_CHASSIS_R1_WAIT_Y, R_CHASSIS_R1_WAIT_W))
+            {
+                CZ_bb.cz_mission_state = CZ_WAIT_R1_PLATFORM;
+                CZ_bb.cz_timer_ms = 0;
+            }
+            else if (++CZ_bb.cz_timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS)
+            {
+                return BT_FAILURE;
+            }
+            return BT_RUNNING;
+        }
+
+        case CZ_WAIT_R1_PLATFORM:
+        {
+            /* 等待 R1 发出"可以上平台"指令，下发台阶接近点（台阶攀登前的位置） */
+            if (CZ_bb.r1_platform_cmd)
+            {
+                taskENTER_CRITICAL();
+                chassis_route_point_add(&chassis_route_traj,
+                    R_CHASSIS_R1_STEP_APPROACH_X, R_CHASSIS_R1_STEP_APPROACH_Y,
+                    R_CHASSIS_R1_STEP_APPROACH_W, 0);
+                taskEXIT_CRITICAL();
+
+                CZ_bb.cz_mission_state = CZ_NAV_TO_R1_PLATFORM;
+                CZ_bb.cz_timer_ms = 0;
+            }
+            return BT_RUNNING;
+        }
+
+        case CZ_NAV_TO_R1_PLATFORM:
+        {
+            /*
+             * 台阶跨越 FSM：底盘先到台阶接近点 → 面朝台阶方向 → 启动上台阶 FSM
+             * 🟡【需实测】台阶高度默认为 200mm，若是 400mm 台阶需改为 STEP_UP_400
+             * 🟡【需实测】台阶方向应与 R_CHASSIS_R1_STEP_APPROACH_W 对齐
+             */
+            static uint8_t step_fsm_started = 0;
+            static uint8_t platform_route_sent = 0;
+
+            if (!step_fsm_started)
+            {
+                /* 阶段1：等待底盘到达台阶接近点并面朝台阶方向 */
+                if (chassis_if_arrived(R_CHASSIS_R1_STEP_APPROACH_X,
+                    R_CHASSIS_R1_STEP_APPROACH_Y, R_CHASSIS_R1_STEP_APPROACH_W))
+                {
+                    chassis_step_fsm_start(&g_step_fsm, STEP_UP_200);
+                    step_fsm_started = 1;
+                    CZ_bb.cz_timer_ms = 0;
+                }
+                else if (++CZ_bb.cz_timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS * 2)
+                {
+                    return BT_FAILURE;
+                }
+                return BT_RUNNING;
+            }
+
+            /* 阶段2：每 Tick 推进台阶 FSM */
+            BT_Status step_status = chassis_step_fsm_tick(&g_step_fsm);
+
+            /* 刚启动抬升时预下发平台上目标点，让底盘 FSM 后续自动行驶 */
+            if (!platform_route_sent &&
+                g_step_fsm.state == STEP_UP_WAIT_DEPLOY_DONE)
+            {
+                taskENTER_CRITICAL();
+                chassis_route_point_add(&chassis_route_traj,
+                    R_CHASSIS_R1_PLATFORM_X, R_CHASSIS_R1_PLATFORM_Y,
+                    R_CHASSIS_R1_PLATFORM_W, 0);
+                platform_route_sent = 1;
+                taskEXIT_CRITICAL();
+            }
+
+            if (step_status == BT_SUCCESS)
+            {
+                /* 上台阶完成，关闭底盘使能 */
+                taskENTER_CRITICAL();
+                chassis_r2.chassis_en_flag = 0;
+                taskEXIT_CRITICAL();
+
+                step_fsm_started = 0;
+                platform_route_sent = 0;
+                CZ_bb.cz_mission_state = CZ_ON_R1_PLATFORM;
+                CZ_bb.cz_timer_ms = 0;
+            }
+            else if (step_status == BT_FAILURE)
+            {
+                step_fsm_started = 0;
+                platform_route_sent = 0;
+                return BT_FAILURE;
+            }
+            return BT_RUNNING;
+        }
+
+        case CZ_ON_R1_PLATFORM:
+        {
+            /*
+             * 在 R1 平台上等待 R1 发出"去第三层放块"指令。
+             * 底盘保持关闭（chassis_en_flag=0），只动机械臂。
+             */
+            if (CZ_bb.r1_place_cmd)
+            {
+                /* 直接抬机械臂到第三层，底盘不动 */
+                CZ_bb.cz_mission_state = CZ_ARM_RAISE_L3;
+                CZ_bb.cz_timer_ms = 0;
+            }
+            return BT_RUNNING;
+        }
+
+        /* ========== 九宫格第三层放块（仅机械臂，底盘始终关闭） ========== */
+
+        case CZ_ARM_RAISE_L3:
+        {
+            /* 机械臂抬升 → 前送到第三层放置位置（两步） */
+            taskENTER_CRITICAL();
+            arm_queue_add_point(&arm_traj, CZ_ARM_PLACE_L3_X, CZ_ARM_PLACE_L3_Y, 0, 0, ARM_PUMP_KEEP);
+            arm_queue_add_point(&arm_traj, CZ_ARM_PLACE_L3_FWD_X, CZ_ARM_PLACE_L3_FWD_Y, 0, 0, ARM_PUMP_KEEP);
+            arm.effector_pitch_target = CZ_ARM_PLACE_L3_PITCH * 3.14f / 180.0f;
+            taskEXIT_CRITICAL();
+
+            CZ_bb.cz_mission_state = CZ_ARM_RAISE_WAIT_L3;
+            CZ_bb.cz_timer_ms = 0;
+            return BT_RUNNING;
+        }
+
+        case CZ_ARM_RAISE_WAIT_L3:
+        {
+            /* 等待机械臂到达前送终点 */
+            if (arm_if_arrived_xy(CZ_ARM_PLACE_L3_FWD_X, CZ_ARM_PLACE_L3_FWD_Y))
+            {
+                CZ_bb.cz_mission_state = CZ_ARM_PLACE_L3;
+                CZ_bb.cz_timer_ms = 0;
+            }
+            else if (++CZ_bb.cz_timer_ms * 10 >= CZ_ARM_PLACE_TIMEOUT_MS)
+            {
+                return BT_FAILURE;
+            }
+            return BT_RUNNING;
+        }
+
+        case CZ_ARM_PLACE_L3:
+        {
+            /* 前送到位，关气泵释放块 */
+            taskENTER_CRITICAL();
+            arm_queue_add_point(&arm_traj, CZ_ARM_PLACE_L3_FWD_X, CZ_ARM_PLACE_L3_FWD_Y, 0, 0, ARM_PUMP_RELEASE);
+            taskEXIT_CRITICAL();
+
+            CZ_bb.cz_mission_state = CZ_PUMP_WAIT_L3;
+            CZ_bb.cz_timer_ms = 0;
+            return BT_RUNNING;
+        }
+
+        case CZ_PUMP_WAIT_L3:
+        {
+            /* 关气泵后等待一段时间 */
+            if (++CZ_bb.cz_timer_ms * 10 >= CZ_PUMP_WAIT_MS)
+            {
+                CZ_bb.cz_mission_state = CZ_FINAL_DONE;
+                CZ_bb.cz_timer_ms = 0;
+            }
+            return BT_RUNNING;
+        }
+
+        case CZ_FINAL_DONE:
         {
             return BT_SUCCESS;
         }
@@ -2082,6 +2377,9 @@ static BT_Status Act_CZ_FinishCleanup(void)
     CZ_bb.camera_scan_done = 0;
     CZ_bb.scan_count = 0;
     CZ_bb.pos_stable_times = 0;
+    CZ_bb.r1_platform_cmd = 0;
+    CZ_bb.r1_place_cmd = 0;
+    chassis_route_set_rotate_slow(0);  /* 确保恢复正常旋转速度 */
     return BT_SUCCESS;
 }
 
@@ -2109,6 +2407,8 @@ void BT_CZ_Start_Task(void)
     CZ_bb.camera_scan_done = 0;
     CZ_bb.scan_count = 0;
     CZ_bb.pos_stable_times = 0;
+    CZ_bb.r1_platform_cmd = 0;
+    CZ_bb.r1_place_cmd = 0;
 }
 
 void BT_CZ_Init_Task(void)
@@ -2120,6 +2420,8 @@ void BT_CZ_Init_Task(void)
     CZ_bb.camera_scan_done = 0;
     CZ_bb.scan_count = 0;
     CZ_bb.pos_stable_times = 0;
+    CZ_bb.r1_platform_cmd = 0;
+    CZ_bb.r1_place_cmd = 0;
 }
 
 void BT_Customized_Tick1ms_CZ(void)
