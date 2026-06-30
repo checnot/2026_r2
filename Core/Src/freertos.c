@@ -358,22 +358,22 @@ void entry_robotic_arm(void const * argument)
         arm_queue_add_point(&arm_traj, PICK_REST_X, PICK_REST_Y, 0.0f, 500, 0, 0.0f);
         traj_init_flag_arm = 1;
       }
-       if(point_add == 1)
-      {
-        arm_queue_add_point(&arm_traj,arm_target_x,arm_target_y,0,0,arm_pump);
-        arm.effector_pitch_target = angle * 3.14f /180.0f;
-        point_add=0;
-      }
-      if(point_add == 2)
-       {
-         arm_queue_add_point(&arm_traj,PICK_REST_X,PICK_REST_Y,0,0,1);
-         point_add=0;
-       }
-			  if(point_add == 3)
-       {
-         arm_queue_add_point(&arm_traj,PICK_REST_X,PICK_REST_Y,0,0,2);
-         point_add=0;
-       }
+      //  if(point_add == 1)
+      // {
+      //   arm_queue_add_point(&arm_traj,arm_target_x,arm_target_y,0,0,arm_pump);
+      //   arm.effector_pitch_target = angle * 3.14f /180.0f;
+      //   point_add=0;
+      // }
+      // if(point_add == 2)
+      //  {
+      //    arm_queue_add_point(&arm_traj,PICK_REST_X,PICK_REST_Y,0,0,1);
+      //    point_add=0;
+      //  }
+			//   if(point_add == 3)
+      //  {
+      //    arm_queue_add_point(&arm_traj,PICK_REST_X,PICK_REST_Y,0,0,2);
+      //    point_add=0;
+      //  }
 			// if(point_add == 4)
       // {
       //   arm_queue_add_point(&arm_traj,0.1f,1.0f,0,0,0);
@@ -788,24 +788,23 @@ void entry_cmd_task(void const * argument)
   /* Infinite loop */
   for (;;)
   {
-		 MF_Scan_Command_Send(camera_command);
+		//  MF_Scan_Command_Send(camera_command);
     if (task_flag == 1)
     {
       BT_MASTER_Start_Task();
       task_flag = 0;
     }
-    if (MC_task == 1)
-    {
-      BT_Start_R2_MC_Mission();
-      MC_task=0;
-
-    }
-    BT_Customized_Tick1ms_R2_MC();
-     if(CZ_task == 1)
-    {
-     BT_CZ_Start_Task();
-     CZ_task = 0;
-    };
+    // if (MC_task == 1)
+    // {
+    //   BT_Start_R2_MC_Mission();
+    //   MC_task=0;
+    // }
+    // BT_Customized_Tick1ms_R2_MC();
+    //  if(CZ_task == 1)
+    // {
+    //  BT_CZ_Start_Task();
+    //  CZ_task = 0;
+    // };
     BT_MASTER_Tick(); // 每1ms调用，内部降频10ms，行为树主控任务周期调用
     BT_Customized_Tick1ms_CZ();
     osDelay(1);

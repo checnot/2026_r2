@@ -1991,7 +1991,7 @@ static BT_Status Act_CZ_Mission(void)
                        KFS_PUT: CZ_put_pos 一定是 M1/M2/M3
                        WAIT:    CZ_put_pos 一定是 Invalid(9)
                        RESCAN:  CZ_put_pos 一定是 Invalid(9) */
-                       taskENTER_CRITICAL();
+                    //    taskENTER_CRITICAL();
                     switch (CZ_action)
                     {
                     case KFS_PUT:
@@ -2005,7 +2005,7 @@ static BT_Status Act_CZ_Mission(void)
                         else /* M3 */
                             chassis_route_point_add(&chassis_route_traj,
                                 R_CHASSIS_SUDUKU_1_X, R_CHASSIS_SUDUKU_1_Y, R_CHASSIS_SUDUKU_1_W, 0);
-                    taskEXIT_CRITICAL();
+                    // taskEXIT_CRITICAL();
                        
                         if (CZ_put_pos == M1)
                         { CZ_SUDUKU_X = R_CHASSIS_SUDUKU_3_X; CZ_SUDUKU_Y = R_CHASSIS_SUDUKU_3_Y; CZ_SUDUKU_W = R_CHASSIS_SUDUKU_3_W; }
@@ -2071,8 +2071,8 @@ static BT_Status Act_CZ_Mission(void)
         {
             /* 底盘已到九宫格，下发机械臂抬升到放置位置 */
             taskENTER_CRITICAL();
-            arm_queue_add_point(&arm_traj, CZ_ARM_PLACE_1_X, CZ_ARM_PLACE_1_Y, 0, 0, ARM_PUMP_KEEP);
-            arm.effector_pitch_target = CZ_ARM_PLACE_PITCH * 3.14f / 180.0f;
+            arm_queue_add_point(&arm_traj, CZ_ARM_PLACE_1_X, CZ_ARM_PLACE_1_Y, 0, 0, ARM_PUMP_KEEP, CZ_ARM_PLACE_PITCH/180.0f*PI);
+            // arm.effector_pitch_target = CZ_ARM_PLACE_PITCH * 3.14f / 180.0f;
             taskEXIT_CRITICAL();
             
             CZ_bb.cz_mission_state = CZ_ARM_RAISE_WAIT;
@@ -2120,7 +2120,7 @@ static BT_Status Act_CZ_Mission(void)
         {
             /* 底盘到位，关气泵释放块 */
             taskENTER_CRITICAL();
-            arm_queue_add_point(&arm_traj, CZ_ARM_PLACE_1_X, CZ_ARM_PLACE_1_Y, 0, 0, ARM_PUMP_RELEASE);
+            arm_queue_add_point(&arm_traj, CZ_ARM_PLACE_1_X, CZ_ARM_PLACE_1_Y, 0, 0, ARM_PUMP_RELEASE, CZ_ARM_PLACE_PITCH/180.0f*PI);
             taskEXIT_CRITICAL();
 
             CZ_bb.cz_mission_state = CZ_PUMP_WAIT;
@@ -2143,7 +2143,7 @@ static BT_Status Act_CZ_Mission(void)
                 {
                     /* 返回扫描点进行第二次扫描 */
                     taskENTER_CRITICAL();
-                    arm_queue_add_point(&arm_traj, PICK_REST_X, PICK_REST_Y, 0.0f, 0, 0);
+                    arm_queue_add_point(&arm_traj, PICK_REST_X, PICK_REST_Y, 0.0f, 0, 0, 0.0f);
                     chassis_route_point_add(&chassis_route_traj,
                         R_CHASSIS_CZ_CENTER_X, R_CHASSIS_CZ_CENTER_Y, R_CHASSIS_CZ_CENTER_W, 0);
                     taskEXIT_CRITICAL();
@@ -2161,7 +2161,7 @@ static BT_Status Act_CZ_Mission(void)
             {
                 /* 到扫描点后先取存块（仅机械臂），再做第二次扫描 */
                  taskENTER_CRITICAL();
-                    arm_queue_add_point(&arm_traj, PICK_REST_X, PICK_REST_Y, 0.0f, 0, 1);
+                    arm_queue_add_point(&arm_traj, PICK_REST_X, PICK_REST_Y, 0.0f, 0, 1, 0.0f);
                     taskEXIT_CRITICAL();
                 CZ_bb.cz_mission_state = CZ_PICK_STORE_AT_SCAN;
                 CZ_bb.cz_timer_ms = 0;
@@ -2329,9 +2329,9 @@ static BT_Status Act_CZ_Mission(void)
         {
             /* 机械臂抬升 → 前送到第三层放置位置（两步） */
             taskENTER_CRITICAL();
-            arm_queue_add_point(&arm_traj, CZ_ARM_PLACE_L3_X, CZ_ARM_PLACE_L3_Y, 0, 0, ARM_PUMP_KEEP);
-            arm_queue_add_point(&arm_traj, CZ_ARM_PLACE_L3_FWD_X, CZ_ARM_PLACE_L3_FWD_Y, 0, 0, ARM_PUMP_KEEP);
-            arm.effector_pitch_target = CZ_ARM_PLACE_L3_PITCH * 3.14f / 180.0f;
+            arm_queue_add_point(&arm_traj, CZ_ARM_PLACE_L3_X, CZ_ARM_PLACE_L3_Y, 0, 0, ARM_PUMP_KEEP, CZ_ARM_PLACE_PITCH/180.0f*PI);
+            arm_queue_add_point(&arm_traj, CZ_ARM_PLACE_L3_FWD_X, CZ_ARM_PLACE_L3_FWD_Y, 0, 0, ARM_PUMP_KEEP, CZ_ARM_PLACE_PITCH/180.0f*PI);
+            // arm.effector_pitch_target = CZ_ARM_PLACE_L3_PITCH * 3.14f / 180.0f;
             taskEXIT_CRITICAL();
 
             CZ_bb.cz_mission_state = CZ_ARM_RAISE_WAIT_L3;
@@ -2358,7 +2358,7 @@ static BT_Status Act_CZ_Mission(void)
         {
             /* 前送到位，关气泵释放块 */
             taskENTER_CRITICAL();
-            arm_queue_add_point(&arm_traj, CZ_ARM_PLACE_L3_FWD_X, CZ_ARM_PLACE_L3_FWD_Y, 0, 0, ARM_PUMP_RELEASE);
+            arm_queue_add_point(&arm_traj, CZ_ARM_PLACE_L3_FWD_X, CZ_ARM_PLACE_L3_FWD_Y, 0, 0, ARM_PUMP_RELEASE, 0.0f);
             taskEXIT_CRITICAL();
 
             CZ_bb.cz_mission_state = CZ_PUMP_WAIT_L3;
