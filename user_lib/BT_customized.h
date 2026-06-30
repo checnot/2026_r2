@@ -1,4 +1,4 @@
-﻿#ifndef __BT_CUSTOMIZED_H
+#ifndef __BT_CUSTOMIZED_H
 #define __BT_CUSTOMIZED_H
 
 #include "main.h"
@@ -51,7 +51,7 @@
 **************************************** */
 #define R_CLAMP_TO_CHASSIS_CENTER_DIST 132.0f /* 夹爪中心到底盘中心的X方向距离 (mm) */
 #define B_CLAMP_TO_CHASSIS_CENTER_DIST 132.0f /* 夹爪中心到底盘中心的X方向距离 (mm) */
-#define R_RACK_STABLE_TIMES_CONDITION 80      /* 取矛头时到达目标位置次数，保证稳定抓取 */
+#define R_RACK_STABLE_TIMES_CONDITION 70      /* 取矛头时到达目标位置次数，保证稳定抓取 */
 #define B_RACK_STABLE_TIMES_CONDITION 80      /* 取矛头时到达目标位置次数，保证稳定抓取 */
 
 /***************************************

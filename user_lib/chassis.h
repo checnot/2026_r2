@@ -13,8 +13,8 @@
 #include "pid.h"
 
 #define DISTANCE_WHEEL_CENTER 0.25f //轮子到中心的距离，单位m
-#define CHASSIS_V_MAX 3000.0f //底盘最大速度,上坡时5500
-#define CHASSIS_A_MAX 3000.0f //底盘最大加速度，上坡时5500
+#define CHASSIS_V_MAX 3500.0f //底盘最大速度,上坡时5500
+#define CHASSIS_A_MAX 3500.0f //底盘最大加速度，上坡时5500
 #define CHASSIS_SLOPE_V_MAX 6000.0f //上坡时底盘最大速度
 #define CHASSIS_SLOPE_A_MAX 6000.0f //上坡时底盘最大加速度
 #define CHASSIS_ROTATE_SLOW_V_MAX 700.0f  //慢速旋转时角速度最大值
@@ -68,6 +68,7 @@ typedef struct{
 
      // ---- 延时控制属性 ----
     uint16_t delay_queue[TRAJ_MAX_WAYPOINTS];  // 与位置队列下标同步，存储每个点到达后的延时时间(ms)
+    uint8_t  force_queue[TRAJ_MAX_WAYPOINTS];  // 与位置队列下标同步，1=强制出队该点
     uint16_t target_delay_ms;                  // 当前正在执行的目标点所要求的延时
     uint16_t wait_counter;                     // 当前目标点到达后，正在倒计时的计数器
 
@@ -99,7 +100,7 @@ void omni_chassis_inverse_calculate(chassis_stu *chassis, M3508_Motor_Struct * m
 float chassis_angle_edge_protection(float target_yaw, float now_yaw);
 void chassis_route_traj_init(void);
 void chassis_multi_route_scheduler(chassis_route_traj_stu* chassis_route_traj,RADAR_POSITION * chassis_real_position);
-void chassis_route_point_add(chassis_route_traj_stu* chassis_route_traj, float target_vx, float target_vy, float target_vw, uint16_t delay_time_ms);
+void chassis_route_point_add(chassis_route_traj_stu* chassis_route_traj, float target_vx, float target_vy, float target_vw, uint16_t delay_time_ms, uint8_t force_dequeue);
 void chassis_single_route_scheduler(RADAR_POSITION * chassis_real_position, chassis_route_traj_stu* chassis_route_traj,float dt);
 
 
