@@ -485,10 +485,10 @@ void chassis_single_route_scheduler(RADAR_POSITION * chassis_real_position, chas
         {
             float dir_x = traj_sign2(chassis_route_traj->traj_vx.target_pos - chassis_real_position->reliable_x);
             float dir_y = traj_sign2(chassis_route_traj->traj_vy.target_pos - chassis_real_position->reliable_y);
-            /* 距离驱动：50mm→150mm/s, 5mm→30mm/s(地板)，保证雷达跳变时仍能微调 */
-            float brake_speed = dist_2d_actual * 7.0f;
-            if (brake_speed < 70.0f)  brake_speed = 80.0f;   /* 最低地板 */
-            if (brake_speed > 350.0f) brake_speed = 350.0f;  /* 上限 */
+            /* 距离驱动：80mm→800mm/s(上限500)，地板150保证尾段不拖沓 */
+            float brake_speed = dist_2d_actual * 10.0f;
+            if (brake_speed < 150.0f)  brake_speed = 150.0f;  /* 最低地板 */
+            if (brake_speed > 500.0f) brake_speed = 500.0f;   /* 上限 */
 
             chassis_route_traj->traj_vx.out_vel = brake_speed * dir_x
                 * (dist_to_actual_vx + 0.001f) / (dist_2d_actual + 0.002f);

@@ -24,7 +24,7 @@
 #define CHASSIS_ROUTE_ARRIVAL_THRESHOLD 5.0f //底盘路径到达判定阈值，单位mm    
 #define CHASSIS_ANGLE_ARRIVAL_THRESHOLD 0.5f //底盘路径到达判定阈值，单位度
 #define CHASSIS_ROUTE_FINAL_APPROACH_THRESHOLD 250.0f //底盘路径最终接近目标判定阈值，单位mm        
-#define CHASSIS_ROUTE_SOFT_BRAKE_THRESHOLD 50.0f    //末端软刹车阈值，不跑PID，线性降速到零
+#define CHASSIS_ROUTE_SOFT_BRAKE_THRESHOLD 80.0f    //末端软刹车阈值，不跑PID，线性降速到零
 #define CHASSIS_ROUTE_FINAL_APPROACH_ANGLE_THRESHOLD 5.0f //底盘路径最终接近目标判定阈值，单位度
 #define CHASSIS_ROUTE_LOOKAHEAD_DIST 350.0f //多段路径预加载距离，距目标小于此值时提前出队下一个点
 #define CHASSIS_VX_FILTER_ALPHA 0.2f

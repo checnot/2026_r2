@@ -1968,11 +1968,12 @@ static BT_Status Act_CZ_Mission(void)
                        KFS_PUT: CZ_put_pos 一定是 M1/M2/M3
                        WAIT:    CZ_put_pos 一定是 Invalid(9)
                        RESCAN:  CZ_put_pos 一定是 Invalid(9) */
-                       taskENTER_CRITICAL();
+                       
                     switch (CZ_action)
                     {
                     case KFS_PUT:
                         /* 先只下发底盘路径去九宫格，机械臂等底盘到位后再抬 */
+                    taskENTER_CRITICAL();
                         if (CZ_put_pos == M1)
                             chassis_route_point_add(&chassis_route_traj,
                                 R_CHASSIS_SUDUKU_3_X, R_CHASSIS_SUDUKU_3_Y, R_CHASSIS_SUDUKU_3_W, 0);
@@ -2676,3 +2677,193 @@ void BT_MASTER_Tick(void)
         master_seq_mem_idx = 0;
     }
 }
+
+
+/* ================================================ PS 预选赛行为树 ================================================ */
+
+PS_MC_Blackboard PS_bb;
+
+static BT_Status Cond_Has_PS_Request(void)
+{
+    return PS_bb.req_start ? BT_SUCCESS : BT_FAILURE;
+}
+
+static BT_Status Act_PS_Mission(void)
+{
+    switch (PS_bb.state) {
+
+        case PS_MC_IDLE:
+        {
+            PS_bb.state = PS_MC_CLAMP_INIT;
+            PS_bb.round_count = 0;
+            PS_bb.timer_ms = 0;
+            return BT_RUNNING;
+        }
+
+        case PS_MC_CLAMP_INIT:
+        {
+            clamp.lift_flag = 1;
+            PS_bb.state = PS_MC_NAV_TO_RACK;
+            PS_bb.timer_ms = 0;
+            return BT_RUNNING;
+        }
+
+        case PS_MC_NAV_TO_RACK:
+        {
+            static const float rx[3] = {PS_RACK_1_X, PS_RACK_2_X, PS_RACK_3_X};
+            uint8_t r = PS_bb.round_count;
+            taskENTER_CRITICAL();
+            chassis_route_point_add(&chassis_route_traj, rx[r], PS_RACK_Y, PS_RACK_W, 0);
+            taskEXIT_CRITICAL();
+            PS_bb.state = PS_MC_RACK_PICK;
+            PS_bb.timer_ms = 0;
+            PS_bb.pos_stable_times = 0;
+            PS_bb.pick_success = 0;
+            return BT_RUNNING;
+        }
+
+        case PS_MC_RACK_PICK:
+        {
+            static const float rx[3] = {PS_RACK_1_X, PS_RACK_2_X, PS_RACK_3_X};
+            uint8_t r = PS_bb.round_count;
+            if (chassis_if_arrived(rx[r], PS_RACK_Y, PS_RACK_W))
+            {
+                PS_bb.pos_stable_times++;
+                if (PS_bb.pos_stable_times > R_RACK_STABLE_TIMES_CONDITION)
+                {
+                    clamp.retractable_flag = 1;
+                    if (abs_int32(m3508_fdcan2[1].Angle_Sum - CLAMP_EXTEND_MAX_POSITION) < 6000)
+                    {
+                        clamp.catch_flag = 1;
+                        osDelay(600);
+                        if (PS_bb.pick_success == 1)
+                        {
+                            clamp.rotate_flag = 1;
+                            PS_bb.state = PS_MC_NAV_TO_DOCK;
+                            PS_bb.timer_ms = 0;
+                        }
+                        else
+                        {
+                            clamp.catch_flag = 0;
+                            clamp.retractable_flag = 0;
+                            osDelay(300);
+                            PS_bb.pos_stable_times = 0;
+                        }
+                    }
+                }
+            }
+            else if (++PS_bb.timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS)
+                return BT_FAILURE;
+            return BT_RUNNING;
+        }
+
+        case PS_MC_NAV_TO_DOCK:
+        {
+            taskENTER_CRITICAL();
+            chassis_route_point_add(&chassis_route_traj, PS_DOCK_X, PS_DOCK_Y, PS_DOCK_W, 0);
+            taskEXIT_CRITICAL();
+            clamp.lift_flag = 0;
+            PS_bb.state = PS_MC_DOCK_WAIT;
+            PS_bb.timer_ms = 0;
+            PS_bb.dock_success = 0;
+            return BT_RUNNING;
+        }
+
+        case PS_MC_DOCK_WAIT:
+        {
+            if (chassis_if_arrived(PS_DOCK_X, PS_DOCK_Y, PS_DOCK_W))
+                chassis_set_lock(1);
+            if (PS_bb.dock_success == 1)
+            {
+                clamp.catch_flag = 0;
+                osDelay(500);
+                clamp.rotate_flag = 0;
+                chassis_set_lock(0);
+                PS_bb.state = PS_MC_ROUND_CHECK;
+                PS_bb.timer_ms = 0;
+            }
+            else if (++PS_bb.timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS)
+                return BT_FAILURE;
+            return BT_RUNNING;
+        }
+
+        case PS_MC_ROUND_CHECK:
+        {
+            PS_bb.round_count++;
+            PS_bb.state = (PS_bb.round_count >= 3) ? PS_MC_ENTER_MF : PS_MC_NAV_TO_RACK;
+            PS_bb.timer_ms = 0;
+            return BT_RUNNING;
+        }
+
+        case PS_MC_ENTER_MF:
+        {
+            if(PS_bb.mf_req == 1)
+            PS_bb.state = PS_MC_IDLE;
+            return BT_SUCCESS;
+        }
+
+        default:
+            return BT_FAILURE;
+    }
+}
+
+static BT_Status Act_PS_FinishCleanup(void)
+{
+    PS_bb.req_start = 0;
+    PS_bb.state = PS_MC_IDLE;
+    PS_bb.pos_stable_times = 0;
+    PS_bb.pick_success = 0;
+    PS_bb.dock_success = 0;
+    PS_bb.round_count = 0;
+    chassis_set_lock(0);
+    return BT_SUCCESS;
+}
+
+static BT_Status BT_PS_Task_Tree_Root(void)
+{
+    static const BT_NodeFunc seq[] = {
+        Cond_Has_PS_Request,
+        Act_PS_Mission,
+        Act_PS_FinishCleanup
+    };
+    return BT_Sequence_Memory(seq, (uint8_t)(sizeof(seq) / sizeof(seq[0])), &PS_bb.seq_mem_idx);
+}
+
+void BT_PS_Start_Task(void)
+{
+    PS_bb.req_start = 1;
+    PS_bb.state = PS_MC_IDLE;
+    PS_bb.timer_ms = 0;
+    PS_bb.pos_stable_times = 0;
+    PS_bb.pick_success = 0;
+    PS_bb.dock_success = 0;
+    PS_bb.round_count = 0;
+}
+
+void BT_PS_Init_Task(void)
+{
+    PS_bb.req_start = 0;
+    PS_bb.state = PS_MC_IDLE;
+    PS_bb.seq_mem_idx = 0;
+    PS_bb.timer_ms = 0;
+    PS_bb.pos_stable_times = 0;
+    PS_bb.pick_success = 0;
+    PS_bb.dock_success = 0;
+    PS_bb.mf_req = 0;
+    PS_bb.round_count = 0;
+}
+
+void BT_PS_Tick(void)
+{
+    static uint8_t div10 = 0;
+    div10++;
+    if (div10 < 10) return;
+    div10 = 0;
+    BT_Status status = BT_PS_Task_Tree_Root();
+    if (status == BT_FAILURE) {
+        Act_PS_FinishCleanup();
+        PS_bb.seq_mem_idx = 0;
+    }
+}
+
+
