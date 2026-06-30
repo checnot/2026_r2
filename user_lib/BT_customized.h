@@ -292,7 +292,7 @@ typedef struct
 
 /* ---------- MF 专用参数宏（需实测调整） ---------- */
 
-#define R2_KFS_ALL_NEED 3 /* 需要拾取的 R2KFS 总数量（根据实际情况调整，并非所有的R2KFS） */
+#define R2_KFS_ALL_NEED 2 /* 需要拾取的 R2KFS 总数量（根据实际情况调整，并非所有的R2KFS） */
 
 /* MF 区原点在世界坐标系中的位置 (mm) — row0,col0 的坐标 */
 #define MF_ORIGIN_WORLD_X_BLUE  2600.0f   /* row0,col0 的中心在蓝地图世界坐标系中的x位置 */
@@ -350,8 +350,8 @@ typedef enum {
 extern ArmStoreState arm_store_state;
 extern uint8_t arm_store_slot;
 
-#define PICK_REST_X 0.35f             /* 机械臂待机位置 X */
-#define PICK_REST_Y 0.35f             /* 机械臂待机位置 Y */
+#define PICK_REST_X 0.3f             /* 机械臂待机位置 X */
+#define PICK_REST_Y 0.3f             /* 机械臂待机位置 Y */
 
 #define PICK_HANDS_UP_X 0.15f       /* 演示用抬手坐标 */
 #define PICK_HANDS_UP_Y 0.9f       /* 演示用抬手坐标 */
@@ -388,18 +388,20 @@ extern uint8_t arm_store_slot;
 #define PICK_PRE_TRANS_Y 0.6f         /* 抓取完毕之后的过渡准备点 Y */
 #define PICK_TIME 500       /* 抓取点停留时间 (ms) */
 
-#define STORE_A_PRE_X -0.4f         /* 存储点a过渡点 X */
-#define STORE_A_PRE_Y 0.6f         /* 存储点a过渡点 Y */
-#define STORE_A_X -0.4f         /* 存储点a X */
+#define STORE_A_PRE_X -0.75f         /* 存储点a过渡点 X */
+#define STORE_A_PRE_Y 0.4f         /* 存储点a过渡点 Y */
+#define STORE_A_X -0.68f         /* 存储点a X */
 #define STORE_A_Y 0.4f         /* 存储点a Y */
 
 #define STORE_B_PRE_X -0.005f         /* 存储点b过渡点 X */
-#define STORE_B_PRE_Y 0.45f         /* 存储点b过渡点 Y */
+#define STORE_B_PRE_Y 0.60f         /* 存储点b过渡点 Y */
 #define STORE_B_X -0.005f        /* 存储点b X */
 #define STORE_B_Y 0.29f         /* 存储点b Y */
 
-#define STORE_C_X -0.4f         /* ！！！ 待定 存储点c X */
-#define STORE_C_Y 0.7f         /* ！！！ 待定存储点c Y */
+#define STORE_PRE_X (-0.45f)      /* 预存储点c X */
+#define STORE_PRE_Y 0.68f         /* 预存储点c Y */
+#define STORE_X (-0.45f)          /* 存储点 X */
+#define STORE_Y 0.58f             /* 存储点 */
 
 #define STORE_PRE_TRANS_X 0.1f         /* 存储完毕之后的过渡准备点 X */
 #define STORE_PRE_TRANS_Y 0.7f         /* 存储完毕之后的过渡准备点 Y */

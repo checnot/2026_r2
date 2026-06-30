@@ -189,7 +189,7 @@ void MX_FREERTOS_Init(void) {
 
   /* Create the thread(s) */
   /* definition and creation of defaultTask */
-  osThreadDef(defaultTask, StartDefaultTask, osPriorityIdle, 0, 128);
+  osThreadDef(defaultTask, StartDefaultTask, osPriorityIdle, 0, 256);
   defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
 
   /* definition and creation of roboticarm_task */
@@ -197,15 +197,15 @@ void MX_FREERTOS_Init(void) {
   roboticarm_taskHandle = osThreadCreate(osThread(roboticarm_task), NULL);
 
   /* definition and creation of chassis_task */
-  osThreadDef(chassis_task, entry_chassis, osPriorityBelowNormal, 0, 128);
+  osThreadDef(chassis_task, entry_chassis, osPriorityBelowNormal, 0, 256);
   chassis_taskHandle = osThreadCreate(osThread(chassis_task), NULL);
 
   /* definition and creation of clamp_task */
-  osThreadDef(clamp_task, entry_clamp, osPriorityBelowNormal, 0, 128);
+  osThreadDef(clamp_task, entry_clamp, osPriorityBelowNormal, 0, 256);
   clamp_taskHandle = osThreadCreate(osThread(clamp_task), NULL);
 
   /* definition and creation of cmd_task */
-  osThreadDef(cmd_task, entry_cmd_task, osPriorityNormal, 0, 512);
+  osThreadDef(cmd_task, entry_cmd_task, osPriorityNormal, 0, 1024);
   cmd_taskHandle = osThreadCreate(osThread(cmd_task), NULL);
 
   /* definition and creation of m8010_task */
@@ -669,21 +669,21 @@ void entry_chassis(void const * argument)
       // chassis_lift_wheel_excute(debug_speed, 2.0f, 0.2f);
       // chassis_lift_wheel_excute(debug_speed, 0.0f, 0.0f);
 
-      if(debug_flag == 1)
-      {
-        debug_flag = 0;
-        chassis_lift_queue_add_point(&chassis_lift_traj, -0.200f, -0.200f, 0);
-      }
-      if(debug_flag == 2)
-      {
-        debug_flag = 0;
-        chassis_lift_queue_add_point(&chassis_lift_traj, -0.400f, -0.400f, 0);
-      }
-      if(debug_flag == 3)
-      {
-        debug_flag = 0;
-        chassis_lift_queue_add_point(&chassis_lift_traj, LIFT_RETRACT_HEIGHT, LIFT_RETRACT_HEIGHT, 0);
-      }
+      // if(debug_flag == 1)
+      // {
+      //   debug_flag = 0;
+      //   chassis_lift_queue_add_point(&chassis_lift_traj, -0.200f, -0.200f, 0);
+      // }
+      // if(debug_flag == 2)
+      // {
+      //   debug_flag = 0;
+      //   chassis_lift_queue_add_point(&chassis_lift_traj, -0.400f, -0.400f, 0);
+      // }
+      // if(debug_flag == 3)
+      // {
+      //   debug_flag = 0;
+      //   chassis_lift_queue_add_point(&chassis_lift_traj, LIFT_RETRACT_HEIGHT, LIFT_RETRACT_HEIGHT, 0);
+      // }
 
       // 根据 lift FSM 设置的控制模式执行
       switch (g_lift_ctrl_mode) {
@@ -806,7 +806,7 @@ void entry_cmd_task(void const * argument)
     //  CZ_task = 0;
     // };
     BT_MASTER_Tick(); // 每1ms调用，内部降频10ms，行为树主控任务周期调用
-    BT_Customized_Tick1ms_CZ();
+    // BT_Customized_Tick1ms_CZ();
     osDelay(1);
   }
   /* USER CODE END entry_cmd_task */

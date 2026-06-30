@@ -979,14 +979,15 @@ static uint8_t Arm_Store_SendPath(uint8_t slot)
     taskENTER_CRITICAL();
 
     if (slot == 0) {
-        arm_queue_add_point(&arm_traj, STORE_A_PRE_X, STORE_A_PRE_Y, 0, 0, ARM_PUMP_KEEP, 270.0f/180.0f*PI);
-        arm_queue_add_point(&arm_traj, STORE_A_X, STORE_A_Y, 0, STORE_TIME, ARM_PUMP_KEEP, 270.0f/180.0f*PI);
+        HAL_GPIO_WritePin(GPIOD, GPIO_PIN_5, GPIO_PIN_SET); // 存块吸盘保持吸附
+        arm_queue_add_point(&arm_traj, STORE_PRE_X, STORE_PRE_Y, 0, 0, ARM_PUMP_KEEP, 270.0f/180.0f*PI);
+        arm_queue_add_point(&arm_traj, STORE_X, STORE_Y, 0, STORE_TIME, ARM_PUMP_KEEP, 270.0f/180.0f*PI);
         arm_queue_add_point(&arm_traj, STORE_PRE_TRANS_X, STORE_PRE_TRANS_Y, 0, 0, ARM_PUMP_RELEASE, 180.0f/180.0f*PI);
     } else if (slot == 1) {
-        HAL_GPIO_WritePin(GPIOD, GPIO_PIN_5, GPIO_PIN_SET); // 存块吸盘保持吸附
-        arm_queue_add_point(&arm_traj, STORE_B_PRE_X, STORE_B_PRE_Y, 0, 0, ARM_PUMP_KEEP, 180.0f/180.0f*PI);
-        arm_queue_add_point(&arm_traj, STORE_B_X, STORE_B_Y, 0, STORE_TIME, ARM_PUMP_KEEP, 180.0f/180.0f*PI);
-        arm_queue_add_point(&arm_traj, STORE_PRE_TRANS_X, STORE_PRE_TRANS_Y, 0, 0, ARM_PUMP_RELEASE, 180.0f/180.0f*PI);
+        // HAL_GPIO_WritePin(GPIOD, GPIO_PIN_5, GPIO_PIN_SET); // 存块吸盘保持吸附
+        // arm_queue_add_point(&arm_traj, STORE_B_PRE_X, STORE_B_PRE_Y, 0, 0, ARM_PUMP_KEEP, 160.0f/180.0f*PI);
+        // arm_queue_add_point(&arm_traj, STORE_B_X, STORE_B_Y, 0, STORE_TIME, ARM_PUMP_KEEP, 160.0f/180.0f*PI);
+        // arm_queue_add_point(&arm_traj, STORE_PRE_TRANS_X, STORE_PRE_TRANS_Y, 0, 0, ARM_PUMP_RELEASE, 160.0f/180.0f*PI);
     } else if (slot == 2) {
         // arm_queue_add_point(&arm_traj, STORE_C_X, STORE_C_Y, 0, STORE_TIME, ARM_PUMP_KEEP);
         // arm_queue_add_point(&arm_traj, STORE_PRE_TRANS_X, STORE_PRE_TRANS_Y, 0, 0, ARM_PUMP_RELEASE);
@@ -1133,7 +1134,7 @@ static void Arm_Store_Service_Tick(void)
  */
 static BT_Status Cond_Has_MF_Request(void)
 {
-    MC_bb.MF_MISSION_Req = 1;
+    // MC_bb.MF_MISSION_Req = 1;
     return (MC_bb.MF_MISSION_Req || mf_task_request_flag) ? BT_SUCCESS : BT_FAILURE;
 }
 
@@ -1655,7 +1656,7 @@ static BT_Status Act_MF_Execute_Action(void)
         {
             if (arm_if_arrived_xy(PICK_PRE_TRANS_X, PICK_PRE_TRANS_Y))
             {
-                if(mf_bb.kfs_stored < 2)
+                if(mf_bb.kfs_stored < 1)
                 {
                     /* 拾取完成后请求机械臂存储服务接管 */
                     arm_store_slot = mf_bb.kfs_stored;
@@ -1769,7 +1770,10 @@ static BT_Status Act_MF_Finish_Cleanup(void)
     arm_store_state = ARM_STORE_IDLE;
     arm_store_timer_ms = 0;
 
-    mf_bb.kfs_stored = 0;
+    // mf_bb.kfs_stored = 0;
+
+    CZ_bb.req_start = 1;  // MF 完成后触发 CZ 对抗区任务
+
     return BT_SUCCESS;
 }
 
@@ -2488,7 +2492,7 @@ typedef enum {
 } Subtask_State;
 Subtask_State mc_subtask_state = SUBTASK_IDLE;      /* MC 任务 wrapper 状态 */
 Subtask_State mf_subtask_state = SUBTASK_IDLE;      /* MF 任务 wrapper 状态 */
-Subtask_State arena_subtask_state = SUBTASK_IDLE;   /* ARENA 任务 wrapper 状态 */
+Subtask_State cz_subtask_state = SUBTASK_IDLE;   /* ARENA 任务 wrapper 状态 */
 
 
 /* ================================== MASTER 条件节点 ================================= */
@@ -2568,10 +2572,10 @@ static BT_Status Act_MF_Task_Wrapper(void)
         /* 运行 MF 行为树 */
         BT_Status mf_status = BT_MF_Task_Tree_Root();
         if (mf_status == BT_SUCCESS) {
-            if(arm_store_busy || arm_store_request || !arm_store_payload_done) {
-                /* 机械臂存储服务仍在忙，等待其完成 */
-                return BT_RUNNING;
-            }
+            // if(arm_store_busy || arm_store_request || !arm_store_payload_done) {
+            //     /* 机械臂存储服务仍在忙，等待其完成 */
+            //     return BT_RUNNING;
+            // }
             mf_subtask_state = SUBTASK_DONE;
             return BT_SUCCESS;
         } else if (mf_status == BT_FAILURE) {
@@ -2598,11 +2602,39 @@ static BT_Status Act_MF_Task_Wrapper(void)
  * @brief [动作节点] ARENA(对抗区)任务 Wrapper
  * @note 内部调用 BT_CZ_Task_Tree_Root
  */
-static BT_Status Act_ARENA_Task_Wrapper(void)
+static BT_Status Act_CZ_Task_Wrapper(void)
 {
-    /* 🟡 ARENA 任务尚未实现，暂时直接返回成功 */
-    arena_subtask_state = SUBTASK_DONE;
-    return BT_SUCCESS;
+    switch (cz_subtask_state) {
+
+    case SUBTASK_IDLE: {
+        /* 触发 CZ 任务 */
+        BT_CZ_Start_Task();
+        cz_subtask_state = SUBTASK_RUNNING;
+        return BT_RUNNING;
+    }
+    case SUBTASK_RUNNING: {
+        /* 运行 CZ 行为树 */
+        BT_Status cz_status = BT_CZ_Task_Tree_Root();
+        if (cz_status == BT_SUCCESS) {
+            cz_subtask_state = SUBTASK_DONE;
+            return BT_SUCCESS;
+        } else if (cz_status == BT_FAILURE) {
+            cz_subtask_state = SUBTASK_FAILED;
+            return BT_FAILURE;
+        }
+        return BT_RUNNING;
+    }
+    case SUBTASK_DONE:{
+        return BT_SUCCESS;
+    }
+    case SUBTASK_FAILED:{
+        return BT_FAILURE;
+    }
+    default:{
+        return BT_FAILURE;
+    }
+
+    }
 }
 
 
@@ -2617,7 +2649,7 @@ static BT_Status Act_MASTER_Finish_Cleanup(void)
 
     mc_subtask_state = SUBTASK_IDLE;
     mf_subtask_state = SUBTASK_IDLE;
-    arena_subtask_state = SUBTASK_IDLE;
+    cz_subtask_state = SUBTASK_IDLE;
 
     /* 清理各子任务状态，防止残留 */
     BT_Init_R2_MC_Mission();
@@ -2636,18 +2668,19 @@ static BT_Status Act_MASTER_Finish_Cleanup(void)
  *   1. 等待总请求
  *   2. MC(武馆)任务
  *   3. MF(梅林)任务
- *   4. ARENA(竞技场)任务
+ *   4. CZ(对抗区)任务
  *   5. 清理
  */
 static BT_Status BT_MASTER_Task_Tree_Root(void)
 {
     static const BT_NodeFunc seq[] = {
         Cond_Has_MASTER_Request,       /* 1. 有总任务请求？ */
-        // Act_MC_Task_Wrapper,           /* 2. MC(武馆) */
+        Act_MC_Task_Wrapper,           /* 2. MC(武馆) */
         Cond_Has_MF_Request,           /* 3. 有 MF 任务请求 */
         Act_MF_Task_Wrapper,           /* 4. MF(梅林) */
-        // Act_ARENA_Task_Wrapper,        /* 5. ARENA(竞技场) */
-        Act_MASTER_Finish_Cleanup      /* 6. 清理 */
+        Cond_Has_CZ_Request,           /* 5. 有 CZ 任务请求 */
+        Act_CZ_Task_Wrapper,           /* 6. CZ(对抗区) */
+        Act_MASTER_Finish_Cleanup      /* 7. 清理 */
     };
 
     return BT_Sequence_Memory(seq,
@@ -2666,7 +2699,7 @@ void BT_MASTER_Start_Task(void)
     master_task_request_flag = 1;
     mc_subtask_state = SUBTASK_IDLE;
     mf_subtask_state = SUBTASK_IDLE;
-    arena_subtask_state = SUBTASK_IDLE;
+    cz_subtask_state = SUBTASK_IDLE;
 }
 
 /**
@@ -2678,7 +2711,7 @@ void BT_MASTER_Init_Task(void)
     master_seq_mem_idx = 0;
     mc_subtask_state = SUBTASK_IDLE;
     mf_subtask_state = SUBTASK_IDLE;
-    arena_subtask_state = SUBTASK_IDLE;
+    cz_subtask_state = SUBTASK_IDLE;
 }
 
 /**
