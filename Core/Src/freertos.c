@@ -93,10 +93,16 @@ float speed = 0.0f;              // 用于测试的速度变量
 uint8_t catch_flag = 0;          // 测试用：夹爪开合标志位
 int32_t rotate_target_angle = 0; // 测试用：夹爪旋转目标角度
 uint8_t CZ_task = 0;             //测试用：CZ任务请求
+uint8_t MC_task = 0;             //测试用：MC任务请求
 uint8_t task_flag = 0;           // 测试用：总开关，控制是否执行BT_Combined_Task_Tree_Root函数
 float debug_speed;               // 用于测试的速度变量
 int16_t leidai_speed_1 = 300;    //由于雷达建图的低速
 int16_t leidai_speed_2 = 1000;    //由于雷达建图的高速
+float arm_target_x = 0.0f;        //测试用：机械臂轨迹点
+float arm_target_y = 0.0f;
+uint8_t arm_pump = 0;
+uint8_t camera_command = 0;
+float angle = 0.0f;
 uint8_t traj_init_flag_arm = 0;     // 机械臂轨迹初始化标志位
 uint8_t traj_init_flag_lift = 0;    // 抬升轨迹初始化标志位
 uint8_t traj_init_flag_chassis = 0; // 底盘轨迹初始化标志位
@@ -352,7 +358,28 @@ void entry_robotic_arm(void const * argument)
         arm_queue_add_point(&arm_traj, PICK_REST_X, PICK_REST_Y, 0.0f, 500, 0, 0.0f);
         traj_init_flag_arm = 1;
       }
-
+       if(point_add == 1)
+      {
+        arm_queue_add_point(&arm_traj,arm_target_x,arm_target_y,0,0,arm_pump);
+        arm.effector_pitch_target = angle * 3.14f /180.0f;
+        point_add=0;
+      }
+      if(point_add == 2)
+       {
+         arm_queue_add_point(&arm_traj,PICK_REST_X,PICK_REST_Y,0,0,1);
+         point_add=0;
+       }
+			  if(point_add == 3)
+       {
+         arm_queue_add_point(&arm_traj,PICK_REST_X,PICK_REST_Y,0,0,2);
+         point_add=0;
+       }
+			// if(point_add == 4)
+      // {
+      //   arm_queue_add_point(&arm_traj,0.1f,1.0f,0,0,0);
+			// 	arm_queue_add_point(&arm_traj,0.2f,1.0f,0,500,0);
+      //   point_add=0;
+      // }
       // 保持执行器水平
       // if (m3508_fdcan1[0].Initial_flag == 200 && arm.mode != ARM_MODE_TRANSITION)
       // {
@@ -401,11 +428,11 @@ void entry_robotic_arm(void const * argument)
 void entry_chassis(void const * argument)
 {
   /* USER CODE BEGIN entry_chassis */
-  // 3508参数初始化
-  m3508_parameter_init(&m3508_fdcan3[0], 15.0f, 0.00f, 3.0f, 0.0f, 0.0f, 0.0f);
-  m3508_parameter_init(&m3508_fdcan3[1], 15.0f, 0.00f, 3.0f, 0.0f, 0.0f, 0.0f);
-  m3508_parameter_init(&m3508_fdcan3[2], 15.0f, 0.00f, 3.0f, 0.0f, 0.0f, 0.0f);
-  m3508_parameter_init(&m3508_fdcan3[3], 15.0f, 0.00f, 3.0f, 0.0f, 0.0f, 0.0f);
+  // 3508参数初始化（速度环 + 位置环）
+  m3508_parameter_init(&m3508_fdcan3[0], 15.0f, 0.00f, 3.0f, 0.1f, 0.0f, 0.2f);
+  m3508_parameter_init(&m3508_fdcan3[1], 15.0f, 0.00f, 3.0f, 0.1f, 0.0f, 0.2f);
+  m3508_parameter_init(&m3508_fdcan3[2], 15.0f, 0.00f, 3.0f, 0.1f, 0.0f, 0.2f);
+  m3508_parameter_init(&m3508_fdcan3[3], 15.0f, 0.00f, 3.0f, 0.1f, 0.0f, 0.2f);
   // 底盘使能
   chassis_r2.chassis_en_flag = 1;
 
@@ -459,80 +486,33 @@ void entry_chassis(void const * argument)
       //   chassis_route_point_add(&chassis_route_traj,1000.0f,-4500.0f,180.0f,0);
 			// 	point_add = 0;
       // }
-      //梅林旋转测试
-    //   if (point_add1 == 1)
-    //  {
-    //    chassis_route_point_add(&chassis_route_traj, 3800.0f, -3000.0f, 90.0f, 0);
-    //    point_add1 = 0;
-    //  }
-    //   if (point_add1 == 2)
-    //  {
-    //    chassis_route_point_add(&chassis_route_traj, 3800.0f, -3000.0f, -90.0f, 0);
-    //    point_add1 = 0;
-    //  }
-		//  if (point_add1 == 3)
-    //  {
-    //    chassis_route_point_add(&chassis_route_traj, 4050.0f, -3000.0f, 0.0f, 0);
-    //    point_add1 = 0;
-    //  }
-		//  if (point_add1 == 4)
-    //  {
-    //    chassis_route_point_add(&chassis_route_traj, 3800.0f, -3000.0f, 0.0f, 0);
-    //    point_add1 = 0;
-    //  }
-    //梅林边缘测试
-    //   if (point_add1 == 1)
-    //  {
-    //    chassis_route_point_add(&chassis_route_traj, 3800.0f, -3000.0f, 0.0f, 0);
-    //    point_add1 = 0;
-    //  }
-    //   if (point_add1 == 2)
-    //  {
-    //    chassis_route_point_add(&chassis_route_traj, 3800.0f, -3000.0f, -180.0f, 0);
-    //    point_add1 = 0;
-    //  }
-		//  if (point_add1 == 3)
-    //  {
-    //    chassis_route_point_add(&chassis_route_traj, 3400.0f, -3000.0f, 0.0f, 0);
-    //    point_add1 = 0;
-    //  }
-    //  if (point_add1 == 4)
-    //  {
-    //    chassis_route_point_add(&chassis_route_traj, 3400.0f, -3000.0f, -180.0f, 0);
-    //     point_add1 = 0;
-    //  }
-    //  if (point_add1 == 5)
-    //  {
-    //    chassis_route_point_add(&chassis_route_traj, 3800.0f, -3100.0f, -90.0f, 0);
-    //     point_add1 = 0;
-    //  }
     //  //测试用添加路径点
-     if (point_add == 1)
-     {
-       chassis_route_point_add(&chassis_route_traj, R_CHASSIS_CZ_INIT_X, R_CHASSIS_CZ_INIT_Y, R_CHASSIS_CZ_INIT_W, 0);
-       point_add = 0;
-     }
-     if (point_add == 2)
-     {
-       chassis_route_point_add(&chassis_route_traj, R_CHASSIS_SUDUKU_1_X, R_CHASSIS_SUDUKU_1_Y, R_CHASSIS_SUDUKU_1_W, 0);
-       point_add = 0;
-     }
-     if (point_add == 3)
-     {
-       chassis_route_point_add(&chassis_route_traj, R_CHASSIS_SUDUKU_2_X, R_CHASSIS_SUDUKU_2_Y, R_CHASSIS_SUDUKU_2_W, 0);
-       point_add = 0;
-     }
-     if (point_add == 4)
-     {
-       chassis_route_point_add(&chassis_route_traj, R_CHASSIS_SUDUKU_3_X, R_CHASSIS_SUDUKU_3_Y, R_CHASSIS_SUDUKU_3_W, 0);
-       point_add = 0;
-     }
-     
-     if (point_add1 == 1)
-     {
-       chassis_route_point_add(&chassis_route_traj, 11100.0f, -3000.0f, 90.0f, 0);
-       point_add1 = 0;
-     }
+//     if (point_add == 1)
+//     {
+//       chassis_route_point_add(&chassis_route_traj, R_CHASSIS_CZ_INIT_X, R_CHASSIS_CZ_INIT_Y, R_CHASSIS_CZ_INIT_W, 0);
+//       point_add = 0;
+//     }
+//     if (point_add == 2)
+//     {
+//       chassis_route_point_add(&chassis_route_traj, R_CHASSIS_SUDUKU_1_X, R_CHASSIS_SUDUKU_1_Y, R_CHASSIS_SUDUKU_1_W, 0);
+//       point_add = 0;
+//     }
+//     if (point_add == 3)
+//     {
+//       chassis_route_point_add(&chassis_route_traj, R_CHASSIS_SUDUKU_2_X, R_CHASSIS_SUDUKU_2_Y, R_CHASSIS_SUDUKU_2_W, 0);
+//       point_add = 0;
+//     }
+//     if (point_add == 4)
+//     {
+//       chassis_route_point_add(&chassis_route_traj, R_CHASSIS_SUDUKU_3_X, R_CHASSIS_SUDUKU_3_Y, R_CHASSIS_SUDUKU_3_W, 0);
+//       point_add = 0;
+//     }
+//     
+//     if (point_add1 == 1)
+//     {
+//       chassis_route_point_add(&chassis_route_traj, 11100.0f, -3000.0f, 90.0f, 0);
+//       point_add1 = 0;
+//     }
     //上坡测试
 //     if (point_add == 1)
 //     {
@@ -554,6 +534,32 @@ void entry_chassis(void const * argument)
 //        chassis_route_point_add(&chassis_route_traj, 11100,-2400.0f, 180.0f, 0);
 //        point_add = 0;
 //      }
+    //  if (point_add == 1)
+    //   {
+    //     chassis_route_point_add(&chassis_route_traj, 11080,-3055.0f, 90.0f, 0);
+    //     point_add = 0;
+    //   }
+    //三区点位
+//    if (point_add == 1)
+//      {
+//        chassis_route_point_add(&chassis_route_traj, R_CHASSIS_SLOPE_END_X,R_CHASSIS_SLOPE_END_Y, 90.0f, 0);
+//        point_add = 0;
+//      }
+//    if (point_add == 2)
+//      {
+//        chassis_route_point_add(&chassis_route_traj,R_CHASSIS_CZ_CENTER_X,R_CHASSIS_CZ_CENTER_Y, R_CHASSIS_CZ_CENTER_W, 0);
+//        point_add = 0;
+//      }if (point_add == 3)
+//      {
+//        chassis_route_point_add(&chassis_route_traj, R_CHASSIS_SUDUKU_1_X,R_CHASSIS_SUDUKU_1_Y, R_CHASSIS_SUDUKU_1_W, 0);
+//        point_add = 0;
+//      }
+//      if (point_add == 4)
+//      {
+//        chassis_route_point_add(&chassis_route_traj, R_CHASSIS_SUDUKU_1_X,R_CHASSIS_SUDUKU_1_Y+500.0f, R_CHASSIS_SUDUKU_1_W, 0);
+//        point_add = 0;
+//      }
+
 
 
       // 滤波后的雷达数据更新
@@ -625,7 +631,10 @@ void entry_chassis(void const * argument)
         chassis_multi_route_scheduler(&chassis_route_traj, &Radar_Pos);
         chassis_single_route_scheduler(&Radar_Pos, &chassis_route_traj, 1);
         chassis_world_to_robot_velocity(&chassis_r2, chassis_route_traj.traj_vx.out_vel, chassis_route_traj.traj_vy.out_vel, chassis_route_traj.traj_vw.out_vel, Radar_Pos.reliable_yaw);
-        omni_chassis_calculate(&chassis_r2, chassis_r2.vx, chassis_r2.vy, chassis_r2.vw, chassis_r2.chassis_en_flag);
+        if (chassis_r2.chassis_lock_flag)
+          chassis_position_lock_execute();   /* 位置环锁止：死守捕获编码器位置 */
+        else
+          omni_chassis_calculate(&chassis_r2, chassis_r2.vx, chassis_r2.vy, chassis_r2.vw, chassis_r2.chassis_en_flag);
       }
      }
 
@@ -773,18 +782,26 @@ void entry_cmd_task(void const * argument)
   BT_MASTER_Init_Task(); // 初始化行为树任务
                          //  BT_MASTER_Start_Task(); // 启动行为树主控任务
   BT_CZ_Init_Task();
-
+  //BT_Init_R2_MC_Mission();
   mf_planner_ctx.map_color = RED_MAP;
 
   /* Infinite loop */
   for (;;)
   {
+		 MF_Scan_Command_Send(camera_command);
     if (task_flag == 1)
     {
       BT_MASTER_Start_Task();
       task_flag = 0;
     }
-    if(CZ_task == 1)
+    if (MC_task == 1)
+    {
+      BT_Start_R2_MC_Mission();
+      MC_task=0;
+
+    }
+    BT_Customized_Tick1ms_R2_MC();
+     if(CZ_task == 1)
     {
      BT_CZ_Start_Task();
      CZ_task = 0;

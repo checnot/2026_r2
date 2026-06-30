@@ -17,11 +17,14 @@
 #define CHASSIS_A_MAX 3000.0f //底盘最大加速度，上坡时5500
 #define CHASSIS_SLOPE_V_MAX 6000.0f //上坡时底盘最大速度
 #define CHASSIS_SLOPE_A_MAX 6000.0f //上坡时底盘最大加速度
+#define CHASSIS_ROTATE_SLOW_V_MAX 700.0f  //慢速旋转时角速度最大值
+#define CHASSIS_ROTATE_SLOW_A_MAX 700.0f  //慢速旋转时角加速度最大值
 #define CHASSIS_TRACKING_POSITION_ERROR_THRESHOLD 200.0f //底盘跟踪位置误差阈值，单位mm
 #define CHASSIS_TRACKING_ANGLE_ERROR_THRESHOLD 6.0f //底盘跟踪角度误差阈值，单位rad
 #define CHASSIS_ROUTE_ARRIVAL_THRESHOLD 5.0f //底盘路径到达判定阈值，单位mm    
 #define CHASSIS_ANGLE_ARRIVAL_THRESHOLD 0.5f //底盘路径到达判定阈值，单位度
 #define CHASSIS_ROUTE_FINAL_APPROACH_THRESHOLD 250.0f //底盘路径最终接近目标判定阈值，单位mm        
+#define CHASSIS_ROUTE_SOFT_BRAKE_THRESHOLD 50.0f    //末端软刹车阈值，不跑PID，线性降速到零
 #define CHASSIS_ROUTE_FINAL_APPROACH_ANGLE_THRESHOLD 5.0f //底盘路径最终接近目标判定阈值，单位度
 #define CHASSIS_ROUTE_LOOKAHEAD_DIST 350.0f //多段路径预加载距离，距目标小于此值时提前出队下一个点
 #define CHASSIS_VX_FILTER_ALPHA 0.2f
@@ -41,7 +44,9 @@ typedef struct {
     float real_vw;      // 实际底盘旋转速度 
     int16_t wheel_speed[4]; // 四轮速度，直接对应轮部3508电机的目标速度
 
-    uint8_t chassis_en_flag; // 底盘使能标志，1=使能，0=禁用电机
+    uint8_t chassis_en_flag; // 底盘使能标志，1=使能，0=禁用（自由滑行）
+    uint8_t chassis_lock_flag; // 底盘锁止标志，1=位置环锁止（仅对杆用）
+    int32_t lock_angle_target[4]; // 锁止时四轮目标角度
 
 // 以下为底盘升降相关属性
     float lift_front_target;    // 前端升降目标高度(m)
@@ -70,9 +75,13 @@ typedef struct{
     PID_Struct pid_final_vy; //横向速度PID实例  
     PID_Struct pid_final_vw; //旋转速度PID实例 
     uint8_t slope_mode;       // 上坡模式标志: 0=平地参数, 1=上坡参数(CHASSIS_SLOPE_V/A_MAX)
+    uint8_t rotate_slow_mode; // 慢速旋转模式标志: 0=正常, 1=慢速旋转(CHASSIS_ROTATE_SLOW_V/A_MAX)
 }chassis_route_traj_stu;
 
 void chassis_route_set_slope_mode(uint8_t enable);
+void chassis_route_set_rotate_slow(uint8_t enable);
+void chassis_set_lock(uint8_t lock);   /* 锁止底盘：1=位置环锁止，0=恢复 */
+void chassis_position_lock_execute(void); /* 位置环锁止执行（1ms调用） */
 
 
 

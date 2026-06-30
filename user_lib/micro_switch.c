@@ -23,7 +23,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
     else 
     {
         MC_bb.RACK_PICK_SUCCESS = 0;
-        MC_bb.RACK_PICK_SUCCESS = 0;
 			  clamp_catch_flag =0;
     }
     

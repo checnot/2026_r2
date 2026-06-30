@@ -136,8 +136,8 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
     // uart8-camera
     if (huart->Instance == UART8)
     {
-         Camera_CZ_Data_Progress((char*) Camera_Rec_Data);
-        // Camera_Scan_Data_Progress((uint8_t *)Camera_Rec_Data);
+        Camera_CZ_Data_Progress((char*) Camera_Rec_Data);
+       // Camera_Scan_Data_Progress((uint8_t *)Camera_Rec_Data);
         memset(Camera_Rec_Data, 0, sizeof(Camera_Rec_Data));
         HAL_UARTEx_ReceiveToIdle_DMA(&huart8, Camera_Rec_Data, sizeof(Camera_Rec_Data));
         __HAL_DMA_DISABLE_IT(&hdma_uart8_rx, DMA_IT_HT);
