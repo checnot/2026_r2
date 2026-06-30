@@ -982,6 +982,7 @@ static uint8_t Arm_Store_SendPath(uint8_t slot)
         HAL_GPIO_WritePin(GPIOD, GPIO_PIN_5, GPIO_PIN_SET); // 存块吸盘保持吸附
         arm_queue_add_point(&arm_traj, STORE_PRE_X, STORE_PRE_Y, 0, 0, ARM_PUMP_KEEP, 270.0f/180.0f*PI);
         arm_queue_add_point(&arm_traj, STORE_X, STORE_Y, 0, STORE_TIME, ARM_PUMP_KEEP, 270.0f/180.0f*PI);
+        arm_queue_add_point(&arm_traj, STORE_X, STORE_Y, 0, STORE_TIME/4, ARM_PUMP_RELEASE, 270.0f/180.0f*PI);
         arm_queue_add_point(&arm_traj, STORE_PRE_TRANS_X, STORE_PRE_TRANS_Y, 0, 0, ARM_PUMP_RELEASE, 180.0f/180.0f*PI);
     } else if (slot == 1) {
         // HAL_GPIO_WritePin(GPIOD, GPIO_PIN_5, GPIO_PIN_SET); // 存块吸盘保持吸附
@@ -1020,13 +1021,33 @@ static void Arm_Store_Service_Tick(void)
         break;
 
     case ARM_STORE_REQ_F2B:
-        taskENTER_CRITICAL();
-        arm_mode_switch_to_transition(&arm, &arm_traj, &arm_trans_traj, ARM_TRANS_FRONT_TO_BACK);
-        taskEXIT_CRITICAL();
-
-        arm_store_state = ARM_STORE_WAIT_BACK;
-        arm_store_timer_ms = 0;
-        break;
+    {
+        if(arm_store_slot == 0) 
+        {
+            taskENTER_CRITICAL();
+            arm_mode_switch_to_transition(&arm, &arm_traj, &arm_trans_traj, ARM_TRANS_FRONT_TO_BACK);
+            taskEXIT_CRITICAL();
+            arm_store_state = ARM_STORE_WAIT_BACK;
+            arm_store_timer_ms = 0;
+            break;
+        }
+        else if(arm_store_slot == 1 || arm_store_slot == 2)
+        {
+            // 如果是第二个块，直接下发路径，不需要切换模式
+            arm_store_payload_done =  1;
+            arm_store_state = ARM_STORE_WAIT_REST;
+            arm_queue_add_point(&arm_traj, PICK_REST_X, PICK_REST_Y, 0, 0, ARM_PUMP_KEEP, 0.0f);
+            break;
+        }
+        else
+        {
+            // 如果是第二个块，直接下发路径，不需要切换模式
+            arm_store_payload_done =  1;
+            arm_store_state = ARM_STORE_WAIT_REST;
+            arm_queue_add_point(&arm_traj, PICK_REST_X, PICK_REST_Y, 0, 0, ARM_PUMP_KEEP, 0.0f);
+            break;
+        }
+    }
 
     case ARM_STORE_WAIT_BACK:
         if (arm.mode == ARM_MODE_BACK) {
@@ -1047,22 +1068,13 @@ static void Arm_Store_Service_Tick(void)
         break;
 
     case ARM_STORE_WAIT_DONE:
-        // if (arm_store_slot == 2) {
-        //     if (arm_if_arrived_xy(STORE_C_X, STORE_C_Y)) {
-        //         arm_store_done = 1;       /* 第三个块已被机械臂拿在手上，MF 可以推进 */
-        //         arm_store_state = ARM_STORE_DONE;
-        //         arm_store_timer_ms = 0;
-        //     } else if (++arm_store_timer_ms * 10 >= ARM_STORE_PATH_TIMEOUT_MS) {
-        //         arm_store_state = ARM_STORE_FAILED;
-        //     }
-        // } else {
-            if (arm_if_arrived_xy(STORE_PRE_TRANS_X, STORE_PRE_TRANS_Y)) {
-                arm_store_payload_done = 1;       /* A/B 已经放入槽位，MF 可以推进 */
-                arm_store_state = ARM_STORE_REQ_B2F;
-                arm_store_timer_ms = 0;
-            } else if (++arm_store_timer_ms * 10 >= ARM_STORE_PATH_TIMEOUT_MS) {
-                arm_store_state = ARM_STORE_FAILED;
-            }
+        if (arm_if_arrived_xy(STORE_PRE_TRANS_X, STORE_PRE_TRANS_Y)) {
+            arm_store_payload_done = 1;       /* A/B 已经放入槽位，MF 可以推进 */
+            arm_store_state = ARM_STORE_REQ_B2F;
+            arm_store_timer_ms = 0;
+        } else if (++arm_store_timer_ms * 10 >= ARM_STORE_PATH_TIMEOUT_MS) {
+            arm_store_state = ARM_STORE_FAILED;
+        }
         // }
         break;
 
@@ -1070,7 +1082,6 @@ static void Arm_Store_Service_Tick(void)
         taskENTER_CRITICAL();
         if(arm_store_slot == 2) {
             /* C 槽不需要后向转前向 */
-            /* 其实在ARM_STORE_WAIT_DONE中就已经设为了ARM_STORE_DONE */
             arm_store_state = ARM_STORE_DONE;
             taskEXIT_CRITICAL();
             break;
@@ -1656,7 +1667,7 @@ static BT_Status Act_MF_Execute_Action(void)
         {
             if (arm_if_arrived_xy(PICK_PRE_TRANS_X, PICK_PRE_TRANS_Y))
             {
-                if(mf_bb.kfs_stored < 1)
+                if(mf_bb.kfs_stored < 2)
                 {
                     /* 拾取完成后请求机械臂存储服务接管 */
                     arm_store_slot = mf_bb.kfs_stored;
