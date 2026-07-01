@@ -142,9 +142,9 @@ extern float       g_lift_wheel_kd;         /**< 辅助轮速度环 Kd */
 /** 上台阶时辅助轮驱动速度（3508转子单位）*/
 #define STEP_UP_WHEEL_SPEED     3000.0f
 /** 上台阶辅助轮速度环 Kp */
-#define STEP_UP_WHEEL_KP        3.0f
+#define STEP_UP_WHEEL_KP        4.0f
 /** 上台阶辅助轮速度环 Kd */
-#define STEP_UP_WHEEL_KD        0.3f
+#define STEP_UP_WHEEL_KD        0.5f
 
 /** 上台阶支撑柱位置环 Kp */
 #define STEP_UP_BRACE_KP        1.8f
@@ -168,7 +168,7 @@ extern float       g_lift_wheel_kd;         /**< 辅助轮速度环 Kd */
 /** 上台阶完成后额外前进的安全时间 (ms)，确保底盘完全在台阶上 */
 #define STEP_UP_FORWARD_SAFE_MS      250
 /** 下台阶四柱撑稳后额外前进的安全时间 (ms)，远离台阶边缘 */
-#define STEP_DOWN_CLEARANCE_SAFE_MS  500
+#define STEP_DOWN_CLEARANCE_SAFE_MS  400
 
 /* ---------- 超时参数 ---------- */
 

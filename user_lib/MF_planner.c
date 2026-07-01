@@ -599,6 +599,46 @@ bool MFPlanner_BuildFullPlan(MF_Planner* ctx,
                     uint8_t adj_c = 0;
                     if (MF_FindPathToAdjacent(ctx, cur_r, cur_c, r, c,
                                               allow_r1kfs, path, &len, &adj_r, &adj_c)) {
+                        /* ============================================================ */
+                        /* 【修改3】检查拿完此 R2KFS 后能否到达出口                     */
+                        /* - 最后一步(picked == r2kfs_need-1)：只清除当前候选，       */
+                        /*   其余未拿 R2KFS 保留为真实障碍，避免选了到不了出口的 KFS   */
+                        /* - 非最后步：乐观清除所有 R2KFS（后续还会再选可打通）        */
+                        /* ============================================================ */
+                        {
+                            MF_CellType saved_cell[MF_ROWS][MF_COLS];
+                            uint8_t rr, cc;
+                            bool can_reach_exit;
+                            uint8_t ep[MF_MAX_NODES];
+                            uint8_t elen;
+
+                            memcpy(saved_cell, ctx->cell, sizeof(ctx->cell));
+                            if (picked == r2kfs_need - 1) {
+                                /* 最后一步：只清除当前候选这一个 R2KFS */
+                                ctx->cell[r][c] = MF_CELL_EMPTY;
+                            } else {
+                                /* 非最后步：乐观清除所有 R2KFS（后续迭代还会再选） */
+                                for (rr = 0; rr < MF_ROWS; rr++) {
+                                    for (cc = 0; cc < MF_COLS; cc++) {
+                                        if (ctx->cell[rr][cc] == MF_CELL_R2KFS) {
+                                            ctx->cell[rr][cc] = MF_CELL_EMPTY;
+                                        }
+                                    }
+                                }
+                            }
+                            can_reach_exit = false;
+                            if (MF_AStar(ctx, adj_r, adj_c, 5, 0, true, ep, &elen)) {
+                                can_reach_exit = true;
+                            }
+                            if (!can_reach_exit && MF_AStar(ctx, adj_r, adj_c, 5, 2, true, ep, &elen)) {
+                                can_reach_exit = true;
+                            }
+                            memcpy(ctx->cell, saved_cell, sizeof(ctx->cell));
+                            if (!can_reach_exit) {
+                                continue; /* 该候选拿完后无法到出口，跳过 */
+                            }
+                        }
+
                         if (!found_any || len < best_len) {
                             /* 记录更短的候选 */
                             found_any = true;
@@ -695,7 +735,10 @@ bool MFPlanner_BuildFullPlan(MF_Planner* ctx,
             return false;
         }
     }
-    /* 若 found_exit==false 或 best_exit_len==0(已站在出口上)，跳过出口移动 */
+    /* 【修改4】找不到任何出口路径时返回失败，不再静默吞掉 */
+    if (!found_exit) {
+        return false;
+    }
 
 
     return true;
@@ -720,18 +763,18 @@ void MFPlanner_ScanRows(MF_Planner* ctx, uint8_t start_row, uint8_t end_row)
     /* 真实 KFS 分布(与 LoadFixedDemoMap 中的 demo_cellx 一致) */
     static const MF_CellType real_cell_debug_blue[MF_ROWS][MF_COLS] = {
         { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_EMPTY },
-        { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_R2KFS },
+        { MF_CELL_R2KFS,  MF_CELL_EMPTY,  MF_CELL_R2KFS },
         { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_R1KFS },
         { MF_CELL_R1KFS,  MF_CELL_FAKEKFS, MF_CELL_R1KFS },
-        { MF_CELL_R2KFS,  MF_CELL_R2KFS,  MF_CELL_R2KFS },
+        { MF_CELL_R2KFS,  MF_CELL_EMPTY,  MF_CELL_R2KFS },
         { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_EMPTY }
     };
     static const MF_CellType real_cell_debug_red[MF_ROWS][MF_COLS] = {
         { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_EMPTY },
-        { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_R2KFS },
+        { MF_CELL_R2KFS,  MF_CELL_EMPTY,  MF_CELL_R2KFS },
         { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_R1KFS },
         { MF_CELL_R1KFS,  MF_CELL_FAKEKFS, MF_CELL_R1KFS },
-        { MF_CELL_R2KFS,  MF_CELL_R2KFS,  MF_CELL_R2KFS },
+        { MF_CELL_R2KFS,  MF_CELL_EMPTY,  MF_CELL_R2KFS },
         { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_EMPTY }
     };
 
@@ -810,26 +853,39 @@ bool MFPlanner_BuildPhase1(MF_Planner* ctx,
 
     if (row1_has_r2kfs) {
         /* ======================================================== */
-        /* row1 上有 R2KFS：先走到其相邻格拾取（参考 BuildFullPlan） */
+        /* row1 上有 R2KFS：走到其正下方 row0 格，面北拾取         */
+        /* 【规则】R2 必须站在 row0 拾取 row1 上的 R2KFS，        */
+        /*        拾取后 row1 该格变通路，R2 才能 step_up 登上去   */
         /* ======================================================== */
         uint8_t kfs_r = 1;
         uint8_t path[MF_MAX_NODES];
         uint8_t path_len = 0;
         uint8_t adj_r = 0, adj_c = 0;
 
-        /* 找(1,kfs_c)的可站立相邻格并规划路径 */
-        if (!MF_FindPathToAdjacent(ctx, cur_r, cur_c, kfs_r, kfs_c,
-                                   allow_r1kfs, path, &path_len, &adj_r, &adj_c)) {
-            return false; /* 无法到达 row1 上任何 R2KFS 的相邻格 */
+        /* 固定相邻格为 row1 KFS 正下方的 row0 格（面北拾取） */
+        adj_r = 0;
+        adj_c = kfs_c;
+
+        /* 校验 row0 相邻格是否在边界内且可站立 */
+        if (!MF_InBounds((int8_t)adj_r, (int8_t)adj_c)) {
+            return false;
+        }
+        if (MF_IsBlockedForMove(ctx, adj_r, adj_c, allow_r1kfs)) {
+            return false;
+        }
+
+        /* 规划从当前位置到 row0 相邻格的路径（纯 row0 平移，无高度差） */
+        if (!MF_AStar(ctx, cur_r, cur_c, adj_r, adj_c,
+                      allow_r1kfs, path, &path_len)) {
+            return false;
         }
         if (!MF_AddPathActions(ctx, path, path_len)) {
             return false;
         }
 
-        /* 站在相邻格上拾取 */
-        int8_t dr = (int8_t)kfs_r - (int8_t)adj_r;
-        int8_t dc = (int8_t)kfs_c - (int8_t)adj_c;
-        MF_Dir pick_dir = MF_DirFromDelta(dr, dc);
+        /* 站在 row0 相邻格上面北拾取 row1 的 R2KFS */
+        /* 方向固定为 NORTH（row0 面朝 row1） */
+        MF_Dir pick_dir = MF_DIR_NORTH;
         int16_t height_diff = (int16_t)ctx->height[kfs_r][kfs_c]
                               - (int16_t)ctx->height[adj_r][adj_c];
 
@@ -919,6 +975,46 @@ bool MFPlanner_BuildPhase2(MF_Planner* ctx, uint8_t r2kfs_need)
                     uint8_t adj_c = 0;
                     if (MF_FindPathToAdjacent(ctx, cur_r, cur_c, r, c,
                                               allow_r1kfs, path, &len, &adj_r, &adj_c)) {
+                        /* ============================================================ */
+                        /* 【修改1】检查拿完此 R2KFS 后能否到达出口                     */
+                        /* - 最后一步(picked == r2kfs_need-1)：只清除当前候选，       */
+                        /*   其余未拿 R2KFS 保留为真实障碍，避免选了到不了出口的 KFS   */
+                        /* - 非最后步：乐观清除所有 R2KFS（后续还会再选可打通）        */
+                        /* ============================================================ */
+                        {
+                            MF_CellType saved_cell[MF_ROWS][MF_COLS];
+                            uint8_t rr, cc;
+                            bool can_reach_exit;
+                            uint8_t ep[MF_MAX_NODES];
+                            uint8_t elen;
+
+                            memcpy(saved_cell, ctx->cell, sizeof(ctx->cell));
+                            if (picked == r2kfs_need - 1) {
+                                /* 最后一步：只清除当前候选这一个 R2KFS */
+                                ctx->cell[r][c] = MF_CELL_EMPTY;
+                            } else {
+                                /* 非最后步：乐观清除所有 R2KFS（后续迭代还会再选） */
+                                for (rr = 0; rr < MF_ROWS; rr++) {
+                                    for (cc = 0; cc < MF_COLS; cc++) {
+                                        if (ctx->cell[rr][cc] == MF_CELL_R2KFS) {
+                                            ctx->cell[rr][cc] = MF_CELL_EMPTY;
+                                        }
+                                    }
+                                }
+                            }
+                            can_reach_exit = false;
+                            if (MF_AStar(ctx, adj_r, adj_c, 5, 0, true, ep, &elen)) {
+                                can_reach_exit = true;
+                            }
+                            if (!can_reach_exit && MF_AStar(ctx, adj_r, adj_c, 5, 2, true, ep, &elen)) {
+                                can_reach_exit = true;
+                            }
+                            memcpy(ctx->cell, saved_cell, sizeof(ctx->cell));
+                            if (!can_reach_exit) {
+                                continue; /* 该候选拿完后无法到出口，跳过 */
+                            }
+                        }
+
                         if (!found_any || len < best_len) {
                             found_any = true;
                             best_len = len;
@@ -1003,6 +1099,10 @@ bool MFPlanner_BuildPhase2(MF_Planner* ctx, uint8_t r2kfs_need)
             if (!MF_AddPathActions(ctx, best_exit_path, best_exit_len)) {
                 return false;
             }
+        }
+        /* 【修改2】找不到任何出口路径时返回失败，不再静默吞掉 */
+        if (!found_exit) {
+            return false;
         }
     }
 

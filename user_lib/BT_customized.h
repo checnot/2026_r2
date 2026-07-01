@@ -37,7 +37,7 @@
 // #define ARM_SUCK_ON 1  /* 吸泵吸取动作标志 */
 // #define ARM_SUCK_OFF 0 /* 吸泵停止动作标志 */
 
-#define ARRIVE_TOL 0.03f       /* 到位容差 (m) */
+#define ARRIVE_TOL 0.03f       /* arm_if_arrived_xy 到位容差 (m) */
 #define ACTION_TIMEOUT_MS 5000 /* 单步动作超时 (ms) */
 /* ------------ 机械臂预设可配置参数（按需微调） ------------ */
 
@@ -210,7 +210,7 @@
 /* ================================================ MC 规划行为树接口 ================================================ */
 
 
-#define CHASSIS_ROUTE_TIMEOUT_MS 30000 /*  底盘路径超时 (ms) */
+#define CHASSIS_ROUTE_TIMEOUT_MS 60000 /*  底盘路径超时 (ms) */
 
 
 /* 抓取动作的内部状态机 */
@@ -403,25 +403,25 @@ extern uint8_t arm_store_slot;
 #define PICK_N200_TARGET_Y -0.10f         /* ！！！！待测试！！！！！-200抓取点 Y */
 
 #define PICK_0_APR_X_1 0.568f             /* 0预抓取点1 X */
-#define PICK_0_APR_Y_1 (-0.135f)          /* 0预抓取点1 Y */
+#define PICK_0_APR_Y_1 (-0.09f)          /* 0预抓取点1 Y */
 // #define PICK_0_APR_X_2 0.5f             /* 0预抓取点2 X */
 // #define PICK_0_APR_Y_2 0.5f             /* 0预抓取点2 Y */
 #define PICK_0_TARGET_X 0.638f            /* 0抓取点 X */
-#define PICK_0_TARGET_Y (-0.135f)            /* 0抓取点 Y */
+#define PICK_0_TARGET_Y (-0.09f)            /* 0抓取点 Y */
 
 #define PICK_P200_APR_X_1 0.568f     /* +200预抓取点1 X */
-#define PICK_P200_APR_Y_1 0.065f     /* +200预抓取点1 Y */
+#define PICK_P200_APR_Y_1 0.11f     /* +200预抓取点1 Y */
 // #define PICK_P200_APR_X_2 0.5f     /* +200预抓取点2 X */
 // #define PICK_P200_APR_Y_2 0.5f     /* +200预抓取点2 Y */
 #define PICK_P200_TARGET_X 0.638f         /* +200抓取点 X */
-#define PICK_P200_TARGET_Y 0.065f         /* +200抓取点 Y */
+#define PICK_P200_TARGET_Y 0.11f         /* +200抓取点 Y */
 
 #define PICK_P400_APR_X_1 0.568f     /* +400预抓取点1 X */
-#define PICK_P400_APR_Y_1 0.265f     /* +400预抓取点1 Y */
+#define PICK_P400_APR_Y_1 0.31f     /* +400预抓取点1 Y */
 // #define PICK_P400_APR_X_2 0.5f     /* +400预抓取点2 X */
 // #define PICK_P400_APR_Y_2 0.5f     /* +400预抓取点2 Y */
 #define PICK_P400_TARGET_X 0.638f         /* +400抓取点 X */
-#define PICK_P400_TARGET_Y 0.265f         /* +400抓取点 Y */
+#define PICK_P400_TARGET_Y 0.31f         /* +400抓取点 Y */
 
 #define PICK_PRE_TRANS_X 0.4f         /* 抓取完毕之后的过渡准备点 X */
 #define PICK_PRE_TRANS_Y 0.6f         /* 抓取完毕之后的过渡准备点 Y */
@@ -437,9 +437,9 @@ extern uint8_t arm_store_slot;
 #define STORE_B_X -0.005f        /* 存储点b X */
 #define STORE_B_Y 0.29f         /* 存储点b Y */
 
-#define STORE_PRE_X (-0.5f)      /* 预存储点c X */
+#define STORE_PRE_X (-0.45f)      /* 预存储点c X */
 #define STORE_PRE_Y 0.68f         /* 预存储点c Y */
-#define STORE_X (-0.5f)          /* 存储点 X */
+#define STORE_X (-0.45f)          /* 存储点 X */
 #define STORE_Y 0.58f             /* 存储点 */
 
 #define STORE_PRE_TRANS_X 0.1f         /* 存储完毕之后的过渡准备点 X */
@@ -515,8 +515,14 @@ typedef enum
     CZ_PUMP_WAIT,          /* 关气泵后等待 */
     CZ_RETURN_TO_SCAN,
     CZ_PICK_STORE_AT_SCAN, /* 🟡 到扫描点后取存块-仅机械臂（暂空，立即完成） */
-    CZ_PICK_STORE,         /* 🟡 两次放置后取存块（暂空，立即完成） */
-    CZ_DONE,               /* 两轮放置完成 */
+
+    CZ_PICK_STORE_F2B,         /* 一次放置后取存块-过渡到后工作区 */
+    CZ_PICK_STORE_PICK,        /* 一次放置后取存块-在后工作区取块 */
+    CZ_PICK_STORE_WAIT,        /* 一次放置后取存块-在后工作区等待机械臂到位 */
+    CZ_PICK_STORE_B2F,         /* 一次放置后取存块-过渡到前工作区 */
+    CZ_PICK_STORE_REST,        /* 一次放置后取存块-在前工作区待机点等待 */
+
+    CZ_DONE,               /* 单？轮放置完成 */
     /* --- R1 平台阶段 --- */
     CZ_NAV_TO_R1_WAIT,     /* 导航到R1平台等待点 */
     CZ_WAIT_R1_PLATFORM,   /* 等待R1上平台指令 */
