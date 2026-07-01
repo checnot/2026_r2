@@ -370,9 +370,13 @@ void chassis_multi_route_scheduler(chassis_route_traj_stu* chassis_route_traj,RA
     // uint8_t near_target = (dx < CHASSIS_ROUTE_LOOKAHEAD_DIST && dy < CHASSIS_ROUTE_LOOKAHEAD_DIST && dw < 10.0f);
     // uint8_t has_more_points = (chassis_route_traj->traj_queue_vx.count > 0);
 
+    uint8_t force_this = chassis_route_traj->force_queue[chassis_route_traj->traj_queue_vx.tail];
+
     if ((chassis_route_traj->traj_vx.is_finished && chassis_route_traj->traj_vy.is_finished && chassis_route_traj->traj_vw.is_finished)
+        || force_this
         /* || (near_target && has_more_points) */) 
     {
+        chassis_route_traj->force_queue[chassis_route_traj->traj_queue_vx.tail] = 0;  /* 消费 */
         // 从队列头部取出下一个目标点
         chassis_route_traj->traj_vx.target_pos = chassis_route_traj->traj_queue_vx.points[chassis_route_traj->traj_queue_vx.tail];
         chassis_route_traj->traj_vy.target_pos = chassis_route_traj->traj_queue_vy.points[chassis_route_traj->traj_queue_vy.tail];
@@ -408,15 +412,17 @@ void chassis_multi_route_scheduler(chassis_route_traj_stu* chassis_route_traj,RA
  * @param target_vy: 横向目标点
  * @param target_vw: 旋转角度目标点  
  * @param delay_time_ms: 到达该目标点后需要等待的时间，单位毫秒
+ * @param force_dequeue : 强制出列，待发该点时不需要等上一目标finish
  * @note 该函数会将新的目标点添加到路径队列中，等待调度器切换执行
  */
- void chassis_route_point_add(chassis_route_traj_stu* chassis_route_traj, float target_vx, float target_vy, float target_vw, uint16_t delay_time_ms)
+ void chassis_route_point_add(chassis_route_traj_stu* chassis_route_traj, float target_vx, float target_vy, float target_vw, uint16_t delay_time_ms, uint8_t force_dequeue)
  {
       
       // 将x的head作为其他元素的索引，进行延时和气泵标志的存储
     if (chassis_route_traj->traj_queue_vx.count >= TRAJ_MAX_WAYPOINTS) return;
     // 将延时信息存储到轨迹实例中，和点位队列下标同步
     chassis_route_traj->delay_queue[chassis_route_traj->traj_queue_vx.head] = delay_time_ms;
+    chassis_route_traj->force_queue[chassis_route_traj->traj_queue_vx.head] = force_dequeue;
     // 将坐标压入各自队列
     Traj_Path_Queue_AddPoint(&chassis_route_traj->traj_queue_vx, target_vx);
     Traj_Path_Queue_AddPoint(&chassis_route_traj->traj_queue_vy, target_vy);
@@ -485,10 +491,10 @@ void chassis_single_route_scheduler(RADAR_POSITION * chassis_real_position, chas
         {
             float dir_x = traj_sign2(chassis_route_traj->traj_vx.target_pos - chassis_real_position->reliable_x);
             float dir_y = traj_sign2(chassis_route_traj->traj_vy.target_pos - chassis_real_position->reliable_y);
-            /* 距离驱动：50mm→150mm/s, 5mm→30mm/s(地板)，保证雷达跳变时仍能微调 */
-            float brake_speed = dist_2d_actual * 7.0f;
-            if (brake_speed < 70.0f)  brake_speed = 80.0f;   /* 最低地板 */
-            if (brake_speed > 350.0f) brake_speed = 350.0f;  /* 上限 */
+            /* 距离驱动：80mm→800mm/s(上限500)，地板150保证尾段不拖沓 */
+            float brake_speed = dist_2d_actual * 10.0f;
+            if (brake_speed < 150.0f)  brake_speed = 150.0f;  /* 最低地板 */
+            if (brake_speed > 500.0f) brake_speed = 500.0f;   /* 上限 */
 
             chassis_route_traj->traj_vx.out_vel = brake_speed * dir_x
                 * (dist_to_actual_vx + 0.001f) / (dist_2d_actual + 0.002f);

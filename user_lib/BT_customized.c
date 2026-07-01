@@ -1,25 +1,25 @@
-#include "BT_customized.h"
+﻿#include "BT_customized.h"
 
-/* ================= 万能小变量 ================= */
+/* ================= 万能小变�?================= */
 uint8_t debug_if_reach_MF_phase2_scan = 0; // 用于调试是否达到 MF 区第二次扫描的条件，实际比赛时请删除或替换为 BuildPhase2 调用
 
-/* ================= 万能小变量 ================= */
+/* ================= 万能小变�?================= */
 
 
-ArmPickState pick_state = PICK_IDLE; /* 单独开发时使用抓取动作的状态机当前状态 */
+ArmPickState pick_state = PICK_IDLE; /* 单独开发时使用抓取动作的状态机当前状�?*/
 
 
-uint32_t pick_timer_ms = 0; /* 以 BT tick (10ms为周期) 计数，或在 Tick1ms 中累加 */
+uint32_t pick_timer_ms = 0; /* �?BT tick (10ms为周�? 计数，或�?Tick1ms 中累�?*/
 uint32_t chassis_timer_ms = 0 ;
 
-/* 保存 Sequence 的记忆索引（Memory Sequence 使用） */
+/* 保存 Sequence 的记忆索引（Memory Sequence 使用�?*/
 uint8_t seq_mem_idx = 0;
 uint8_t seq_mem_idx_combined = 0;
 
 /* ------------ 黑板 (行为树状态共享区) ------------ */
 struct {
-    uint8_t req_pick;     /* 发起一次自动取放请求 (1 = 有请求) */
-    uint8_t req_chassis_route; /* 发起一次底盘路径请求 (1 = 有请求) */
+    uint8_t req_pick;     /* 发起一次自动取放请�?(1 = 有请�? */
+    uint8_t req_chassis_route; /* 发起一次底盘路径请�?(1 = 有请�? */
     uint8_t retry_count;  /* 重试计数（示例） */
 } bb;
 /* ------------ 黑板 (行为树状态共享区) ------------ */
@@ -31,9 +31,9 @@ struct {
 
 
 
-// /*=========================================================== 机械臂 / 底盘 行为树测试用 ===============================================================*/
-// /*=========================================================== 机械臂 / 底盘 行为树测试用 ===============================================================*/
-// /*=========================================================== 机械臂 / 底盘 行为树测试用 ===============================================================*/
+// /*=========================================================== 机械�?/ 底盘 行为树测试用 ===============================================================*/
+// /*=========================================================== 机械�?/ 底盘 行为树测试用 ===============================================================*/
+// /*=========================================================== 机械�?/ 底盘 行为树测试用 ===============================================================*/
 
 
 
@@ -78,7 +78,7 @@ static inline uint8_t chassis_if_arrived(float tx, float ty, float tw)
 /*================================ 条件 节点 ================================*/
 
 /**
- * @brief 条件节点：判断是否有一个机械臂取放块请求
+ * @brief 条件节点：判断是否有一个机械臂取放块请�?
 */
 static BT_Status Cond_Has_Arm_PickRequest(void)
 {
@@ -90,18 +90,18 @@ static BT_Status Cond_Has_Arm_PickRequest(void)
 /**
  * @brief 机械臂抓取状态机（高200），根据机械臂运行状态和计时，自动推进抓取动作的各个阶段
  * @return 返回 BT_RUNNING / BT_SUCCESS / BT_FAILURE
- * @note - 上层BT把控制流交到这个节点后，它会在内部按状态机推进。
- * @note - 每次被 tick 时，FSM 只推进有限步并返回当前状态。
+ * @note - 上层BT把控制流交到这个节点后，它会在内部按状态机推进�?
+ * @note - 每次�?tick 时，FSM 只推进有限步并返回当前状态�?
 */
 static BT_Status Act_Arm_Pick_FSM_P200(void)
 {
-    /* 该函数由 BT_Customized_Tick1ms 每 10ms 调用一次（示例），
-       pick_timer_ms 的单位与 Tick 调用频率对应（本示例按 10ms 计数）。 */
+    /* 该函数由 BT_Customized_Tick1ms �?10ms 调用一次（示例），
+       pick_timer_ms 的单位与 Tick 调用频率对应（本示例�?10ms 计数）�?*/
 
     switch (pick_state) {       //根据当前状态执行对应的动作，并根据条件推进状态机
 
     case PICK_IDLE:
-        /* 第一次进入：回归到 HOME 位置，并进入 APPROACH */
+        /* 第一次进入：回归�?HOME 位置，并进入 APPROACH */
         taskENTER_CRITICAL(); /* 保护轨迹队列写入，或使用 mutex */
         arm_queue_add_point(&arm_traj, ARM_HOME_X, ARM_HOME_Y, arm.theta_target[0], 0, 0, 0);
         taskEXIT_CRITICAL();
@@ -112,7 +112,7 @@ static BT_Status Act_Arm_Pick_FSM_P200(void)
     case PICK_APPROACH_1:
         /* 等待到达预抓位置 */
         if (arm_if_arrived_xy(ARM_HOME_X, ARM_HOME_Y)) {
-            /* 到位后下发预抓取点 */
+            /* 到位后下发预抓取�?*/
             taskENTER_CRITICAL();
             arm_queue_add_point(&arm_traj, ARM_PICK_P200_APPROACH_X_1, ARM_PICK_P200_APPROACH_Y_1, arm.theta_target[0], 0, 0, 0);
             taskEXIT_CRITICAL();
@@ -149,7 +149,7 @@ static BT_Status Act_Arm_Pick_FSM_P200(void)
             taskENTER_CRITICAL();
             arm_queue_add_point(&arm_traj, ARM_PICK_P200_TARGET_X, ARM_PICK_P200_TARGET_Y, arm.theta_target[0], ARM_PICK_P200_TARGET_TIME, ARM_PUMP_SUCK, 0);
             taskEXIT_CRITICAL();
-            pick_state = PICK_STORE; /* 直接进入存储阶段，等待轨迹完成后再判断是否成功 */
+            pick_state = PICK_STORE; /* 直接进入存储阶段，等待轨迹完成后再判断是否成�?*/
             pick_timer_ms = 0;
         } else {
             if (++pick_timer_ms * 10 >= ACTION_TIMEOUT_MS) {
@@ -181,7 +181,7 @@ static BT_Status Act_Arm_Pick_FSM_P200(void)
             taskENTER_CRITICAL();
             arm_queue_add_point(&arm_traj, ARM_STORE_X, ARM_STORE_Y, arm.theta_target[0], 0, ARM_PUMP_SUCK, 0);
             taskEXIT_CRITICAL();
-            pick_state = PICK_COMPLETE; /* 进入完成阶段，等待轨迹完成后再判断是否成功 */
+            pick_state = PICK_COMPLETE; /* 进入完成阶段，等待轨迹完成后再判断是否成�?*/
             pick_timer_ms = 0;
         } else {
             if (++pick_timer_ms * 10 >= ACTION_TIMEOUT_MS) {
@@ -191,10 +191,10 @@ static BT_Status Act_Arm_Pick_FSM_P200(void)
         return BT_RUNNING;
 
     case PICK_COMPLETE:
-        /* 等待到达存储点 */
+        /* 等待到达存储�?*/
         if (arm_if_arrived_xy(ARM_STORE_X, ARM_STORE_Y)) {
             /* 到位时返回success */
-            pick_state = PICK_IDLE; /* 进入完成阶段，等待轨迹完成后再判断是否成功 */
+            pick_state = PICK_IDLE; /* 进入完成阶段，等待轨迹完成后再判断是否成�?*/
             pick_timer_ms = 0;
             return BT_SUCCESS;
         } else {
@@ -210,7 +210,7 @@ static BT_Status Act_Arm_Pick_FSM_P200(void)
         arm_queue_add_point(&arm_traj, ARM_HOME_X, ARM_HOME_Y, arm.theta_target[0], 0, ARM_PUMP_RELEASE, 0);
         pick_state = PICK_IDLE;
         pick_timer_ms = 0;
-        bb.req_pick = 0; /* 失败时清除请求，等待下一次触发 */
+        bb.req_pick = 0; /* 失败时清除请求，等待下一次触�?*/
 
         return BT_FAILURE;
     }
@@ -223,12 +223,12 @@ static BT_Status Act_Arm_Pick_FinishCleanup(void)
 {
     bb.req_pick = 0;
     // bb.retry_count = 0;
-    // seq_mem_idx = 0;    /* 重置 Sequence 记忆，方便下一次请求 */
+    // seq_mem_idx = 0;    /* 重置 Sequence 记忆，方便下一次请�?*/
     return BT_SUCCESS;
 }
 
 
-/*================================ 上层行为树根（简化，用 Memory Sequence 保持进度） ================================*/
+/*================================ 上层行为树根（简化，�?Memory Sequence 保持进度�?================================*/
 
 /**
  * @brief 简单的机械臂取放行为树根节点，使用 Memory Sequence 来保持状态机进度
@@ -237,7 +237,7 @@ static BT_Status BT_SimplePickTree_Root(void)
 {
     /* 按顺序执行：
      *  1) 有请求？
-     *  2) 执行下层抓取 FSM（可能多 Tick 返回 RUNNING）
+     *  2) 执行下层抓取 FSM（可能多 Tick 返回 RUNNING�?
      *  3) 收尾清理
      */
     static const BT_NodeFunc seq[] = {
@@ -251,7 +251,7 @@ static BT_Status BT_SimplePickTree_Root(void)
 
 
 /*=============================== 外部接口 ===============================*/
-/* 在 BT_customized.h 中声明这些函数，并在 freertos 的初始化处调用 Init，在 cmd_task 中定期调用 Tick */
+/* �?BT_customized.h 中声明这些函数，并在 freertos 的初始化处调�?Init，在 cmd_task 中定期调�?Tick */
 
 /**
  * @brief BT 客制化模块初始化，重置黑板和状态机
@@ -266,7 +266,7 @@ void BT_Customized_Init_arm_test(void)
 }
 
 /**
- * @brief 外部触发器（例如遥控上升沿）调用此函数发起一次取放请求
+ * @brief 外部触发器（例如遥控上升沿）调用此函数发起一次取放请�?
  */
 void BT_RequestSimplePick(void)
 {
@@ -277,13 +277,13 @@ void BT_RequestSimplePick(void)
 /*=============================== tick ===============================*/
 
 /**
- * @brief 行为树tick，每 1ms 调用一次；内部降频到 10ms 用于BT树调度，避免过于频繁遍历
+ * @brief 行为树tick，每 1ms 调用一次；内部降频�?10ms 用于BT树调度，避免过于频繁遍历
 */
 void BT_Customized_Tick1ms_arm_test(void)
 {
     static uint8_t div10 = 0;
     div10++;
-    if (div10 < 10) return; /* 每 10ms 执行一次 BT Tick */
+    if (div10 < 10) return; /* �?10ms 执行一�?BT Tick */
 
     //清空计时，遍历行为树
     div10 = 0;
@@ -300,13 +300,21 @@ void BT_Customized_Tick1ms_arm_test(void)
 
 
 
+/* ================================================ 以上弃用 ================================================ */
+/* ================================================ 以上弃用 ================================================ */
+/* ================================================ 以上弃用 ================================================ */
+/* ================================================ 以上弃用 ================================================ */
+/* ================================================ 以上弃用 ================================================ */
 
 
 
 
-/* ================================================ MC 规划行为树 ================================================ */
-/* ================================================ MC 规划行为树 ================================================ */
-/* ================================================ MC 规划行为树 ================================================ */
+
+
+
+/* ================================================ MC 规划行为�?================================================ */
+/* ================================================ MC 规划行为�?================================================ */
+/* ================================================ MC 规划行为�?================================================ */
 
 
 
@@ -315,7 +323,7 @@ MC_Blackboard MC_bb; //一区行为树的黑板，存放状态量
 
 /**
  * @brief [条件节点]检查是否收到了一区任务的执行请求
- * @return BT_SUCCESS (收到了，继续往下执行) / BT_FAILURE (没收到，打断执行树)
+ * @return BT_SUCCESS (收到了，继续往下执�? / BT_FAILURE (没收到，打断执行�?
 */
 static BT_Status Cond_Has_R2_MC_Mission_Request(void)
 {
@@ -324,8 +332,8 @@ static BT_Status Cond_Has_R2_MC_Mission_Request(void)
 
 
 /**
- * @brief [动作节点]一区任务执行
- * @return "耗时动作"，因此在执行过程中我们会一直返回 BT_RUNNING（挂起）。上层记忆序列节点（BT_Sequence_Memory）收到 RUNNING 后，下一帧会再次调用本节点，直到返回 SUCCESS。
+ * @brief [动作节点]一区任务执�?
+ * @return "耗时动作"，因此在执行过程中我们会一直返�?BT_RUNNING（挂起）。上层记忆序列节点（BT_Sequence_Memory）收�?RUNNING 后，下一帧会再次调用本节点，直到返回 SUCCESS�?
 */
 static BT_Status Act_R2_MC_Mission(void)
 {
@@ -333,15 +341,15 @@ static BT_Status Act_R2_MC_Mission(void)
 
         case MC_IDLE:
         {
-            //  空任务状态，等待触发进入MC任务流程，进入后直接推进状态机到第一个阶段
+            //  空任务状态，等待触发进入MC任务流程，进入后直接推进状态机到第一个阶�?
 
             MC_bb.mc_mission_state = CLAMP_INIT; 
-            MC_bb.R2_MC_timer_ms = 0; // 重置计时器
+            MC_bb.R2_MC_timer_ms = 0; // 重置计时�?
             return BT_RUNNING;
         }
         case CLAMP_INIT:
         {
-            //夹爪位置初始化指令
+            //夹爪位置初始化指�?
             clamp.lift_flag = 1;
             MC_bb.mc_mission_state = NIVEGATE_TO_RACK;
             MC_bb.R2_MC_timer_ms = 0;
@@ -353,7 +361,7 @@ static BT_Status Act_R2_MC_Mission(void)
             {
             /* 进入这个状态后,执行寻路到达RACK点的动作 */
             taskENTER_CRITICAL(); 
-            chassis_route_point_add(&chassis_route_traj, R_CHASSIS_RACK_3_X, R_CHASSIS_RACK_Y, R_CHASSIS_RACK_W, 0);
+            chassis_route_point_add(&chassis_route_traj, R_CHASSIS_RACK_3_X, R_CHASSIS_RACK_Y, R_CHASSIS_RACK_W, 0, 0);
             taskEXIT_CRITICAL();
 
             MC_bb.mc_mission_state = RACK_PICK; 
@@ -366,7 +374,7 @@ static BT_Status Act_R2_MC_Mission(void)
         }
         case RACK_PICK:
         {
-            /* 进入这个状态后,执行夹爪抓取矛头的动作 */
+            /* 进入这个状态后,执行夹爪抓取矛头的动�?*/
             if(chassis_if_arrived(R_CHASSIS_RACK_3_X, R_CHASSIS_RACK_Y, R_CHASSIS_RACK_W))
             {
                 MC_bb.RACK_POS_STABLE_TIMES++; // 增加位置稳定计数
@@ -378,7 +386,7 @@ static BT_Status Act_R2_MC_Mission(void)
                         clamp.catch_flag = 1; // 同时发出夹爪抓取指令
                         osDelay(600);
 
-                        if(MC_bb.RACK_PICK_SUCCESS == 1) //通过微动开关的触发来判断是否成功夹取矛头，成功则进入下一个阶段
+                        if(MC_bb.RACK_PICK_SUCCESS == 1) //通过微动开关的触发来判断是否成功夹取矛头，成功则进入下一个阶�?
                         {
                             clamp.rotate_flag = 1;
 
@@ -386,13 +394,13 @@ static BT_Status Act_R2_MC_Mission(void)
                         
                             MC_bb.R2_MC_timer_ms = 0;
                         }
-                        else //如果没有成功夹取矛头，则换下一个矛头位置
+                        else //如果没有成功夹取矛头，则换下一个矛头位�?
                         {
                              
                             clamp.catch_flag = 0; // 先放开夹爪，准备下一个位置的夹取  
                             clamp.retractable_flag = 0; // 先收回夹爪，准备下一个位置的夹取 
                             taskENTER_CRITICAL();
-                            chassis_route_point_add(&chassis_route_traj, R_CHASSIS_RACK_2_X, R_CHASSIS_RACK_Y, R_CHASSIS_RACK_W, 0);
+                            chassis_route_point_add(&chassis_route_traj, R_CHASSIS_RACK_2_X, R_CHASSIS_RACK_Y, R_CHASSIS_RACK_W, 0, 0);
                             taskEXIT_CRITICAL();
                             
                             MC_bb.mc_mission_state = RACK_FAILED_1;
@@ -421,7 +429,7 @@ static BT_Status Act_R2_MC_Mission(void)
                     clamp.catch_flag = 1; // 同时发出夹爪抓取指令
                     osDelay(600);
 
-                    if(MC_bb.RACK_PICK_SUCCESS == 1) //通过微动开关的触发来判断是否成功夹取矛头，成功则进入下一个阶段
+                    if(MC_bb.RACK_PICK_SUCCESS == 1) //通过微动开关的触发来判断是否成功夹取矛头，成功则进入下一个阶�?
                     {
                         clamp.rotate_flag = 1; 
 
@@ -429,14 +437,14 @@ static BT_Status Act_R2_MC_Mission(void)
                         
                         MC_bb.R2_MC_timer_ms = 0;
                     }
-                    else //如果第二次仍然没有成功夹取矛头，则换第三个位置
+                    else //如果第二次仍然没有成功夹取矛头，则换第三个位�?
                     {
                            
                         clamp.catch_flag = 0; // 先放开夹爪，准备下一个位置的夹取   
                         clamp.retractable_flag = 0; // 先收回夹爪，准备下一个位置的夹取  
                         osDelay(500);
                         taskENTER_CRITICAL();
-                        chassis_route_point_add(&chassis_route_traj, R_CHASSIS_RACK_1_X, R_CHASSIS_RACK_Y_1, R_CHASSIS_RACK_W_1, 0);
+                        chassis_route_point_add(&chassis_route_traj, R_CHASSIS_RACK_1_X, R_CHASSIS_RACK_Y_1, R_CHASSIS_RACK_W_1, 0, 0);
                         taskEXIT_CRITICAL();
 
                         MC_bb.mc_mission_state = RACK_FAILED_2;
@@ -466,20 +474,20 @@ static BT_Status Act_R2_MC_Mission(void)
                     clamp.catch_flag = 1; // 同时发出夹爪抓取指令
                     osDelay(800);
 
-                    if(MC_bb.RACK_PICK_SUCCESS == 1) //通过微动开关的触发来判断是否成功夹取矛头，成功则进入下一个阶段
+                    if(MC_bb.RACK_PICK_SUCCESS == 1) //通过微动开关的触发来判断是否成功夹取矛头，成功则进入下一个阶�?
                     {
                         clamp.rotate_flag = 1; 
 
                         MC_bb.mc_mission_state = DOCKING;
                         MC_bb.R2_MC_timer_ms = 0;
                     }
-                    else //如果第三次仍然没有成功夹取矛头，则换第四个位置
+                    else //如果第三次仍然没有成功夹取矛头，则换第四个位�?
                     {
                             
                         clamp.catch_flag = 0; // 先放开夹爪，准备下一个位置的夹取 
                         clamp.retractable_flag = 0; // 先收回夹爪，准备下一个位置的夹取   
                         taskENTER_CRITICAL();
-                        chassis_route_point_add(&chassis_route_traj,R_CHASSIS_RACK_4_X, R_CHASSIS_RACK_Y, R_CHASSIS_RACK_W, 0);
+                        chassis_route_point_add(&chassis_route_traj, R_CHASSIS_RACK_4_X, R_CHASSIS_RACK_Y, R_CHASSIS_RACK_W, 0, 0);
                         taskEXIT_CRITICAL();
 
                         MC_bb.mc_mission_state = RACK_FAILED_3;
@@ -508,7 +516,7 @@ static BT_Status Act_R2_MC_Mission(void)
                     clamp.catch_flag = 1; // 同时发出夹爪抓取指令
                     osDelay(800);
 
-                    if(MC_bb.RACK_PICK_SUCCESS == 1) //通过微动开关的触发来判断是否成功夹取矛头，成功则进入下一个阶段
+                    if(MC_bb.RACK_PICK_SUCCESS == 1) //通过微动开关的触发来判断是否成功夹取矛头，成功则进入下一个阶�?
                     {
                         clamp.rotate_flag = 1; 
     
@@ -521,7 +529,7 @@ static BT_Status Act_R2_MC_Mission(void)
                         clamp.catch_flag = 0; // 先放开夹爪，准备下一个位置的夹取 
                          clamp.retractable_flag = 0; // 先收回夹爪，准备下一个位置的夹取  
                         taskENTER_CRITICAL();
-                        chassis_route_point_add(&chassis_route_traj, R_CHASSIS_RACK_5_X, R_CHASSIS_RACK_Y, R_CHASSIS_RACK_W, 0);
+                        chassis_route_point_add(&chassis_route_traj, R_CHASSIS_RACK_5_X, R_CHASSIS_RACK_Y, R_CHASSIS_RACK_W, 0, 0);
                         taskEXIT_CRITICAL();
 
                         MC_bb.mc_mission_state = RACK_FAILED_4 ;
@@ -550,20 +558,20 @@ static BT_Status Act_R2_MC_Mission(void)
                     clamp.catch_flag = 1; // 同时发出夹爪抓取指令
                     osDelay(800);
 
-                    if(MC_bb.RACK_PICK_SUCCESS == 1) //通过微动开关的触发来判断是否成功夹取矛头，成功则进入下一个阶段
+                    if(MC_bb.RACK_PICK_SUCCESS == 1) //通过微动开关的触发来判断是否成功夹取矛头，成功则进入下一个阶�?
                     {
                         clamp.rotate_flag = 1; 
     
                         MC_bb.mc_mission_state = DOCKING;
                         MC_bb.R2_MC_timer_ms = 0;
                     }
-                    else //如果第五次没有成功，则换最后一个位置
+                    else //如果第五次没有成功，则换最后一个位�?
                     {
                              
                         clamp.catch_flag = 0; // 先放开夹爪，准备下一个位置的夹取
                         clamp.retractable_flag = 0; // 先收回夹爪，准备下一个位置的夹取   
                         taskENTER_CRITICAL();
-                        chassis_route_point_add(&chassis_route_traj,R_CHASSIS_RACK_6_X, R_CHASSIS_RACK_Y, R_CHASSIS_RACK_W, 0);
+                        chassis_route_point_add(&chassis_route_traj, R_CHASSIS_RACK_6_X, R_CHASSIS_RACK_Y, R_CHASSIS_RACK_W, 0, 0);
                         taskEXIT_CRITICAL();
 
                         MC_bb.mc_mission_state = RACK_FAILED_5;
@@ -592,20 +600,20 @@ static BT_Status Act_R2_MC_Mission(void)
                     clamp.catch_flag = 1; // 同时发出夹爪抓取指令
                     osDelay(800);
 
-                    if(MC_bb.RACK_PICK_SUCCESS == 1) //通过微动开关的触发来判断是否成功夹取矛头，成功则进入下一个阶段
+                    if(MC_bb.RACK_PICK_SUCCESS == 1) //通过微动开关的触发来判断是否成功夹取矛头，成功则进入下一个阶�?
                     {
                         clamp.rotate_flag = 1; 
     
                         MC_bb.mc_mission_state = DOCKING;
                         MC_bb.R2_MC_timer_ms = 0;
                     }
-                    else //如果第六次仍然没有成功夹取矛头，一般不会有这种情况，出现的话从第一个夹取位置开始
+                    else //如果第六次仍然没有成功夹取矛头，一般不会有这种情况，出现的话从第一个夹取位置开�?
                     {
                              
                         clamp.catch_flag = 0; // 先放开夹爪，准备下一个位置的夹取
                         clamp.retractable_flag = 0; // 先收回夹爪，准备下一个位置的夹取   
                         taskENTER_CRITICAL();
-                        chassis_route_point_add(&chassis_route_traj, R_CHASSIS_RACK_3_X,R_CHASSIS_RACK_Y,R_CHASSIS_RACK_W,0);
+                        chassis_route_point_add(&chassis_route_traj, R_CHASSIS_RACK_3_X, R_CHASSIS_RACK_Y, R_CHASSIS_RACK_W, 0, 0);
                         taskEXIT_CRITICAL();
 
                         MC_bb.mc_mission_state = RACK_PICK;
@@ -624,7 +632,7 @@ static BT_Status Act_R2_MC_Mission(void)
         {
             /* 进入这个状态后,执行寻路到达对接点的动作*/
             taskENTER_CRITICAL();
-            chassis_route_point_add(&chassis_route_traj, R_CHASSIS_DOCKING_X, R_CHASSIS_DOCKING_Y, R_CHASSIS_DOCKING_W, 0);
+            chassis_route_point_add(&chassis_route_traj, R_CHASSIS_DOCKING_X, R_CHASSIS_DOCKING_Y, R_CHASSIS_DOCKING_W, 0, 0);
             taskEXIT_CRITICAL();
            
 
@@ -663,7 +671,7 @@ static BT_Status Act_R2_MC_Mission(void)
             {
                 //发送去扫描点的任务
               taskENTER_CRITICAL();
-              chassis_route_point_add(&chassis_route_traj, R_CHASSIS_SCANNING_X, R_CHASSIS_SCANNING_Y, R_CHASSIS_SCANNING_W, 0);
+              chassis_route_point_add(&chassis_route_traj, R_CHASSIS_SCANNING_X, R_CHASSIS_SCANNING_Y, R_CHASSIS_SCANNING_W, 0, 0);
               taskEXIT_CRITICAL();
               clamp.retractable_flag = 0;
             //   clamp.rotate_flag = 0;
@@ -694,7 +702,7 @@ static BT_Status Act_R2_MC_Mission(void)
         case MF_TASK_FLAG:
         {
             MC_bb.MF_MISSION_Req = 1;
-            MC_bb.mc_mission_state = MC_IDLE; //任务完成，回到初始状态等待下一次触发
+            MC_bb.mc_mission_state = MC_IDLE; //任务完成，回到初始状态等待下一次触�?
             MC_bb.R2_MC_timer_ms = 0;
             return BT_SUCCESS;
 
@@ -712,22 +720,22 @@ static BT_Status Act_R2_MC_Mission(void)
 */
 static BT_Status Act_R2_MC_FinishCleanup(void)
 {
-    MC_bb.req_pick = 0; //清除任务请求标志，等待下一次触发  
-    MC_bb.RACK_POS_STABLE_TIMES = 0; //重置矛头位置稳定计数器   
-    MC_bb.mc_mission_state = MC_IDLE; //重置任务状态机状态，准备下一次任务流程  
+    MC_bb.req_pick = 0; //清除任务请求标志，等待下一次触�? 
+    MC_bb.RACK_POS_STABLE_TIMES = 0; //重置矛头位置稳定计数�?  
+    MC_bb.mc_mission_state = MC_IDLE; //重置任务状态机状态，准备下一次任务流�? 
     return BT_SUCCESS;
 }
 
 /**
- * @brief 综合工作流行为树 Root 根节点
- * @note 使用 Memory Sequence (带有记忆功能的顺序执行器)。其特点是：它会按数组顺序逐个执行节点。
+ * @brief 综合工作流行为树 Root 根节�?
+ * @note 使用 Memory Sequence (带有记忆功能的顺序执行器)。其特点是：它会按数组顺序逐个执行节点�?
 */
 static BT_Status BT_R2_MC_Tree_Root(void)
 {
     static const BT_NodeFunc seq[] = {
-        Cond_Has_R2_MC_Mission_Request, // 1. 判断是否被触发启动
-        Act_R2_MC_Mission,              // 2. 执行一区任务的主体流程（包含寻路、夹取、对接等多个阶段）
-        Act_R2_MC_FinishCleanup         // 3. 任务完成后的状态清理
+        Cond_Has_R2_MC_Mission_Request, // 1. 判断是否被触发启�?
+        Act_R2_MC_Mission,              // 2. 执行一区任务的主体流程（包含寻路、夹取、对接等多个阶段�?
+        Act_R2_MC_FinishCleanup         // 3. 任务完成后的状态清�?
     };
 
     /* (uint8_t)(sizeof(seq) / sizeof(seq[0])) = 3 (一共有 3 个子节点) */
@@ -740,12 +748,12 @@ static BT_Status BT_R2_MC_Tree_Root(void)
 void BT_Init_R2_MC_Mission(void)
 {
     MC_bb.req_pick = 0; // 初始化时没有任务请求
-    MC_bb.mc_mission_state = MC_IDLE; // 任务状态机回到初始状态
+    MC_bb.mc_mission_state = MC_IDLE; // 任务状态机回到初始状�?
     MC_bb.seq_mem_idx_combined = 0; // 初始化行为树记忆索引
     MC_bb.R2_MC_timer_ms = 0; // 初始化任务计时器   
     MC_bb.RACK_POS_STABLE_TIMES = 0; // 初始化矛头位置稳定计数器
-    MC_bb.RACK_PICK_SUCCESS = 0; // 初始化夹取成功标志  
-    MC_bb.DOCKING_SUCCESS = 0; // 初始化对接成功标志    
+    MC_bb.RACK_PICK_SUCCESS = 0; // 初始化夹取成功标�? 
+    MC_bb.DOCKING_SUCCESS = 0; // 初始化对接成功标�?   
     MC_bb.MF_ENTRY_INSTRUCTION = 0; // 初始化等待MF指令标志 
     MC_bb.MF_MISSION_Req = 0; // 初始化MF任务重置标志   
 }
@@ -760,20 +768,20 @@ void BT_Start_R2_MC_Mission(void)
 
 /**
  * @brief 武馆任务 
- * @note 挂置于 FreeRTOS 任务调度器的主 Tick 执行入口 (设定 1ms 任务中周期调用)
+ * @note 挂置�?FreeRTOS 任务调度器的�?Tick 执行入口 (设定 1ms 任务中周期调�?
 */
 void BT_Customized_Tick1ms_R2_MC(void)
 {
-    /* 使用 10 ms 的时间片来调度行为树以节省 CPU 算力资源 */
+    /* 使用 10 ms 的时间片来调度行为树以节�?CPU 算力资源 */
     static uint8_t div10 = 0;
     div10++;
     if (div10 < 10) return; 
     div10 = 0;
     
-    /* 运行顶层的行为树控制器 */
+    /* 运行顶层的行为树控制�?*/
     BT_Status status = BT_R2_MC_Tree_Root();
     
-    /* [异常自愈机制] : 若在执行过程中不幸卡死在某个阶段，导致底层 FSM 抛出了纯粹的 BT_FAILURE 给最外层，Memory Sequence 树由于抛出 FAILURE 会被彻底击碎打断。为了避免卡死再也起不来，我们须立刻手动执行状态清理，并干掉记忆位置 `seq_mem_idx_r2_mc = 0`。 */
+    /* [异常自愈机制] : 若在执行过程中不幸卡死在某个阶段，导致底�?FSM 抛出了纯粹的 BT_FAILURE 给最外层，Memory Sequence 树由于抛�?FAILURE 会被彻底击碎打断。为了避免卡死再也起不来，我们须立刻手动执行状态清理，并干掉记忆位�?`seq_mem_idx_r2_mc = 0`�?*/
     if (status == BT_FAILURE) {
         Act_R2_MC_FinishCleanup();
         MC_bb.seq_mem_idx_combined = 0; 
@@ -786,19 +794,19 @@ void BT_Customized_Tick1ms_R2_MC(void)
 
 
 
-/* ================================================ MF 规划行为树 ================================================ */
-/* ================================================ MF 规划行为树 ================================================ */
-/* ================================================ MF 规划行为树 ================================================ */
+/* ================================================ MF 规划行为�?================================================ */
+/* ================================================ MF 规划行为�?================================================ */
+/* ================================================ MF 规划行为�?================================================ */
 
 
 
 
 /*
- * 【架构说明】
- * 1. MF 规划器(mf_planner_ctx)一次性生成完整动作列表
- * 2. 行为树节点 Act_MF_Execute_Action 内部用 FSM 逐个消费动作
- * 3. 每个 MF_Action 映射到对应的底层 task 动作标志位/动作调用
- * 4. 与 MC 组合任务一样，用 Memory Sequence 保持进度
+ * 【架构说明�?
+ * 1. MF 规划�?mf_planner_ctx)一次性生成完整动作列�?
+ * 2. 行为树节�?Act_MF_Execute_Action 内部�?FSM 逐个消费动作
+ * 3. 每个 MF_Action 映射到对应的底层 task 动作标志�?动作调用
+ * 4. �?MC 组合任务一样，�?Memory Sequence 保持进度
  */
 
 /* ================= 1. MF 任务专属状态区 ================= */
@@ -806,26 +814,26 @@ void BT_Customized_Tick1ms_R2_MC(void)
 MF_Blackboard mf_bb;                   /* MF 任务黑板，存放状态量 */
 
 MF_ExecState mf_exec_state = MF_EXEC_IDLE;  /* MF 动作执行状态机 */
-uint32_t mf_exec_timer_ms = 0;              /* MF 执行计时器 */
-uint8_t mf_task_request_flag = 0;           /* MF 任务请求标志 (1=有请求) */
-uint8_t mf_phase_flag = 0;                  /* 规划阶段标记: 0=未规划, 1=Phase1完成, 2=全部规划完成 */
+uint32_t mf_exec_timer_ms = 0;              /* MF 执行计时�?*/
+uint8_t mf_task_request_flag = 0;           /* MF 任务请求标志 (1=有请�? */
+uint8_t mf_phase_flag = 0;                  /* 规划阶段标记: 0=未规�? 1=Phase1完成, 2=全部规划完成 */
 
-uint8_t mf_picked_phase1 = 0;               /* Phase1 已拾取 R2KFS 数量 */
+uint8_t mf_picked_phase1 = 0;               /* Phase1 已拾�?R2KFS 数量 */
 
 uint8_t arm_if_send_point = 0; /* 机械臂是否已经下发轨迹点标志位，避免重复下发 */
 
-uint8_t arm_store_request = 0;  /* 机械臂存储服务请求标志 */
-uint8_t arm_store_busy = 0;     /* 机械臂存储服务占用机械臂标志，后台收尾期间仍为 1 */
+uint8_t arm_store_request = 0;  /* 机械臂存储服务请求标�?*/
+uint8_t arm_store_busy = 0;     /* 机械臂存储服务占用机械臂标志，后台收尾期间仍�?1 */
 uint8_t arm_store_payload_done = 0; /* 块已经放入槽位，MF 可以推进 */
-uint8_t arm_store_done = 0;     /* 存块逻辑完成标志：块已放入槽位，上层 MF 可推进 */
-uint8_t arm_store_failed = 0;   /* 机械臂存储服务失败标志 */
-uint8_t arm_store_slot = 0;                  /* 本次存储使用的槽位: 0=A, 1=B, 2=C */
+uint8_t arm_store_done = 0;     /* 存块逻辑完成标志：块已放入槽位，上层 MF 可推�?*/
+uint8_t arm_store_failed = 0;   /* 机械臂存储服务失败标�?*/
+uint8_t arm_store_slot = 0;                  /* 本次存储使用的槽�? 0=A, 1=B, 2=C */
 
 ArmStoreState arm_store_state = ARM_STORE_IDLE; /* 机械臂存储服务状态机 */
 uint32_t arm_store_timer_ms = 0;                 /* 机械臂存储服务计时器 */
 
 /**
- * @brief 将 MF 方向转对应的底盘朝向角度(yaw)
+ * @brief �?MF 方向转对应的底盘朝向角度(yaw)
  */
 static float mf_dir_to_yaw(MF_Dir dir)
 {
@@ -840,7 +848,7 @@ static float mf_dir_to_yaw(MF_Dir dir)
 
 /**
  * @brief MF 栅格中心坐标 (row, col) 转换为世界坐标系 (x, y)
- * @note 坐标原点 MF_ORIGIN_WORLD_X_BLUE/Y 对应 row0,col0 的中心
+ * @note 坐标原点 MF_ORIGIN_WORLD_X_BLUE/Y 对应 row0,col0 的中�?
  * @note row 向北递增, col 向东递增
  */
 static void mf_cell_to_world(uint8_t row, uint8_t col, float* out_x, float* out_y, MF_MapColor map_color)
@@ -855,31 +863,31 @@ static void mf_cell_to_world(uint8_t row, uint8_t col, float* out_x, float* out_
 }
 
 // /*
-//  * 🟡【需实测】获取当前 R2 所在格的理论高度 (mm)
-//  * @note 用于底盘升降控制——知道目标格的高度才能决定升/降多少
+//  * 🟡【需实测】获取当�?R2 所在格的理论高�?(mm)
+//  * @note 用于底盘升降控制——知道目标格的高度才能决定升/降多�?
 //  */
 // static uint16_t mf_get_current_height(void)
 // {
 //     /*
-//      * 🟡【需实测】这里需要返回 R2 当前的底盘高度。
-//      * 方案1：从 MF 规划器内部追踪（需要在 MF_Planner 中加一个 current_row/col 字段）
+//      * 🟡【需实测】这里需要返�?R2 当前的底盘高度�?
+//      * 方案1：从 MF 规划器内部追踪（需要在 MF_Planner 中加一�?current_row/col 字段�?
 //      * 方案2：用底盘升降的实际编码器位置反算
-//      * 方案3（推荐）：在 MF_Planner 中新增 MFPlanner_GetCurrentHeight() 函数
+//      * 方案3（推荐）：在 MF_Planner 中新�?MFPlanner_GetCurrentHeight() 函数
 //      *
-//      * 当前返回 0 作为占位，需替换为实际实现。
+//      * 当前返回 0 作为占位，需替换为实际实现�?
 //      */
 //     return 0;  /* 🟡 占位，需实测替换 */
 // }
 
 /**
- * @brief 从 KFS 坐标和拾取方向，反推 R2 应站立的世界坐标
+ * @brief �?KFS 坐标和拾取方向，反推 R2 应站立的世界坐标
  * @param kfs_row    KFS 所在行
  * @param kfs_col    KFS 所在列
  * @param pick_dir   拾取方向（R2 面对 KFS 的方向）
  * @param out_x      输出：R2 应站立的世界 X
  * @param out_y      输出：R2 应站立的世界 Y
  * @note R2 站在 KFS 的相邻格（反方向一格），然后向 KFS 偏移 500mm
- * @note 坐标系：北 = +X, 西 = +Y
+ * @note 坐标系：�?= +X, �?= +Y
  */
 static void mf_pick_stand_position(uint8_t kfs_row, uint8_t kfs_col,
                                     MF_Dir pick_dir,
@@ -887,19 +895,19 @@ static void mf_pick_stand_position(uint8_t kfs_row, uint8_t kfs_col,
 {
     /*
      * 第一步：确定 R2 站在哪个格子
-     * 方向 N → R2 在南侧 (row-1)
-     * 方向 S → R2 在北侧 (row+1)
-     * 方向 E → R2 在西侧 (col+1, 因为西=+Y)
-     * 方向 W → R2 在东侧 (col-1)
+     * 方向 N �?R2 在南�?(row-1)
+     * 方向 S �?R2 在北�?(row+1)
+     * 方向 E �?R2 在西�?(col+1, 因为�?+Y)
+     * 方向 W �?R2 在东�?(col-1)
      */
     int8_t stand_r = (int8_t)kfs_row;
     int8_t stand_c = (int8_t)kfs_col;
 
     switch (pick_dir) {
-        case MF_DIR_NORTH: stand_r -= 1; break;  /* 面朝北，R2 在南边 */
-        case MF_DIR_SOUTH: stand_r += 1; break;  /* 面朝南，R2 在北边 */
-        case MF_DIR_EAST:  stand_c -= 1; break;  /* 面朝东，R2 在西边 */
-        case MF_DIR_WEST:  stand_c += 1; break;  /* 面朝西，R2 在东边 */
+        case MF_DIR_NORTH: stand_r -= 1; break;  /* 面朝北，R2 在南�?*/
+        case MF_DIR_SOUTH: stand_r += 1; break;  /* 面朝南，R2 在北�?*/
+        case MF_DIR_EAST:  stand_c -= 1; break;  /* 面朝东，R2 在西�?*/
+        case MF_DIR_WEST:  stand_c += 1; break;  /* 面朝西，R2 在东�?*/
         default: break;
     }
 
@@ -908,13 +916,13 @@ static void mf_pick_stand_position(uint8_t kfs_row, uint8_t kfs_col,
     mf_cell_to_world((uint8_t)stand_r, (uint8_t)stand_c, &center_x, &center_y, mf_planner_ctx.map_color);
 
     /*
-     * 第三步：从格中心向 KFS 方向偏移 200mm
-     * MF_CELL_SIZE_MM 是格边长（如 1200mm）
+     * 第三步：从格中心�?KFS 方向偏移 200mm
+     * MF_CELL_SIZE_MM 是格边长（如 1200mm�?
      * 格中心到格边界的距离 = MF_CELL_SIZE_MM / 2
      * 再向 KFS 靠近，使底盘(600*600)前缘距离台阶边界 100mm
      *
      *
-     * 🟡【需实测】200mm 这个值需要根据底盘实际尺寸调整
+     * 🟡【需实测�?00mm 这个值需要根据底盘实际尺寸调�?
      */
     float offset = 200.0f; /* 站立点距离格中心的偏移量，需实测调整 */
 
@@ -936,19 +944,19 @@ static void mf_step_stand_position(uint8_t step_row, uint8_t step_col,
 {
     /*
      * 第一步：确定 R2 站在哪个格子
-     * 方向 N → R2 在南侧 (row-1)
-     * 方向 S → R2 在北侧 (row+1)
-     * 方向 E → R2 在西侧 (col-1)
-     * 方向 W → R2 在东侧 (col+1)
+     * 方向 N �?R2 在南�?(row-1)
+     * 方向 S �?R2 在北�?(row+1)
+     * 方向 E �?R2 在西�?(col-1)
+     * 方向 W �?R2 在东�?(col+1)
      */
     int8_t stand_r = (int8_t)step_row;
     int8_t stand_c = (int8_t)step_col;
 
     switch (step_dir) {
-        case MF_DIR_NORTH: stand_r -= 1; break;  /* 面朝北，R2 在南边 */
-        case MF_DIR_SOUTH: stand_r += 1; break;  /* 面朝南，R2 在北边 */
-        case MF_DIR_EAST:  stand_c -= 1; break;  /* 面朝东，R2 在西边 */
-        case MF_DIR_WEST:  stand_c += 1; break;  /* 面朝西，R2 在东边 */
+        case MF_DIR_NORTH: stand_r -= 1; break;  /* 面朝北，R2 在南�?*/
+        case MF_DIR_SOUTH: stand_r += 1; break;  /* 面朝南，R2 在北�?*/
+        case MF_DIR_EAST:  stand_c -= 1; break;  /* 面朝东，R2 在西�?*/
+        case MF_DIR_WEST:  stand_c += 1; break;  /* 面朝西，R2 在东�?*/
         default: break;
     }
 
@@ -972,7 +980,7 @@ static void mf_step_stand_position(uint8_t step_row, uint8_t step_col,
 /**
  * @brief 根据槽位下发后向存储路径
  * @param slot 0=A, 1=B, 2=C
- * @return 1 表示成功下发，0 表示槽位无效
+ * @return 1 表示成功下发�? 表示槽位无效
  */
 static uint8_t Arm_Store_SendPath(uint8_t slot)
 {
@@ -1152,46 +1160,46 @@ static BT_Status Cond_Has_MF_Request(void)
 /* ================= 3. 动作节点 ================= */
 
 /**
- * @brief 初始化 MF 规划器
+ * @brief 初始�?MF 规划�?
  * @note 函数内部仅含有：规划器初始化，地图加载，状态初始化
  * @note 包含一个初始扫描动作的下发，供后续阶段使用
- * @warning 不包含阶段性的规划函数调用（BuildPhase1/2）
+ * @warning 不包含阶段性的规划函数调用（BuildPhase1/2�?
  */
 static BT_Status Act_MF_Init_And_Plan(void)
 {
     if (mf_phase_flag >= 2) {
-        /* 已经规划完成，直接返回成功 */
+        /* 已经规划完成，直接返回成�?*/
         return BT_SUCCESS;
     }
 
     /* --- 初始化规划器 --- */
-    /* 🟡【需替换】根据实际比赛地图颜色选择 RED_MAP 或 BLUE_MAP */
+    /* 🟡【需替换】根据实际比赛地图颜色选择 RED_MAP �?BLUE_MAP */
     MFPlanner_Init(&mf_planner_ctx, RED_MAP);  
     MFPlanner_LoadFixedDemoMap(&mf_planner_ctx);
     /* 此时：row0/row5=EMPTY，height 全部已知，row1~row4=UNKNOWN */
 
-    // /* --- 阶段1：第一次扫描 + 局部规划 --- */
+    // /* --- 阶段1：第一次扫�?+ 局部规�?--- */
     // /*
-    //  * 🟡【需替换】BuildPhase1 内部会调用 ScanRows 模拟扫描。
-    //  * 实际比赛时应由相机回调填充 cell 数据，再调用 BuildPhase1。
-    //  * 当前调试阶段 BuildPhase1 内部硬编码了 real_cell。
+    //  * 🟡【需替换】BuildPhase1 内部会调�?ScanRows 模拟扫描�?
+    //  * 实际比赛时应由相机回调填�?cell 数据，再调用 BuildPhase1�?
+    //  * 当前调试阶段 BuildPhase1 内部硬编码了 real_cell�?
     //  */
     // MFPlanner_BuildPhase1(&mf_planner_ctx, 0, 1, &mf_picked_phase1);
     // mf_phase_flag = 1;
     // /* --- 阶段2：全局拾取 + 走到出口 --- */
     // /*
-    //  * 🟡【需确认】r2kfs_all_need 的值应根据实际视觉识别结果动态确定。
-    //  * 当前硬编码为 4（与 ScanRows 中 real_cell 的 R2KFS 总数一致）。
+    //  * 🟡【需确认】r2kfs_all_need 的值应根据实际视觉识别结果动态确定�?
+    //  * 当前硬编码为 4（与 ScanRows �?real_cell �?R2KFS 总数一致）�?
     //  */
     // uint8_t r2kfs_all_need = 3; /* 🟡 占位，需根据实际视觉结果替换 */
     // MFPlanner_BuildPhase2(&mf_planner_ctx, r2kfs_all_need - mf_picked_phase1);
     // mf_phase_flag = 2;
 
-    /* 由于 BT+状态机 的特性，需要在初始化时即向动作序列中添加一个扫描动作 */
-    /* 第一次扫描：在 row0,col1 面朝北，揭示 row1~row3 */
+    /* 由于 BT+状态机 的特性，需要在初始化时即向动作序列中添加一个扫描动�?*/
+    /* 第一次扫描：�?row0,col1 面朝北，揭示 row1~row3 */
     MF_PushAction(&mf_planner_ctx, MF_ACT_SCAN, MF_DIR_NORTH, 0, 1);
 
-    /* 初始化执行状态 */
+    /* 初始化执行状�?*/
     mf_exec_state = MF_EXEC_IDLE;
     mf_exec_timer_ms = 0;
 
@@ -1203,16 +1211,16 @@ static BT_Status Act_MF_Init_And_Plan(void)
  * @note 这是核心节点。内部用 FSM 消费 mf_planner_ctx.actions[]
  * @note 每次 Tick 推进一步，返回 BT_RUNNING 直到全部完成
  *
- * 🟡🟡🟡【重要】以下每个 case 中标注了 🟡【需实测】的地方，
- *     需要你根据实际硬件（底盘、机械臂、传感器）填入真实的底层调用。
+ * 🟡🟡🟡【重要】以下每�?case 中标注了 🟡【需实测】的地方�?
+ *     需要你根据实际硬件（底盘、机械臂、传感器）填入真实的底层调用�?
  */
 static BT_Status Act_MF_Execute_Action(void)
 {
 
-    // 如果当前没有正在执行的动作，尝试从 mf_planner_ctx 的 actions 列表中取出下一个动作
+    // 如果当前没有正在执行的动作，尝试�?mf_planner_ctx �?actions 列表中取出下一个动�?
     MF_Action act;
     if (!MFPlanner_PeekAction(&mf_planner_ctx, &act)) {
-        /* 没有更多动作了 */
+        /* 没有更多动作�?*/
         return BT_SUCCESS;
     }
 
@@ -1224,7 +1232,7 @@ static BT_Status Act_MF_Execute_Action(void)
     /* ============================================================ */
     case MF_EXEC_IDLE:
 
-        // 过滤全0动作（无效动作）
+        // 过滤�?动作（无效动作）
         if (act.type == MF_ACT_MOVE_FLAT && act.row == 0 && act.col == 0 && act.height_pick_diff == 0 && act.dir == MF_DIR_NORTH) {
             MFPlanner_AdvanceAction(&mf_planner_ctx);
             return BT_RUNNING;  /* mf_exec_state 保持 IDLE */
@@ -1237,14 +1245,14 @@ static BT_Status Act_MF_Execute_Action(void)
         case MF_ACT_MOVE_FLAT: {
             /*
                 * 🟡【需实测】将 (row,col) + 方向 转为世界坐标，下发给底盘
-                * 你需要做的事：
+                * 你需要做的事�?
                 *   1. 调用 mf_cell_to_world(act.row, act.col, &tx, &ty) 得到目标坐标
                 *   2. 调用 mf_dir_to_yaw(act.dir) 得到目标朝向
-                *   3. 调用 chassis_route_point_add(&chassis_route_traj, tx, ty, yaw, 0)
-                *      下发给底盘轨迹队列
+                *   3. 调用 chassis_route_point_add(&chassis_route_traj, tx, ty, yaw, 0, 0)
+                *      下发给底盘轨迹队�?
                 *
-                * 下层 task 的标志位/动作：
-                *   - 底盘 task (entry_chassis) 会轮询 chassis_route_traj 队列自动执行
+                * 下层 task 的标志位/动作�?
+                *   - 底盘 task (entry_chassis) 会轮�?chassis_route_traj 队列自动执行
                 *   - 无需额外的标志位，chassis_route_point_add 即可触发
                 */
             float tx, ty;
@@ -1253,7 +1261,7 @@ static BT_Status Act_MF_Execute_Action(void)
             // mf_dir_to_yaw(act.dir);
 
             taskENTER_CRITICAL();
-            chassis_route_point_add(&chassis_route_traj, tx, ty, Radar_Pos.reliable_yaw, 0);
+            chassis_route_point_add(&chassis_route_traj, tx, ty, Radar_Pos.reliable_yaw, 0, 0);
             taskEXIT_CRITICAL();
 
             mf_exec_state = MF_EXEC_MOVE_FLAT;
@@ -1261,17 +1269,17 @@ static BT_Status Act_MF_Execute_Action(void)
             break;
         }
 
-        /* ---------- 上台阶 ---------- */
+        /* ---------- 上台�?---------- */
         case MF_ACT_STEP_UP: {
             // /*
-            // * 启动底盘上台阶 FSM。
-            // * 当前 MF_Action 结构中暂不携带台阶高度(200/400)信息，
-            // * 默认使用 STEP_UP_200；如需区分 400mm，可复用 act.height_pick_diff 字段。
+            // * 启动底盘上台�?FSM�?
+            // * 当前 MF_Action 结构中暂不携带台阶高�?200/400)信息�?
+            // * 默认使用 STEP_UP_200；如需区分 400mm，可复用 act.height_pick_diff 字段�?
             // *
             // * 台阶 FSM 会自行管理：
-            // *   - 支撑柱升降（通过 chassis_lift_queue_add_point → freertos 位控消费）
-            // *   - 辅助轮驱动（通过 g_lift_wheel_target → freertos 消费）
-            // *   - 微动开关检测 → 决定何时收回前/后柱
+            // *   - 支撑柱升降（通过 chassis_lift_queue_add_point �?freertos 位控消费�?
+            // *   - 辅助轮驱动（通过 g_lift_wheel_target �?freertos 消费�?
+            // *   - 微动开关检�?�?决定何时收回�?后柱
             // */
             // ChassisStepType step_type = STEP_UP_200;  // 默认 200mm
             // // 如果 MF_Action 携带了高度差信息，用 400mm
@@ -1281,20 +1289,20 @@ static BT_Status Act_MF_Execute_Action(void)
             // mf_exec_timer_ms = 0;
             // break;
             /*
-            * 第一步：先让底盘转向台阶方向，面朝 act.dir。
-            * 目标点为当前格中心坐标，朝向与动作方向一致。
+            * 第一步：先让底盘转向台阶方向，面�?act.dir�?
+            * 目标点为当前格中心坐标，朝向与动作方向一致�?
             */
             // float cur_cell_x, cur_cell_y;
             // mf_cell_to_world(act.row, act.col, &cur_cell_x, &cur_cell_y, mf_planner_ctx.map_color);
             float stand_x, stand_y;
             mf_step_stand_position(act.row, act.col, act.dir, &stand_x, &stand_y);
-            /* 目标朝向 = 拾取方向对应的 yaw */
+            /* 目标朝向 = 拾取方向对应�?yaw */
             float step_yaw;
             step_yaw = mf_dir_to_yaw(act.dir);
             
             taskENTER_CRITICAL();
             /* 复用 */
-            chassis_route_point_add(&chassis_route_traj, stand_x, stand_y, step_yaw, 0);
+            chassis_route_point_add(&chassis_route_traj, stand_x, stand_y, step_yaw, 0, 0);
             taskEXIT_CRITICAL();
 
             mf_exec_state = MF_EXEC_STEP_UP;
@@ -1302,17 +1310,17 @@ static BT_Status Act_MF_Execute_Action(void)
             break;
         }
 
-        /* ---------- 下台阶 ---------- */
+        /* ---------- 下台�?---------- */
         case MF_ACT_STEP_DOWN: {
 
             float stand_x, stand_y;
             mf_step_stand_position(act.row, act.col, act.dir, &stand_x, &stand_y);
-            /* 目标朝向 = 拾取方向对应的 yaw */
+            /* 目标朝向 = 拾取方向对应�?yaw */
             float step_yaw;
             step_yaw = mf_dir_to_yaw(act.dir);
             
             taskENTER_CRITICAL();
-            chassis_route_point_add(&chassis_route_traj, stand_x, stand_y, step_yaw, 0);
+            chassis_route_point_add(&chassis_route_traj, stand_x, stand_y, step_yaw, 0, 0);
             taskEXIT_CRITICAL();
 
             mf_exec_state = MF_EXEC_STEP_DOWN;
@@ -1324,39 +1332,39 @@ static BT_Status Act_MF_Execute_Action(void)
         case MF_ACT_PICK_R2: {
             /*
                 * 🟡【需实测】机械臂拾取动作
-                * 你需要做的事：
-                *   1. 根据 act.row/act.col 确定 KFS 的世界坐标
+                * 你需要做的事�?
+                *   1. 根据 act.row/act.col 确定 KFS 的世界坐�?
                 *   2. 根据 act.height_pick_diff 确定机械臂的拾取高度
-                *      - height_pick_diff = +200: KFS 在 R2 上方 200mm
-                *      - height_pick_diff = 0:   KFS 与 R2 同高
-                *      - height_pick_diff = -200: KFS 在 R2 下方 200mm
-                *   3. 根据 act.dir 确定 R2 面朝方向（机械臂从哪个方向伸过去）
-                *   4. 调用 arm_queue_add_point 向机械臂轨迹队列添加拾取路径点
+                *      - height_pick_diff = +200: KFS �?R2 上方 200mm
+                *      - height_pick_diff = 0:   KFS �?R2 同高
+                *      - height_pick_diff = -200: KFS �?R2 下方 200mm
+                *   3. 根据 act.dir 确定 R2 面朝方向（机械臂从哪个方向伸过去�?
+                *   4. 调用 arm_queue_add_point 向机械臂轨迹队列添加拾取路径�?
                 *
-                * 下层 task 的标志位/动作：
+                * 下层 task 的标志位/动作�?
                 *   - arm_queue_add_point(&arm_traj, x, y, theta, time, suck)
-                *     在 entry_robotic_arm 中自动消费
-                *   - ARM_SUCK_ON 开启吸盘
+                *     �?entry_robotic_arm 中自动消�?
+                *   - ARM_SUCK_ON 开启吸�?
                 *   - ARM_SUCK_OFF 关闭吸盘
                 *
-                * 🟡 你需要预先测试好不同高度差下机械臂的拾取坐标，
-                *    然后在此处根据 height_pick_diff 查表或计算。
+                * 🟡 你需要预先测试好不同高度差下机械臂的拾取坐标�?
+                *    然后在此处根�?height_pick_diff 查表或计算�?
                 */
             if(arm_store_busy || arm_store_state != ARM_STORE_IDLE) {
                 /* 机械臂存储服务正在忙，等待其完成 */
                 return BT_RUNNING;
             }
 
-            /* 计算 R2 应该站立的世界坐标 */
+            /* 计算 R2 应该站立的世界坐�?*/
             float stand_x, stand_y;
             mf_pick_stand_position(act.row, act.col, act.dir, &stand_x, &stand_y);
-            /* 目标朝向 = 拾取方向对应的 yaw */
+            /* 目标朝向 = 拾取方向对应�?yaw */
             float pick_yaw;
             pick_yaw = mf_dir_to_yaw(act.dir);
             
             taskENTER_CRITICAL();
             // 让底盘转到位预期的方向，机械臂的路点在MF_EXEC_PICK_R2状态中下发
-            chassis_route_point_add(&chassis_route_traj, stand_x, stand_y, pick_yaw, 0);
+            chassis_route_point_add(&chassis_route_traj, stand_x, stand_y, pick_yaw, 0, 0);
             taskEXIT_CRITICAL();
 
             mf_exec_state = MF_EXEC_PICK_R2;
@@ -1367,19 +1375,19 @@ static BT_Status Act_MF_Execute_Action(void)
         /* ---------- 等待 R1 清除 R1KFS ---------- */
         case MF_ACT_WAIT_R1: {
             /*
-                * 🟡【需实测/需通信】等待 R1 机器人取走 R1KFS
-                * 你需要做的事：
-                *   1. 通过通信模块（如裁判系统/自定义无线）接收 R1 的完成信号
-                *   2. 收到信号后调用 MFPlanner_NotifyR1KfsRemoved 更新地图
-                *   3. 如果超时，可以强行通过（假设 R1 已完成但通信丢失）
+                * 🟡【需实测/需通信】等�?R1 机器人取�?R1KFS
+                * 你需要做的事�?
+                *   1. 通过通信模块（如裁判系统/自定义无线）接收 R1 的完成信�?
+                *   2. 收到信号后调�?MFPlanner_NotifyR1KfsRemoved 更新地图
+                *   3. 如果超时，可以强行通过（假�?R1 已完成但通信丢失�?
                 *
-                * 当前实现：轮询 cell 状态（由外部 NotifyR1KfsRemoved 更新）
+                * 当前实现：轮�?cell 状态（由外�?NotifyR1KfsRemoved 更新�?
                 * 调试阶段：超时后自动跳过
                 *
-                * 下层 task 的标志位/动作：
-                *   - 需要一个全局标志位，如 r1_clear_signal
-                *   - 由通信 task 在收到 R1 信号后置位
-                *   - 本节点检查该标志位
+                * 下层 task 的标志位/动作�?
+                *   - 需要一个全局标志位，�?r1_clear_signal
+                *   - 由通信 task 在收�?R1 信号后置�?
+                *   - 本节点检查该标志�?
                 */
             mf_exec_state = MF_EXEC_WAIT_R1;
             mf_exec_timer_ms = 0;
@@ -1389,9 +1397,9 @@ static BT_Status Act_MF_Execute_Action(void)
         /* ---------- 扫描 ---------- */
         case MF_ACT_SCAN: {
             /*
-                * 🟡【需替换】触发相机扫描
-                * 调试阶段：直接调用 ScanRows 用硬编码地图填充
-                * 实际比赛：
+                * 🟡【需替换】触发相机扫�?
+                * 调试阶段：直接调�?ScanRows 用硬编码地图填充
+                * 实际比赛�?
                 *   1. 触发相机拍照
                 *   2. 等待视觉模块返回识别结果
                 *   3. 调用 MFPlanner_ScanRows 或逐个 cell 更新
@@ -1399,23 +1407,23 @@ static BT_Status Act_MF_Execute_Action(void)
             /* 根据执行位置判断是第一次扫描规划还是第二次扫描规划 */
             if (act.row == 0 && act.col == 1) {
                 /* 此处没有第一次扫描动作的push，该动作的push应在初始化时添加 */
-                /* 第一次扫描：在 row0,col1 面朝北，揭示 row1~row2 */
-                /* 🟡【需替换】 */
+                /* 第一次扫描：�?row0,col1 面朝北，揭示 row1~row2 */
+                /* 🟡【需替换�?*/
                 MFPlanner_BuildPhase1(&mf_planner_ctx, 0, 1, &mf_picked_phase1);
             } else if (act.row == 1 && act.col == 1) {
-                /* 第二次扫描：在 row1,col1 面朝北，揭示 row3~row4 */
+                /* 第二次扫描：�?row1,col1 面朝北，揭示 row3~row4 */
                 MFPlanner_BuildPhase2(&mf_planner_ctx, R2_KFS_ALL_NEED - mf_picked_phase1);
                 debug_if_reach_MF_phase2_scan = 1; // 用于调试，实际比赛时请替换为 BuildPhase2 调用
             }
 
             /* 
                 * 🟡 如果视觉模块是异步的（需要等待），这里需要改为：
-                *   1. 触发扫描 → 进入 MF_EXEC_SCAN 状态
+                *   1. 触发扫描 �?进入 MF_EXEC_SCAN 状�?
                 *   2. 轮询视觉完成标志
-                *   3. 完成后读取数据 → 更新 cell
+                *   3. 完成后读取数�?�?更新 cell
                 * 当前为调试简化：扫描瞬间完成
             */
-            /* 扫描完成，推进到下一个动作 */
+            /* 扫描完成，推进到下一个动�?*/
             MFPlanner_AdvanceAction(&mf_planner_ctx);
             mf_exec_state = MF_EXEC_IDLE;
             break;
@@ -1432,9 +1440,9 @@ static BT_Status Act_MF_Execute_Action(void)
     case MF_EXEC_MOVE_FLAT:
     {
         /*
-            * 🟡【需实测】底盘到达判断条件
-            * 使用 chassis_if_arrived 或 chassis_route_traj 的 is_finished 标志
-            * 需要与你的底盘路径执行逻辑（entry_chassis）对齐
+            * 🟡【需实测】底盘到达判断条�?
+            * 使用 chassis_if_arrived �?chassis_route_traj �?is_finished 标志
+            * 需要与你的底盘路径执行逻辑（entry_chassis）对�?
             */
 
         float tx, ty;
@@ -1442,7 +1450,7 @@ static BT_Status Act_MF_Execute_Action(void)
 
         if(chassis_if_arrived(tx, ty, Radar_Pos.reliable_yaw))  //底盘到位即可，不要求底盘强制面朝位移方向
         {
-            /* 平移到位，推进到下一个动作 */
+            /* 平移到位，推进到下一个动�?*/
             MFPlanner_AdvanceAction(&mf_planner_ctx);
             mf_exec_state = MF_EXEC_IDLE;
         }
@@ -1453,22 +1461,22 @@ static BT_Status Act_MF_Execute_Action(void)
         return BT_RUNNING;
     }
     /* ============================================================ */
-    /* STEP_UP 状态：等待上台阶 FSM 完成                              */
+    /* STEP_UP 状态：等待上台�?FSM 完成                              */
     /* ============================================================ */
     case MF_EXEC_STEP_UP:
     {
         /*
-        * 每 10ms 推进一次台阶 FSM。
-        *   BT_RUNNING  → 台阶动作仍在进行中
-        *   BT_SUCCESS  → 上台阶完成，推进到下一个 MF 动作
-        *   BT_FAILURE  → 超时或异常，进入 MF 失败处理
+        * �?10ms 推进一次台�?FSM�?
+        *   BT_RUNNING  �?台阶动作仍在进行�?
+        *   BT_SUCCESS  �?上台阶完成，推进到下一�?MF 动作
+        *   BT_FAILURE  �?超时或异常，进入 MF 失败处理
         *
-        * 当前扩展：FSM 进入 STEP_UP_DRIVE_TO_REAR_TOUCH（前柱已完全收回）时，
+        * 当前扩展：FSM 进入 STEP_UP_DRIVE_TO_REAR_TOUCH（前柱已完全收回）时�?
         * 向底盘四个全向轮发送台阶目标格世界坐标，辅助轮+全向轮共同前进，
-        * 同时抑制后微动触发台阶时的反弹趋势。
+        * 同时抑制后微动触发台阶时的反弹趋势�?
         */
 
-        static uint8_t step_up_fsm_started = 0;    /* FSM 是否已启动 */
+        static uint8_t step_up_fsm_started = 0;    /* FSM 是否已启�?*/
         static uint8_t step_up_chassis_sent = 0;  /* 防止重复发送路径点 */
 
         MF_Action act;
@@ -1478,18 +1486,18 @@ static BT_Status Act_MF_Execute_Action(void)
         // mf_cell_to_world(act.row, act.col, &cur_cell_x, &cur_cell_y, mf_planner_ctx.map_color);
         float step_yaw = mf_dir_to_yaw(act.dir);
 
-            /* ---- 阶段 1：等待底盘移动/转向到位（面朝台阶方向） ---- */
+            /* ---- 阶段 1：等待底盘移�?转向到位（面朝台阶方向） ---- */
         if (!step_up_fsm_started)
         {
             float stand_x, stand_y;
             mf_step_stand_position(act.row, act.col, act.dir, &stand_x, &stand_y);
-            /* 目标朝向 = 拾取方向对应的 yaw */
+            /* 目标朝向 = 拾取方向对应�?yaw */
             float step_yaw;
             step_yaw = mf_dir_to_yaw(act.dir);
 
             if (chassis_if_arrived(stand_x, stand_y, step_yaw))
             {
-                /* 底盘已到位，启动上台阶 FSM */
+                /* 底盘已到位，启动上台�?FSM */
                 ChassisStepType step_type = STEP_UP_200;
                 chassis_step_fsm_start(&g_step_fsm, step_type);
                 step_up_fsm_started = 1;
@@ -1508,7 +1516,7 @@ static BT_Status Act_MF_Execute_Action(void)
         if (!step_up_chassis_sent &&
             g_step_fsm.state == STEP_UP_WAIT_DEPLOY_DONE)
         {
-            /* 计算台阶目标格（当前格沿 act.dir 方向偏移一格）的世界坐标 */
+            /* 计算台阶目标格（当前格沿 act.dir 方向偏移一格）的世界坐�?*/
             int8_t target_row = (int8_t)act.row;
             int8_t target_col = (int8_t)act.col;
 
@@ -1518,7 +1526,7 @@ static BT_Status Act_MF_Execute_Action(void)
             float step_yaw = mf_dir_to_yaw(act.dir);
 
             taskENTER_CRITICAL();
-            chassis_route_point_add(&chassis_route_traj, step_tx, step_ty, step_yaw, 0);
+            chassis_route_point_add(&chassis_route_traj, step_tx, step_ty, step_yaw, 0, 0);
             step_up_chassis_sent = 1;
             taskEXIT_CRITICAL();
 
@@ -1538,11 +1546,11 @@ static BT_Status Act_MF_Execute_Action(void)
     }
 
     /* ============================================================ */
-    /* STEP_DOWN 状态：等待下台阶 FSM 完成                            */
+    /* STEP_DOWN 状态：等待下台�?FSM 完成                            */
     /* ============================================================ */
     case MF_EXEC_STEP_DOWN:
     {
-        static uint8_t step_down_fsm_started = 0;  /* FSM 是否已启动 */
+        static uint8_t step_down_fsm_started = 0;  /* FSM 是否已启�?*/
         static uint8_t step_down_chassis_sent = 0;  /* 防止重复发送路径点 */
 
         MF_Action act;
@@ -1552,18 +1560,18 @@ static BT_Status Act_MF_Execute_Action(void)
         // mf_cell_to_world(act.row, act.col, &cur_cell_x, &cur_cell_y, mf_planner_ctx.map_color);
         float step_yaw = mf_dir_to_yaw(act.dir);
 
-        /* ---- 阶段 1：等待底盘转向到位（面朝台阶方向、到达当前格中心） ---- */
+        /* ---- 阶段 1：等待底盘转向到位（面朝台阶方向、到达当前格中心�?---- */
         if (!step_down_fsm_started)
         {
             float stand_x, stand_y;
             mf_step_stand_position(act.row, act.col, act.dir, &stand_x, &stand_y);
-            /* 目标朝向 = 拾取方向对应的 yaw */
+            /* 目标朝向 = 拾取方向对应�?yaw */
             float step_yaw;
             step_yaw = mf_dir_to_yaw(act.dir);
 
             if (chassis_if_arrived(stand_x, stand_y, step_yaw))
             {
-                /* 底盘已到位，启动下台阶 FSM */
+                /* 底盘已到位，启动下台�?FSM */
                 ChassisStepType step_type = STEP_DOWN_200;
                 chassis_step_fsm_start(&g_step_fsm, step_type);
                 step_down_fsm_started = 1;
@@ -1582,7 +1590,7 @@ static BT_Status Act_MF_Execute_Action(void)
         if (!step_down_chassis_sent &&
             g_step_fsm.state == STEP_DOWN_DRIVE_FRONT_LEAVE)
         {
-            /* 计算台阶目标格（当前格沿 act.dir 方向偏移一格）的世界坐标 */
+            /* 计算台阶目标格（当前格沿 act.dir 方向偏移一格）的世界坐�?*/
             int8_t target_row = (int8_t)act.row;
             int8_t target_col = (int8_t)act.col;
 
@@ -1593,7 +1601,7 @@ static BT_Status Act_MF_Execute_Action(void)
 
             taskENTER_CRITICAL();
             chassis_r2.chassis_en_flag = 0;  // 禁用底盘
-            chassis_route_point_add(&chassis_route_traj, step_tx, step_ty, step_yaw, 0);
+            chassis_route_point_add(&chassis_route_traj, step_tx, step_ty, step_yaw, 0, 0);
             step_down_chassis_sent = 1;
             taskEXIT_CRITICAL();
 
@@ -1614,21 +1622,21 @@ static BT_Status Act_MF_Execute_Action(void)
     }
 
     /* ============================================================ */
-    /* PICK_R2 状态：等待机械臂拾取完成                              */
+    /* PICK_R2 状态：等待机械臂拾取完�?                             */
     /* ============================================================ */
     case MF_EXEC_PICK_R2:
     {
         /*
             * 🟡【需实测】机械臂拾取完成判断
             * 使用 arm_if_arrived_xy
-            * 原因为：可以在机械臂到达存块位置后，让机械臂继续存块，但是行为树先行推进，
-            * 这样可以节省时间（不必等机械臂完全收回再走下一步），也让流程更顺畅。
+            * 原因为：可以在机械臂到达存块位置后，让机械臂继续存块，但是行为树先行推进�?
+            * 这样可以节省时间（不必等机械臂完全收回再走下一步），也让流程更顺畅�?
             */
 
-        /* 计算 R2 应该站立的世界坐标 */
+        /* 计算 R2 应该站立的世界坐�?*/
         float stand_x, stand_y;
         mf_pick_stand_position(act.row, act.col, act.dir, &stand_x, &stand_y);
-        /* 目标朝向 = 拾取方向对应的 yaw */
+        /* 目标朝向 = 拾取方向对应�?yaw */
         float pick_yaw;
         pick_yaw = mf_dir_to_yaw(act.dir);
 
@@ -1637,25 +1645,25 @@ static BT_Status Act_MF_Execute_Action(void)
         // if(1)
         {
             arm_if_send_point = 1;  // 机械臂轨迹队列允许发送点
-            if(act.height_pick_diff == -200)    // KFS 在 R2 下方 200mm
+            if(act.height_pick_diff == -200)    // KFS �?R2 下方 200mm
             {
                 arm_queue_add_point(&arm_traj, PICK_N200_APR_X_1, PICK_N200_APR_Y_1, 0, 0, ARM_PUMP_RELEASE, -90.0f/180.0f*PI);   // 预抓取点1
                 arm_queue_add_point(&arm_traj, PICK_N200_TARGET_X, PICK_N200_TARGET_Y, 0, PICK_TIME, ARM_PUMP_SUCK, -90/180.0f*PI);  // 最终抓取点
                 arm_queue_add_point(&arm_traj, PICK_PRE_TRANS_X, PICK_PRE_TRANS_Y, 0, 0, ARM_PUMP_SUCK, -90.0f/180.0f*PI);                // 此处应换成放置点坐标，用待机位置做占位
             }
-            if(act.height_pick_diff == 200)     // KFS 在 R2 上方 200mm
+            if(act.height_pick_diff == 200)     // KFS �?R2 上方 200mm
             {
                 arm_queue_add_point(&arm_traj, PICK_P200_APR_X_1, PICK_P200_APR_Y_1, 0, 0, ARM_PUMP_RELEASE, 0.0f);   // 预抓取点1
                 arm_queue_add_point(&arm_traj, PICK_P200_TARGET_X, PICK_P200_TARGET_Y, 0, PICK_TIME, ARM_PUMP_SUCK, 0.0f);  // 最终抓取点
                 arm_queue_add_point(&arm_traj, PICK_PRE_TRANS_X, PICK_PRE_TRANS_Y, 0, 0, ARM_PUMP_SUCK, 0.0f);                // 此处应换成放置点坐标，用待机位置做占位
             }
-            if(act.height_pick_diff == 400)    // KFS 在 R2 上方 400mm
+            if(act.height_pick_diff == 400)    // KFS �?R2 上方 400mm
             {
                 arm_queue_add_point(&arm_traj, PICK_P400_APR_X_1, PICK_P400_APR_Y_1, 0, 0, ARM_PUMP_RELEASE, 0.0f);   // 预抓取点1
                 arm_queue_add_point(&arm_traj, PICK_P400_TARGET_X, PICK_P400_TARGET_Y, 0, PICK_TIME, ARM_PUMP_SUCK, 0.0f);  // 最终抓取点
                 arm_queue_add_point(&arm_traj, PICK_PRE_TRANS_X, PICK_PRE_TRANS_Y, 0, 0, ARM_PUMP_SUCK, 0.0f);                // 此处应换成放置点坐标，用待机位置做占位
             }
-            if(act.height_pick_diff == 0)      // KFS 与 R2 同高
+            if(act.height_pick_diff == 0)      // KFS �?R2 同高
             {
                 arm_queue_add_point(&arm_traj, PICK_0_APR_X_1, PICK_0_APR_Y_1, 0, 0, ARM_PUMP_RELEASE, 0.0f);   // 预抓取点1
                 arm_queue_add_point(&arm_traj, PICK_0_TARGET_X, PICK_0_TARGET_Y, 0, PICK_TIME, ARM_PUMP_SUCK, 0.0f);  // 最终抓取点
@@ -1722,28 +1730,28 @@ static BT_Status Act_MF_Execute_Action(void)
     case MF_EXEC_WAIT_R1:
         /*
             * 🟡【需实测/需通信】R1 完成信号判断
-            * 方案1（当前）：检查 cell 是否已被 NotifyR1KfsRemoved 置为 EMPTY
-            * 方案2（推荐）：检查通信模块的 r1_clear_signal 标志位
+            * 方案1（当前）：检�?cell 是否已被 NotifyR1KfsRemoved 置为 EMPTY
+            * 方案2（推荐）：检查通信模块�?r1_clear_signal 标志�?
             *
-            * 下层 task 的标志位/动作：
+            * 下层 task 的标志位/动作�?
             *   - 🟡【需新增】一个全局变量：uint8_t r1_clear_signal = 0;
             *   - 由通信 task（如裁判系统回调）在收到 R1 清除信号后置 1
-            *   - 此处检查该标志位
+            *   - 此处检查该标志�?
             */
 
         // if (mf_planner_ctx.cell[act.row][act.col] == MF_CELL_EMPTY) 
         
-        /* 调试阶段假设R1KFS早已被取走 */
+        /* 调试阶段假设R1KFS早已被取�?*/
         if(1)
         {
-            /* R1 已清除该格 */
+            /* R1 已清除该�?*/
             MFPlanner_NotifyR1KfsRemoved(&mf_planner_ctx, act.row, act.col);
             MFPlanner_AdvanceAction(&mf_planner_ctx);
             mf_exec_state = MF_EXEC_IDLE;
         } 
         else if (++mf_exec_timer_ms * 10 >= MF_WAIT_R1_TIMEOUT_MS) 
         {
-            /* 超时：强行通过（假设通信丢失但 R1 已完成） */
+            /* 超时：强行通过（假设通信丢失�?R1 已完成） */
             MFPlanner_NotifyR1KfsRemoved(&mf_planner_ctx, act.row, act.col);
             MFPlanner_AdvanceAction(&mf_planner_ctx);
             mf_exec_state = MF_EXEC_IDLE;
@@ -1788,25 +1796,25 @@ static BT_Status Act_MF_Finish_Cleanup(void)
     return BT_SUCCESS;
 }
 
-/* ================= 4. 顶层行为树 ================= */
+/* ================= 4. 顶层行为�?================= */
 
 /** MF 行为树的 Memory Sequence 索引 */
 static uint8_t seq_mem_idx_mf = 0;
 
 /**
- * @brief MF 任务行为树 Root 根节点
- * @note 流程：
+ * @brief MF 任务行为�?Root 根节�?
+ * @note 流程�?
  *   1. 等待 MF 任务请求
- *   2. 初始化 + 扫描 + 规划（一次性）
- *   3. 逐个执行动作列表（内部 FSM，多 Tick 返回 RUNNING）
+ *   2. 初始�?+ 扫描 + 规划（一次性）
+ *   3. 逐个执行动作列表（内�?FSM，多 Tick 返回 RUNNING�?
  *   4. 清理
  */
 static BT_Status BT_MF_Task_Tree_Root(void)
 {
     static const BT_NodeFunc seq[] = {
-        Cond_Has_MF_Request,       /* 1. 有 MF 任务请求？ */
-        Act_MF_Init_And_Plan,      /* 2. 初始化 + 规划 */
-        Act_MF_Execute_Action,     /* 3. 执行动作列表（内部 FSM） */
+        Cond_Has_MF_Request,       /* 1. �?MF 任务请求�?*/
+        Act_MF_Init_And_Plan,      /* 2. 初始�?+ 规划 */
+        Act_MF_Execute_Action,     /* 3. 执行动作列表（内�?FSM�?*/
         Act_MF_Finish_Cleanup      /* 4. 清理 */
     };
 
@@ -1828,7 +1836,7 @@ void BT_MF_Start_Task(void)
 }
 
 /**
- * @brief 初始化/重置 MF 任务状态（紧急停止或上电时调用）
+ * @brief 初始�?重置 MF 任务状态（紧急停止或上电时调用）
  */
 void BT_MF_Init_Task(void)
 {
@@ -1852,8 +1860,8 @@ void BT_MF_Init_Task(void)
 }
 
 /**
- * @brief MF 行为树 Tick 入口（在 cmd_task 的 for(;;) 中 1ms 周期调用）
- * @note 内部降频到 10ms
+ * @brief MF 行为�?Tick 入口（在 cmd_task �?for(;;) �?1ms 周期调用�?
+ * @note 内部降频�?10ms
  */
 // void BT_Customized_Tick1ms_MF(void)
 // {
@@ -1883,7 +1891,7 @@ void BT_MF_Init_Task(void)
 CZ_Blackboard CZ_bb;
 
 /**
- * @brief [条件节点] 检查是否有对抗区任务请求
+ * @brief [条件节点] 检查是否有对抗区任务请�?
  */
 static BT_Status Cond_Has_CZ_Request(void)
 {
@@ -1891,9 +1899,9 @@ static BT_Status Cond_Has_CZ_Request(void)
 }
 
 /**
- * @brief [动作节点] 对抗区任务执行
- * @note 流程：坡道起点 → 上坡（坡道终点）→ 原地慢转90° → 中央扫描位置 → 摄像头扫描
- *       → 九宫格列 → 抬机械臂 → 等待机械臂到位 → 底盘前进送块 → 关气泵 → 等待 → 策略分支
+ * @brief [动作节点] 对抗区任务执�?
+ * @note 流程：坡道起�?�?上坡（坡道终点）�?原地慢转90° �?中央扫描位置 �?摄像头扫�?
+ *       �?九宫格列 �?抬机械臂 �?等待机械臂到�?�?底盘前进送块 �?关气�?�?等待 �?策略分支
  */
 static BT_Status Act_CZ_Mission(void)
 {
@@ -1908,12 +1916,10 @@ static BT_Status Act_CZ_Mission(void)
 
         case CZ_NAV_TO_SLOPE_START:
         {
-            /* 平地参数导航到坡道起点 + 坡道终点（预入队，靠 look-ahead 衔接） */
+            /* 平地参数导航到坡道起�?+ 坡道终点（预入队，靠 look-ahead 衔接�?*/
             taskENTER_CRITICAL();
-            chassis_route_point_add(&chassis_route_traj,
-                R_CHASSIS_SLOPE_START_X, R_CHASSIS_SLOPE_START_Y, R_CHASSIS_SLOPE_START_W, 0);
-            chassis_route_point_add(&chassis_route_traj,
-                R_CHASSIS_SLOPE_END_X, R_CHASSIS_SLOPE_END_Y, R_CHASSIS_SLOPE_END_W, 0);
+            chassis_route_point_add(&chassis_route_traj, R_CHASSIS_SLOPE_START_X, R_CHASSIS_SLOPE_START_Y, R_CHASSIS_SLOPE_START_W, 0, 0);
+            chassis_route_point_add(&chassis_route_traj, R_CHASSIS_SLOPE_END_X, R_CHASSIS_SLOPE_END_Y, R_CHASSIS_SLOPE_END_W, 0, 0);
             taskEXIT_CRITICAL();
 
             CZ_bb.cz_mission_state = CZ_NAV_TO_SLOPE_END;
@@ -1923,7 +1929,7 @@ static BT_Status Act_CZ_Mission(void)
 
         case CZ_NAV_TO_SLOPE_END:
         {
-            /* 接近坡道起点时启用上坡参数，只对坡道段生效 */
+            /* 接近坡道起点时启用上坡参数，只对坡道段生�?*/
             if (fabsf(Radar_Pos.reliable_x - R_CHASSIS_SLOPE_START_X) < 250.0f &&
                 fabsf(Radar_Pos.reliable_y - R_CHASSIS_SLOPE_START_Y) < 250.0f)
             {
@@ -1933,13 +1939,12 @@ static BT_Status Act_CZ_Mission(void)
             /* 等待到达坡道终点 */
             if (chassis_if_arrived(R_CHASSIS_SLOPE_END_X, R_CHASSIS_SLOPE_END_Y, R_CHASSIS_SLOPE_END_W))
             {
-                chassis_route_set_slope_mode(0);  /* 上坡完成，恢复平地参数 */
+                chassis_route_set_slope_mode(0);  /* 上坡完成，恢复平地参�?*/
 
-                /* 原地慢速旋转90° */
+                /* 原地慢速旋�?0° */
                 chassis_route_set_rotate_slow(1);
                 taskENTER_CRITICAL();
-                chassis_route_point_add(&chassis_route_traj,
-                    R_CHASSIS_SLOPE_END_X, R_CHASSIS_SLOPE_END_Y, 90.0f, 0);
+                chassis_route_point_add(&chassis_route_traj, R_CHASSIS_SLOPE_END_X, R_CHASSIS_SLOPE_END_Y, 90.0f, 0, 0);
                 taskEXIT_CRITICAL();
 
                 CZ_bb.cz_mission_state = CZ_ROTATE_90;
@@ -1960,8 +1965,7 @@ static BT_Status Act_CZ_Mission(void)
                 chassis_route_set_rotate_slow(0);  /* 旋转完成，恢复正常角速度 */
 
                 taskENTER_CRITICAL();
-                chassis_route_point_add(&chassis_route_traj,
-                    R_CHASSIS_CZ_CENTER_X, R_CHASSIS_CZ_CENTER_Y, R_CHASSIS_CZ_CENTER_W, 0);
+                chassis_route_point_add(&chassis_route_traj, R_CHASSIS_CZ_CENTER_X, R_CHASSIS_CZ_CENTER_Y, R_CHASSIS_CZ_CENTER_W, 0, 0);
                 taskEXIT_CRITICAL();
 
                 CZ_bb.cz_mission_state = CZ_NAV_TO_SCAN;
@@ -1992,7 +1996,7 @@ static BT_Status Act_CZ_Mission(void)
 
         case CZ_CAMERA_SCAN:
         {
-            /* 等待底盘到达中央扫描位置并稳定 */
+            /* 等待底盘到达中央扫描位置并稳�?*/
             if (chassis_if_arrived(R_CHASSIS_CZ_CENTER_X, R_CHASSIS_CZ_CENTER_Y, R_CHASSIS_CZ_CENTER_W))
             {
 				clamp.lift_flag = 1;
@@ -2000,9 +2004,9 @@ static BT_Status Act_CZ_Mission(void)
                 if (CZ_bb.pos_stable_times > CZ_POS_STABLE_CONDITION)
                 {
 									
-                    CZ_bb.camera_scan_done = 1;//是否需要发送指令给摄像头还未确定
+                    CZ_bb.camera_scan_done = 1;//是否需要发送指令给摄像头还未确�?
 
-                    /* 根据摄像头扫描结果决定下一步
+                    /* 根据摄像头扫描结果决定下一�?
                        KFS_PUT: CZ_put_pos 一定是 M1/M2/M3
                        WAIT:    CZ_put_pos 一定是 Invalid(9)
                        RESCAN:  CZ_put_pos 一定是 Invalid(9) */
@@ -2011,12 +2015,11 @@ static BT_Status Act_CZ_Mission(void)
                     {
                     case KFS_PUT:
                         /* 先只下发底盘路径去九宫格，机械臂等底盘到位后再抬 */
+                    taskENTER_CRITICAL();
                         if (CZ_put_pos == M1)
-                            chassis_route_point_add(&chassis_route_traj,
-                                R_CHASSIS_SUDUKU_3_X, R_CHASSIS_SUDUKU_3_Y, R_CHASSIS_SUDUKU_3_W, 0);
+                            chassis_route_point_add(&chassis_route_traj, R_CHASSIS_SUDUKU_3_X, R_CHASSIS_SUDUKU_3_Y, R_CHASSIS_SUDUKU_3_W, 0, 0);
                         else if (CZ_put_pos == M2)
-                            chassis_route_point_add(&chassis_route_traj,
-                                R_CHASSIS_SUDUKU_2_X, R_CHASSIS_SUDUKU_2_Y, R_CHASSIS_SUDUKU_2_W, 0);
+                            chassis_route_point_add(&chassis_route_traj, R_CHASSIS_SUDUKU_2_X, R_CHASSIS_SUDUKU_2_Y, R_CHASSIS_SUDUKU_2_W, 0, 0);
                         else /* M3 */
                             chassis_route_point_add(&chassis_route_traj,
                                 R_CHASSIS_SUDUKU_1_X, R_CHASSIS_SUDUKU_1_Y, R_CHASSIS_SUDUKU_1_W, 0);
@@ -2043,8 +2046,7 @@ static BT_Status Act_CZ_Mission(void)
 
                     case RESCAN:
                         /* 重新扫描+9：微调位置后重新扫描 */
-                        chassis_route_point_add(&chassis_route_traj,
-                            R_CHASSIS_CZ_CENTER_X , R_CHASSIS_CZ_CENTER_Y, R_CHASSIS_CZ_CENTER_W, 0);
+                        chassis_route_point_add(&chassis_route_traj, R_CHASSIS_CZ_CENTER_X , R_CHASSIS_CZ_CENTER_Y, R_CHASSIS_CZ_CENTER_W, 0, 0);
                         CZ_bb.cz_mission_state = CZ_CAMERA_SCAN;
                         CZ_bb.cz_timer_ms = 0;
                         CZ_bb.pos_stable_times = 0;
@@ -2060,7 +2062,7 @@ static BT_Status Act_CZ_Mission(void)
             }
             else
             {
-                CZ_bb.pos_stable_times = 0;  /* 还没到位，重置稳定计数 */
+                CZ_bb.pos_stable_times = 0;  /* 还没到位，重置稳定计�?*/
                 if (++CZ_bb.cz_timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS)
                     return BT_FAILURE;
             }
@@ -2069,7 +2071,7 @@ static BT_Status Act_CZ_Mission(void)
 
         case CZ_NAV_TO_SUDUKU:
         {
-            /* 等待底盘到达目标九宫格列（只检查底盘，不检查机械臂） */
+            /* 等待底盘到达目标九宫格列（只检查底盘，不检查机械臂�?*/
             if (chassis_if_arrived(CZ_SUDUKU_X, CZ_SUDUKU_Y, CZ_SUDUKU_W))
             {
                 CZ_bb.cz_mission_state = CZ_ARM_RAISE;
@@ -2097,13 +2099,12 @@ static BT_Status Act_CZ_Mission(void)
 
         case CZ_ARM_RAISE_WAIT:
         {
-            /* 等待机械臂到达放置位置 */
+            /* 等待机械臂到达放置位�?*/
             if (arm_if_arrived_xy(CZ_ARM_PLACE_1_X, CZ_ARM_PLACE_1_Y))
             {
                 /* 机械臂到位后，底盘往前送块一小段 */
                 taskENTER_CRITICAL();
-                chassis_route_point_add(&chassis_route_traj,
-                    CZ_SUDUKU_X, CZ_SUDUKU_Y + 500.0f, CZ_SUDUKU_W, 0);
+                chassis_route_point_add(&chassis_route_traj, CZ_SUDUKU_X, CZ_SUDUKU_Y + 500.0f, CZ_SUDUKU_W, 0, 0);
                 taskEXIT_CRITICAL();
 
                 CZ_bb.cz_mission_state = CZ_FORWARD_PUSH;
@@ -2133,7 +2134,7 @@ static BT_Status Act_CZ_Mission(void)
 
         case CZ_ARM_PLACE:
         {
-            /* 底盘到位，关气泵释放块 */
+            /* 底盘到位，关气泵释放�?*/
             taskENTER_CRITICAL();
             arm_queue_add_point(&arm_traj, CZ_ARM_PLACE_1_X, CZ_ARM_PLACE_1_Y, 0, 0, ARM_PUMP_RELEASE, CZ_ARM_PLACE_PITCH/180.0f*PI);
             taskEXIT_CRITICAL();
@@ -2161,6 +2162,8 @@ static BT_Status Act_CZ_Mission(void)
                     arm_queue_add_point(&arm_traj, PICK_REST_X, PICK_REST_Y, 0.0f, 0, 0, 0.0f);
                     chassis_route_point_add(&chassis_route_traj,
                         R_CHASSIS_CZ_CENTER_X, R_CHASSIS_CZ_CENTER_Y, R_CHASSIS_CZ_CENTER_W, 0);
+                    arm_queue_add_point(&arm_traj, PICK_REST_X, PICK_REST_Y, 0.0f, 0, 0);
+                    chassis_route_point_add(&chassis_route_traj, R_CHASSIS_CZ_CENTER_X, R_CHASSIS_CZ_CENTER_Y, R_CHASSIS_CZ_CENTER_W, 0, 0);
                     taskEXIT_CRITICAL();
                     CZ_bb.cz_mission_state = CZ_RETURN_TO_SCAN;
                 }
@@ -2174,7 +2177,7 @@ static BT_Status Act_CZ_Mission(void)
             /* 返回中央扫描位置 */
             if (chassis_if_arrived(R_CHASSIS_CZ_CENTER_X, R_CHASSIS_CZ_CENTER_Y, R_CHASSIS_CZ_CENTER_W))
             {
-                /* 到扫描点后先取存块（仅机械臂），再做第二次扫描 */
+                /* 到扫描点后先取存块（仅机械臂），再做第二次扫�?*/
                  taskENTER_CRITICAL();
                     arm_queue_add_point(&arm_traj, PICK_REST_X, PICK_REST_Y, 0.0f, 0, 1, 0.0f);
                     taskEXIT_CRITICAL();
@@ -2192,7 +2195,7 @@ static BT_Status Act_CZ_Mission(void)
         case CZ_PICK_STORE_AT_SCAN:
         {
             /*
-             * 🟡 到扫描点后取存块 — 仅机械臂动作，底盘不动（暂空，立即完成）
+             * 🟡 到扫描点后取存块 �?仅机械臂动作，底盘不动（暂空，立即完成）
              * TODO: 填写机械臂取存块的轨迹点
              */
             CZ_bb.cz_mission_state = CZ_CAMERA_SCAN;
@@ -2204,8 +2207,8 @@ static BT_Status Act_CZ_Mission(void)
         case CZ_PICK_STORE:
         {
             /*
-             * 🟡取存块逻辑（暂空，立即完成）
-             * TODO: 填写取存块的机械臂/底盘动作
+             * 🟡取存块逻辑（暂空，立即完成�?
+             * TODO: 填写取存块的机械�?底盘动作
              */
             CZ_bb.cz_mission_state = CZ_DONE;
             CZ_bb.cz_timer_ms = 0;
@@ -2214,11 +2217,10 @@ static BT_Status Act_CZ_Mission(void)
 
         case CZ_DONE:
         {
-            /* 两轮放置完成，前往 R1 平台等待点 */
+            /* 两轮放置完成，前往 R1 平台等待�?*/
             clamp.lift_flag = 0;
             taskENTER_CRITICAL();
-            chassis_route_point_add(&chassis_route_traj,
-                R_CHASSIS_R1_WAIT_X, R_CHASSIS_R1_WAIT_Y, R_CHASSIS_R1_WAIT_W, 0);
+            chassis_route_point_add(&chassis_route_traj, R_CHASSIS_R1_WAIT_X, R_CHASSIS_R1_WAIT_Y, R_CHASSIS_R1_WAIT_W, 0, 0);
             taskEXIT_CRITICAL();
 
             CZ_bb.cz_mission_state = CZ_NAV_TO_R1_WAIT;
@@ -2230,7 +2232,7 @@ static BT_Status Act_CZ_Mission(void)
 
         case CZ_NAV_TO_R1_WAIT:
         {
-            /* 等待到达 R1 平台等待点 */
+            /* 等待到达 R1 平台等待�?*/
             if (chassis_if_arrived(R_CHASSIS_R1_WAIT_X, R_CHASSIS_R1_WAIT_Y, R_CHASSIS_R1_WAIT_W))
             {
                 CZ_bb.cz_mission_state = CZ_WAIT_R1_PLATFORM;
@@ -2245,13 +2247,11 @@ static BT_Status Act_CZ_Mission(void)
 
         case CZ_WAIT_R1_PLATFORM:
         {
-            /* 等待 R1 发出"可以上平台"指令，下发台阶接近点（台阶攀登前的位置） */
+            /* 等待 R1 发出"可以上平�?指令，下发台阶接近点（台阶攀登前的位置） */
             if (CZ_bb.r1_platform_cmd)
             {
                 taskENTER_CRITICAL();
-                chassis_route_point_add(&chassis_route_traj,
-                    R_CHASSIS_R1_STEP_APPROACH_X, R_CHASSIS_R1_STEP_APPROACH_Y,
-                    R_CHASSIS_R1_STEP_APPROACH_W, 0);
+                chassis_route_point_add(&chassis_route_traj, R_CHASSIS_R1_STEP_APPROACH_X, R_CHASSIS_R1_STEP_APPROACH_Y, R_CHASSIS_R1_STEP_APPROACH_W, 0, 0);
                 taskEXIT_CRITICAL();
 
                 CZ_bb.cz_mission_state = CZ_NAV_TO_R1_PLATFORM;
@@ -2263,16 +2263,16 @@ static BT_Status Act_CZ_Mission(void)
         case CZ_NAV_TO_R1_PLATFORM:
         {
             /*
-             * 台阶跨越 FSM：底盘先到台阶接近点 → 面朝台阶方向 → 启动上台阶 FSM
-             * 🟡【需实测】台阶高度默认为 200mm，若是 400mm 台阶需改为 STEP_UP_400
-             * 🟡【需实测】台阶方向应与 R_CHASSIS_R1_STEP_APPROACH_W 对齐
+             * 台阶跨越 FSM：底盘先到台阶接近点 �?面朝台阶方向 �?启动上台�?FSM
+             * 🟡【需实测】台阶高度默认为 200mm，若�?400mm 台阶需改为 STEP_UP_400
+             * 🟡【需实测】台阶方向应�?R_CHASSIS_R1_STEP_APPROACH_W 对齐
              */
             static uint8_t step_fsm_started = 0;
             static uint8_t platform_route_sent = 0;
 
             if (!step_fsm_started)
             {
-                /* 阶段1：等待底盘到达台阶接近点并面朝台阶方向 */
+                /* 阶段1：等待底盘到达台阶接近点并面朝台阶方�?*/
                 if (chassis_if_arrived(R_CHASSIS_R1_STEP_APPROACH_X,
                     R_CHASSIS_R1_STEP_APPROACH_Y, R_CHASSIS_R1_STEP_APPROACH_W))
                 {
@@ -2290,14 +2290,12 @@ static BT_Status Act_CZ_Mission(void)
             /* 阶段2：每 Tick 推进台阶 FSM */
             BT_Status step_status = chassis_step_fsm_tick(&g_step_fsm);
 
-            /* 刚启动抬升时预下发平台上目标点，让底盘 FSM 后续自动行驶 */
+            /* 刚启动抬升时预下发平台上目标点，让底�?FSM 后续自动行驶 */
             if (!platform_route_sent &&
                 g_step_fsm.state == STEP_UP_WAIT_DEPLOY_DONE)
             {
                 taskENTER_CRITICAL();
-                chassis_route_point_add(&chassis_route_traj,
-                    R_CHASSIS_R1_PLATFORM_X, R_CHASSIS_R1_PLATFORM_Y,
-                    R_CHASSIS_R1_PLATFORM_W, 0);
+                chassis_route_point_add(&chassis_route_traj, R_CHASSIS_R1_PLATFORM_X, R_CHASSIS_R1_PLATFORM_Y, R_CHASSIS_R1_PLATFORM_W, 0, 0);
                 platform_route_sent = 1;
                 taskEXIT_CRITICAL();
             }
@@ -2326,23 +2324,23 @@ static BT_Status Act_CZ_Mission(void)
         case CZ_ON_R1_PLATFORM:
         {
             /*
-             * 在 R1 平台上等待 R1 发出"去第三层放块"指令。
-             * 底盘保持关闭（chassis_en_flag=0），只动机械臂。
+             * �?R1 平台上等�?R1 发出"去第三层放块"指令�?
+             * 底盘保持关闭（chassis_en_flag=0），只动机械臂�?
              */
             if (CZ_bb.r1_place_cmd)
             {
-                /* 直接抬机械臂到第三层，底盘不动 */
+                /* 直接抬机械臂到第三层，底盘不�?*/
                 CZ_bb.cz_mission_state = CZ_ARM_RAISE_L3;
                 CZ_bb.cz_timer_ms = 0;
             }
             return BT_RUNNING;
         }
 
-        /* ========== 九宫格第三层放块（仅机械臂，底盘始终关闭） ========== */
+        /* ========== 九宫格第三层放块（仅机械臂，底盘始终关闭�?========== */
 
         case CZ_ARM_RAISE_L3:
         {
-            /* 机械臂抬升 → 前送到第三层放置位置（两步） */
+            /* 机械臂抬�?�?前送到第三层放置位置（两步�?*/
             taskENTER_CRITICAL();
             arm_queue_add_point(&arm_traj, CZ_ARM_PLACE_L3_X, CZ_ARM_PLACE_L3_Y, 0, 0, ARM_PUMP_KEEP, CZ_ARM_PLACE_PITCH/180.0f*PI);
             arm_queue_add_point(&arm_traj, CZ_ARM_PLACE_L3_FWD_X, CZ_ARM_PLACE_L3_FWD_Y, 0, 0, ARM_PUMP_KEEP, CZ_ARM_PLACE_PITCH/180.0f*PI);
@@ -2356,7 +2354,7 @@ static BT_Status Act_CZ_Mission(void)
 
         case CZ_ARM_RAISE_WAIT_L3:
         {
-            /* 等待机械臂到达前送终点 */
+            /* 等待机械臂到达前送终�?*/
             if (arm_if_arrived_xy(CZ_ARM_PLACE_L3_FWD_X, CZ_ARM_PLACE_L3_FWD_Y))
             {
                 CZ_bb.cz_mission_state = CZ_ARM_PLACE_L3;
@@ -2383,7 +2381,7 @@ static BT_Status Act_CZ_Mission(void)
 
         case CZ_PUMP_WAIT_L3:
         {
-            /* 关气泵后等待一段时间 */
+            /* 关气泵后等待一段时�?*/
             if (++CZ_bb.cz_timer_ms * 10 >= CZ_PUMP_WAIT_MS)
             {
                 CZ_bb.cz_mission_state = CZ_FINAL_DONE;
@@ -2405,7 +2403,7 @@ static BT_Status Act_CZ_Mission(void)
 }
 
 /**
- * @brief [动作节点] 对抗区任务收尾清理
+ * @brief [动作节点] 对抗区任务收尾清�?
  */
 static BT_Status Act_CZ_FinishCleanup(void)
 {
@@ -2422,13 +2420,13 @@ static BT_Status Act_CZ_FinishCleanup(void)
 }
 
 /**
- * @brief 对抗区行为树 Root 根节点
+ * @brief 对抗区行为树 Root 根节�?
  */
 static BT_Status BT_CZ_Task_Tree_Root(void)
 {
     static const BT_NodeFunc seq[] = {
-        Cond_Has_CZ_Request,     /* 1. 有对抗区任务请求？ */
-        Act_CZ_Mission,           /* 2. 执行对抗区任务 */
+        Cond_Has_CZ_Request,     /* 1. 有对抗区任务请求�?*/
+        Act_CZ_Mission,           /* 2. 执行对抗区任�?*/
         Act_CZ_FinishCleanup      /* 3. 清理 */
     };
 
@@ -2483,18 +2481,18 @@ void BT_Customized_Tick1ms_CZ(void)
 
 
 
-/* ================================================ MASTER 行为树 ================================================ */
-/* ================================================ MASTER 行为树 ================================================ */
-/* ================================================ MASTER 行为树 ================================================ */
+/* ================================================ MASTER 行为�?================================================ */
+/* ================================================ MASTER 行为�?================================================ */
+/* ================================================ MASTER 行为�?================================================ */
 
 
 
 /* ================================== MASTER 状态区 ================================== */
 
-uint8_t master_task_request_flag = 0;  /* MASTER 总任务请求标志 */
+uint8_t master_task_request_flag = 0;  /* MASTER 总任务请求标�?*/
 uint8_t master_seq_mem_idx = 0;        /* MASTER Memory Sequence 索引 */
 
-/* 次任务 Wrapper 状态 */
+/* 次任�?Wrapper 状�?*/
 typedef enum {
     SUBTASK_IDLE = 0,
     SUBTASK_RUNNING,
@@ -2509,7 +2507,7 @@ Subtask_State cz_subtask_state = SUBTASK_IDLE;   /* ARENA 任务 wrapper 状态 
 /* ================================== MASTER 条件节点 ================================= */
 
 /**
- * @brief [条件节点] 检查是否有 MASTER 总任务请求
+ * @brief [条件节点] 检查是否有 MASTER 总任务请�?
  */
 static BT_Status Cond_Has_MASTER_Request(void)
 {
@@ -2520,12 +2518,12 @@ static BT_Status Cond_Has_MASTER_Request(void)
 /* ================================== MASTER 动作节点 ================================= */
 
 
-/* ====================== 动作（子任务）节点 ====================== */
+/* ====================== 动作（子任务）节�?====================== */
 
 /**
  * @brief [动作节点] MC(武馆)任务 Wrapper
- * @note 内部调用已有的 BT_Combined_Task_Tree_Root
- * @note 自动触发 MC 任务，等待其完成后返回 SUCCESS
+ * @note 内部调用已有�?BT_Combined_Task_Tree_Root
+ * @note 自动触发 MC 任务，等待其完成后返�?SUCCESS
  */
 static BT_Status Act_MC_Task_Wrapper(void)
 {
@@ -2538,7 +2536,7 @@ static BT_Status Act_MC_Task_Wrapper(void)
         return BT_RUNNING;
     }
     case SUBTASK_RUNNING: {
-        /* 运行 MC 行为树 */
+        /* 运行 MC 行为�?*/
         BT_Status mc_status = BT_R2_MC_Tree_Root();
         if (mc_status == BT_SUCCESS) {
             mc_subtask_state = SUBTASK_DONE;
@@ -2564,8 +2562,8 @@ static BT_Status Act_MC_Task_Wrapper(void)
 
 /**
  * @brief [动作节点] MF(梅林)任务 Wrapper
- * @note 内部调用已有的 BT_MF_Task_Tree_Root
- * @note 自动触发 MF 任务，等待其完成后返回 SUCCESS
+ * @note 内部调用已有�?BT_MF_Task_Tree_Root
+ * @note 自动触发 MF 任务，等待其完成后返�?SUCCESS
  */
 static BT_Status Act_MF_Task_Wrapper(void)
 {
@@ -2580,7 +2578,7 @@ static BT_Status Act_MF_Task_Wrapper(void)
     case SUBTASK_RUNNING: {
         Arm_Store_Service_Tick();
 
-        /* 运行 MF 行为树 */
+        /* 运行 MF 行为�?*/
         BT_Status mf_status = BT_MF_Task_Tree_Root();
         if (mf_status == BT_SUCCESS) {
             // if(arm_store_busy || arm_store_request || !arm_store_payload_done) {
@@ -2610,7 +2608,7 @@ static BT_Status Act_MF_Task_Wrapper(void)
 
 
 /**
- * @brief [动作节点] ARENA(对抗区)任务 Wrapper
+ * @brief [动作节点] ARENA(对抗�?任务 Wrapper
  * @note 内部调用 BT_CZ_Task_Tree_Root
  */
 static BT_Status Act_CZ_Task_Wrapper(void)
@@ -2665,7 +2663,7 @@ static BT_Status Act_MASTER_Finish_Cleanup(void)
     /* 清理各子任务状态，防止残留 */
     BT_Init_R2_MC_Mission();
     BT_MF_Init_Task();
-    // BT_ARENA_Init_Task(); 此处如果有 ARENA 任务，也需要调用其初始化函数，如 BT_ARENA_Init_Task();
+    // BT_ARENA_Init_Task(); 此处如果�?ARENA 任务，也需要调用其初始化函数，�?BT_ARENA_Init_Task();
 
     return BT_SUCCESS;
 }
@@ -2674,9 +2672,9 @@ static BT_Status Act_MASTER_Finish_Cleanup(void)
 /* ====================== MASTER 顶层 ====================== */
 
 /**
- * @brief MASTER 总任务行为树 Root 根节点
+ * @brief MASTER 总任务行为树 Root 根节�?
  * @note 按顺序执行：
- *   1. 等待总请求
+ *   1. 等待总请�?
  *   2. MC(武馆)任务
  *   3. MF(梅林)任务
  *   4. CZ(对抗区)任务
@@ -2703,7 +2701,7 @@ static BT_Status BT_MASTER_Task_Tree_Root(void)
 /* ====================== MASTER 外部接口 ====================== */
 
 /**
- * @brief 发起 MASTER 总任务请求
+ * @brief 发起 MASTER 总任务请�?
  */
 void BT_MASTER_Start_Task(void)
 {
@@ -2714,7 +2712,7 @@ void BT_MASTER_Start_Task(void)
 }
 
 /**
- * @brief 初始化/重置 MASTER 任务状态
+ * @brief 初始�?重置 MASTER 任务状�?
  */
 void BT_MASTER_Init_Task(void)
 {
@@ -2726,8 +2724,8 @@ void BT_MASTER_Init_Task(void)
 }
 
 /**
- * @brief MASTER 行为树 Tick 入口
- * @note 内部降频到 10ms
+ * @brief MASTER 行为�?Tick 入口
+ * @note 内部降频�?10ms
  */
 void BT_MASTER_Tick(void)
 {
@@ -2743,3 +2741,193 @@ void BT_MASTER_Tick(void)
         master_seq_mem_idx = 0;
     }
 }
+
+
+/* ================================================ PS 预选赛行为�?================================================ */
+
+PS_MC_Blackboard PS_bb;
+
+static BT_Status Cond_Has_PS_Request(void)
+{
+    return PS_bb.req_start ? BT_SUCCESS : BT_FAILURE;
+}
+
+static BT_Status Act_PS_Mission(void)
+{
+    switch (PS_bb.state) {
+
+        case PS_MC_IDLE:
+        {
+            PS_bb.state = PS_MC_CLAMP_INIT;
+            PS_bb.round_count = 0;
+            PS_bb.timer_ms = 0;
+            return BT_RUNNING;
+        }
+
+        case PS_MC_CLAMP_INIT:
+        {
+            clamp.lift_flag = 1;
+            PS_bb.state = PS_MC_NAV_TO_RACK;
+            PS_bb.timer_ms = 0;
+            return BT_RUNNING;
+        }
+
+        case PS_MC_NAV_TO_RACK:
+        {
+            static const float rx[3] = {PS_RACK_1_X, PS_RACK_2_X, PS_RACK_3_X};
+            uint8_t r = PS_bb.round_count;
+            taskENTER_CRITICAL();
+            chassis_route_point_add(&chassis_route_traj, rx[r], PS_RACK_Y, PS_RACK_W, 0, 0);
+            taskEXIT_CRITICAL();
+            PS_bb.state = PS_MC_RACK_PICK;
+            PS_bb.timer_ms = 0;
+            PS_bb.pos_stable_times = 0;
+            PS_bb.pick_success = 0;
+            return BT_RUNNING;
+        }
+
+        case PS_MC_RACK_PICK:
+        {
+            static const float rx[3] = {PS_RACK_1_X, PS_RACK_2_X, PS_RACK_3_X};
+            uint8_t r = PS_bb.round_count;
+            if (chassis_if_arrived(rx[r], PS_RACK_Y, PS_RACK_W))
+            {
+                PS_bb.pos_stable_times++;
+                if (PS_bb.pos_stable_times > R_RACK_STABLE_TIMES_CONDITION)
+                {
+                    clamp.retractable_flag = 1;
+                    if (abs_int32(m3508_fdcan2[1].Angle_Sum - CLAMP_EXTEND_MAX_POSITION) < 6000)
+                    {
+                        clamp.catch_flag = 1;
+                        osDelay(600);
+                        if (PS_bb.pick_success == 1)
+                        {
+                            clamp.rotate_flag = 1;
+                            PS_bb.state = PS_MC_NAV_TO_DOCK;
+                            PS_bb.timer_ms = 0;
+                        }
+                        else
+                        {
+                            clamp.catch_flag = 0;
+                            clamp.retractable_flag = 0;
+                            osDelay(300);
+                            PS_bb.pos_stable_times = 0;
+                        }
+                    }
+                }
+            }
+            else if (++PS_bb.timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS)
+                return BT_FAILURE;
+            return BT_RUNNING;
+        }
+
+        case PS_MC_NAV_TO_DOCK:
+        {
+            taskENTER_CRITICAL();
+            chassis_route_point_add(&chassis_route_traj, PS_DOCK_X, PS_DOCK_Y, PS_DOCK_W, 0, 0);
+            taskEXIT_CRITICAL();
+            clamp.lift_flag = 0;
+            PS_bb.state = PS_MC_DOCK_WAIT;
+            PS_bb.timer_ms = 0;
+            PS_bb.dock_success = 0;
+            return BT_RUNNING;
+        }
+
+        case PS_MC_DOCK_WAIT:
+        {
+            if (chassis_if_arrived(PS_DOCK_X, PS_DOCK_Y, PS_DOCK_W))
+                chassis_set_lock(1);
+            if (PS_bb.dock_success == 1)
+            {
+                clamp.catch_flag = 0;
+                osDelay(500);
+                clamp.rotate_flag = 0;
+                chassis_set_lock(0);
+                PS_bb.state = PS_MC_ROUND_CHECK;
+                PS_bb.timer_ms = 0;
+            }
+            else if (++PS_bb.timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS)
+                return BT_FAILURE;
+            return BT_RUNNING;
+        }
+
+        case PS_MC_ROUND_CHECK:
+        {
+            PS_bb.round_count++;
+            PS_bb.state = (PS_bb.round_count >= 3) ? PS_MC_ENTER_MF : PS_MC_NAV_TO_RACK;
+            PS_bb.timer_ms = 0;
+            return BT_RUNNING;
+        }
+
+        case PS_MC_ENTER_MF:
+        {
+            if(PS_bb.mf_req == 1)
+            PS_bb.state = PS_MC_IDLE;
+            return BT_SUCCESS;
+        }
+
+        default:
+            return BT_FAILURE;
+    }
+}
+
+static BT_Status Act_PS_FinishCleanup(void)
+{
+    PS_bb.req_start = 0;
+    PS_bb.state = PS_MC_IDLE;
+    PS_bb.pos_stable_times = 0;
+    PS_bb.pick_success = 0;
+    PS_bb.dock_success = 0;
+    PS_bb.round_count = 0;
+    chassis_set_lock(0);
+    return BT_SUCCESS;
+}
+
+static BT_Status BT_PS_Task_Tree_Root(void)
+{
+    static const BT_NodeFunc seq[] = {
+        Cond_Has_PS_Request,
+        Act_PS_Mission,
+        Act_PS_FinishCleanup
+    };
+    return BT_Sequence_Memory(seq, (uint8_t)(sizeof(seq) / sizeof(seq[0])), &PS_bb.seq_mem_idx);
+}
+
+void BT_PS_Start_Task(void)
+{
+    PS_bb.req_start = 1;
+    PS_bb.state = PS_MC_IDLE;
+    PS_bb.timer_ms = 0;
+    PS_bb.pos_stable_times = 0;
+    PS_bb.pick_success = 0;
+    PS_bb.dock_success = 0;
+    PS_bb.round_count = 0;
+}
+
+void BT_PS_Init_Task(void)
+{
+    PS_bb.req_start = 0;
+    PS_bb.state = PS_MC_IDLE;
+    PS_bb.seq_mem_idx = 0;
+    PS_bb.timer_ms = 0;
+    PS_bb.pos_stable_times = 0;
+    PS_bb.pick_success = 0;
+    PS_bb.dock_success = 0;
+    PS_bb.mf_req = 0;
+    PS_bb.round_count = 0;
+}
+
+void BT_PS_Tick(void)
+{
+    static uint8_t div10 = 0;
+    div10++;
+    if (div10 < 10) return;
+    div10 = 0;
+    BT_Status status = BT_PS_Task_Tree_Root();
+    if (status == BT_FAILURE) {
+        Act_PS_FinishCleanup();
+        PS_bb.seq_mem_idx = 0;
+    }
+}
+
+

@@ -1,4 +1,4 @@
-﻿#ifndef __BT_CUSTOMIZED_H
+#ifndef __BT_CUSTOMIZED_H
 #define __BT_CUSTOMIZED_H
 
 #include "main.h"
@@ -51,7 +51,7 @@
 **************************************** */
 #define R_CLAMP_TO_CHASSIS_CENTER_DIST 132.0f /* 夹爪中心到底盘中心的X方向距离 (mm) */
 #define B_CLAMP_TO_CHASSIS_CENTER_DIST 132.0f /* 夹爪中心到底盘中心的X方向距离 (mm) */
-#define R_RACK_STABLE_TIMES_CONDITION 80      /* 取矛头时到达目标位置次数，保证稳定抓取 */
+#define R_RACK_STABLE_TIMES_CONDITION 70      /* 取矛头时到达目标位置次数，保证稳定抓取 */
 #define B_RACK_STABLE_TIMES_CONDITION 80      /* 取矛头时到达目标位置次数，保证稳定抓取 */
 
 /***************************************
@@ -260,11 +260,50 @@ typedef struct
     R2_MC_MISSION_STATE mc_mission_state; /* 武馆任务状态机当前状态 */
 }MC_Blackboard; 
 
-/* ------------ 下层 FSM 类型与状态 --------------- */
 
-void BT_Customized_Init_arm_test(void);
-void BT_RequestSimplePick(void);
-void BT_Customized_Tick1ms_arm_test(void);
+/* ================================================ 预选赛 MC 行为树 ================================================ */
+/* 独立状态机和黑板，不共用原 MC 段。对杆位置固定，与 MC 相同 */
+
+/* 预选赛矛架位置（共用 RACK_1/2/3） */
+#define PS_RACK_1_X R_CHASSIS_RACK_1_X
+#define PS_RACK_2_X R_CHASSIS_RACK_2_X
+#define PS_RACK_3_X R_CHASSIS_RACK_3_X
+#define PS_RACK_Y    R_CHASSIS_RACK_Y
+#define PS_RACK_W    R_CHASSIS_RACK_W
+/* 对杆位置固定，与 MC 共用 */
+#define PS_DOCK_X  R_CHASSIS_DOCKING_X
+#define PS_DOCK_Y  R_CHASSIS_DOCKING_Y
+#define PS_DOCK_W  R_CHASSIS_DOCKING_W
+
+typedef enum
+{
+    PS_MC_IDLE = 0,
+    PS_MC_CLAMP_INIT,
+    PS_MC_NAV_TO_RACK,
+    PS_MC_RACK_PICK,
+    PS_MC_NAV_TO_DOCK,
+    PS_MC_DOCK_WAIT,
+    PS_MC_ROUND_CHECK,
+    PS_MC_ENTER_MF
+} PS_MC_MissionState;
+
+typedef struct
+{
+    uint8_t req_start;
+    uint8_t seq_mem_idx;
+    uint32_t timer_ms;
+    uint16_t pos_stable_times;
+    uint8_t pick_success;
+    uint8_t dock_success;    /* 对杆完成标志，由外部置位 */
+    uint8_t mf_req;
+    uint8_t round_count;
+    PS_MC_MissionState state;
+} PS_MC_Blackboard;
+
+extern PS_MC_Blackboard PS_bb;
+void BT_PS_Start_Task(void);
+void BT_PS_Init_Task(void);
+void BT_PS_Tick(void);
 
 void BT_Start_R2_MC_Mission(void);
 void BT_Init_R2_MC_Mission(void);   
