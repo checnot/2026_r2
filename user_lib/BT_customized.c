@@ -1261,7 +1261,7 @@ static BT_Status Act_MF_Execute_Action(void)
             // mf_dir_to_yaw(act.dir);
 
             taskENTER_CRITICAL();
-            chassis_route_point_add(&chassis_route_traj, tx, ty, Radar_Pos.reliable_yaw, 0, 0);
+            chassis_route_point_add(&chassis_route_traj, tx, ty, Radar_Pos.reliable_yaw, 0, 1);
             taskEXIT_CRITICAL();
 
             mf_exec_state = MF_EXEC_MOVE_FLAT;
@@ -1302,7 +1302,7 @@ static BT_Status Act_MF_Execute_Action(void)
             
             taskENTER_CRITICAL();
             /* 复用 */
-            chassis_route_point_add(&chassis_route_traj, stand_x, stand_y, step_yaw, 0, 0);
+            chassis_route_point_add(&chassis_route_traj, stand_x, stand_y, step_yaw, 0, 1);
             taskEXIT_CRITICAL();
 
             mf_exec_state = MF_EXEC_STEP_UP;
@@ -1320,7 +1320,7 @@ static BT_Status Act_MF_Execute_Action(void)
             step_yaw = mf_dir_to_yaw(act.dir);
             
             taskENTER_CRITICAL();
-            chassis_route_point_add(&chassis_route_traj, stand_x, stand_y, step_yaw, 0, 0);
+            chassis_route_point_add(&chassis_route_traj, stand_x, stand_y, step_yaw, 0, 1);
             taskEXIT_CRITICAL();
 
             mf_exec_state = MF_EXEC_STEP_DOWN;
@@ -1364,7 +1364,7 @@ static BT_Status Act_MF_Execute_Action(void)
             
             taskENTER_CRITICAL();
             // 让底盘转到位预期的方向，机械臂的路点在MF_EXEC_PICK_R2状态中下发
-            chassis_route_point_add(&chassis_route_traj, stand_x, stand_y, pick_yaw, 0, 0);
+            chassis_route_point_add(&chassis_route_traj, stand_x, stand_y, pick_yaw, 0, 1);
             taskEXIT_CRITICAL();
 
             mf_exec_state = MF_EXEC_PICK_R2;
@@ -1526,7 +1526,7 @@ static BT_Status Act_MF_Execute_Action(void)
             float step_yaw = mf_dir_to_yaw(act.dir);
 
             taskENTER_CRITICAL();
-            chassis_route_point_add(&chassis_route_traj, step_tx, step_ty, step_yaw, 0, 0);
+            chassis_route_point_add(&chassis_route_traj, step_tx, step_ty, step_yaw, 0, 1);
             step_up_chassis_sent = 1;
             taskEXIT_CRITICAL();
 
@@ -1601,7 +1601,7 @@ static BT_Status Act_MF_Execute_Action(void)
 
             taskENTER_CRITICAL();
             chassis_r2.chassis_en_flag = 0;  // 禁用底盘
-            chassis_route_point_add(&chassis_route_traj, step_tx, step_ty, step_yaw, 0, 0);
+            chassis_route_point_add(&chassis_route_traj, step_tx, step_ty, step_yaw, 0, 1);
             step_down_chassis_sent = 1;
             taskEXIT_CRITICAL();
 
@@ -2022,8 +2022,8 @@ static BT_Status Act_CZ_Mission(void)
                             chassis_route_point_add(&chassis_route_traj, R_CHASSIS_SUDUKU_2_X, R_CHASSIS_SUDUKU_2_Y, R_CHASSIS_SUDUKU_2_W, 0, 0);
                         else /* M3 */
                             chassis_route_point_add(&chassis_route_traj,
-                                R_CHASSIS_SUDUKU_1_X, R_CHASSIS_SUDUKU_1_Y, R_CHASSIS_SUDUKU_1_W, 0);
-                    // taskEXIT_CRITICAL();
+                                R_CHASSIS_SUDUKU_1_X, R_CHASSIS_SUDUKU_1_Y, R_CHASSIS_SUDUKU_1_W, 0, 0);
+                     taskEXIT_CRITICAL();
                        
                         if (CZ_put_pos == M1)
                         { CZ_SUDUKU_X = R_CHASSIS_SUDUKU_3_X; CZ_SUDUKU_Y = R_CHASSIS_SUDUKU_3_Y; CZ_SUDUKU_W = R_CHASSIS_SUDUKU_3_W; }
@@ -2160,9 +2160,6 @@ static BT_Status Act_CZ_Mission(void)
                     /* 返回扫描点进行第二次扫描 */
                     taskENTER_CRITICAL();
                     arm_queue_add_point(&arm_traj, PICK_REST_X, PICK_REST_Y, 0.0f, 0, 0, 0.0f);
-                    chassis_route_point_add(&chassis_route_traj,
-                        R_CHASSIS_CZ_CENTER_X, R_CHASSIS_CZ_CENTER_Y, R_CHASSIS_CZ_CENTER_W, 0);
-                    arm_queue_add_point(&arm_traj, PICK_REST_X, PICK_REST_Y, 0.0f, 0, 0);
                     chassis_route_point_add(&chassis_route_traj, R_CHASSIS_CZ_CENTER_X, R_CHASSIS_CZ_CENTER_Y, R_CHASSIS_CZ_CENTER_W, 0, 0);
                     taskEXIT_CRITICAL();
                     CZ_bb.cz_mission_state = CZ_RETURN_TO_SCAN;
@@ -2929,5 +2926,6 @@ void BT_PS_Tick(void)
         PS_bb.seq_mem_idx = 0;
     }
 }
+
 
 

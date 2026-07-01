@@ -1,4 +1,4 @@
-#ifndef __BT_CUSTOMIZED_H
+﻿#ifndef __BT_CUSTOMIZED_H
 #define __BT_CUSTOMIZED_H
 
 #include "main.h"
@@ -389,8 +389,8 @@ typedef enum {
 extern ArmStoreState arm_store_state;
 extern uint8_t arm_store_slot;
 
-#define PICK_REST_X 0.3f             /* 机械臂待机位置 X */
-#define PICK_REST_Y 0.3f             /* 机械臂待机位置 Y */
+#define PICK_REST_X 0.2f             /* 机械臂待机位置 X */
+#define PICK_REST_Y 0.4f             /* 机械臂待机位置 Y */
 
 #define PICK_HANDS_UP_X 0.15f       /* 演示用抬手坐标 */
 #define PICK_HANDS_UP_Y 0.9f       /* 演示用抬手坐标 */
@@ -475,7 +475,7 @@ void BT_Customized_Tick1ms_MF(void);
 /* 对抗区机械臂放块坐标 */
 #define CZ_ARM_PLACE_1_X 0.25f       /* 对抗区放块机械臂抬高目标 X */
 #define CZ_ARM_PLACE_1_Y 0.85f       /* 对抗区放块机械臂抬高目标 Y */
-#define CZ_ARM_PLACE_PITCH 40.0f       /* 对抗区放块机械臂抬高目标 pitch */
+#define CZ_ARM_PLACE_PITCH 20.0f       /* 对抗区放块机械臂抬高目标 pitch */
 #define CZ_ARM_PLACE_2_X 0.25f       /* 对抗区放块机械臂前伸放置目标 X */
 #define CZ_ARM_PLACE_2_Y 0.85f       /* 对抗区放块机械臂前伸放置目标 Y */
 #define CZ_ARM_PLACE_TIME 500    /* 放块停留时间 (ms) */
