@@ -360,8 +360,7 @@ void entry_robotic_arm(void const * argument)
       }
       //  if(point_add == 1)
       // {
-      //   arm_queue_add_point(&arm_traj,arm_target_x,arm_target_y,0,0,arm_pump);
-      //   arm.effector_pitch_target = angle * 3.14f /180.0f;
+      //   arm_queue_add_point(&arm_traj,arm_target_x,arm_target_y,0,0,arm_pump,angle * PI /180.0f);
       //   point_add=0;
       // }
       // if(point_add == 2)
@@ -556,25 +555,25 @@ void entry_chassis(void const * argument)
     //     point_add = 0;
     //   }
     //三区点位
-    if (point_add == 1)
-      {
-        chassis_route_point_add(&chassis_route_traj, R_CHASSIS_SLOPE_END_X,R_CHASSIS_SLOPE_END_Y, 90.0f, 0,0);
-        point_add = 0;
-      }
-    if (point_add == 2)
-      {
-        chassis_route_point_add(&chassis_route_traj,R_CHASSIS_CZ_CENTER_X,R_CHASSIS_CZ_CENTER_Y, R_CHASSIS_CZ_CENTER_W, 0,0);
-        point_add = 0;
-      }if (point_add == 3)
-      {
-        chassis_route_point_add(&chassis_route_traj, R_CHASSIS_SUDUKU_1_X,R_CHASSIS_SUDUKU_1_Y, R_CHASSIS_SUDUKU_1_W, 0,0);
-        point_add = 0;
-      }
-      if (point_add == 4)
-      {
-        chassis_route_point_add(&chassis_route_traj, R_CHASSIS_SUDUKU_1_X,R_CHASSIS_SUDUKU_1_Y+500.0f, R_CHASSIS_SUDUKU_1_W, 0,0);
-        point_add = 0;
-      }
+//    if (point_add == 1)
+//      {
+//        chassis_route_point_add(&chassis_route_traj, R_CHASSIS_SLOPE_END_X,R_CHASSIS_SLOPE_END_Y, 90.0f, 0,0);
+//        point_add = 0;
+//      }
+//    if (point_add == 2)
+//      {
+//        chassis_route_point_add(&chassis_route_traj,R_CHASSIS_CZ_CENTER_X,R_CHASSIS_CZ_CENTER_Y, R_CHASSIS_CZ_CENTER_W, 0,0);
+//        point_add = 0;
+//      }if (point_add == 3)
+//      {
+//        chassis_route_point_add(&chassis_route_traj, R_CHASSIS_SUDUKU_1_X,R_CHASSIS_SUDUKU_1_Y, R_CHASSIS_SUDUKU_1_W, 0,0);
+//        point_add = 0;
+//      }
+//      if (point_add == 4)
+//      {
+//        chassis_route_point_add(&chassis_route_traj, R_CHASSIS_SUDUKU_1_X,R_CHASSIS_SUDUKU_1_Y+500.0f, R_CHASSIS_SUDUKU_1_W, 0,0);
+//        point_add = 0;
+//      }
 //if(point_add == 1)
 //{
 //  chassis_route_point_add(&chassis_route_traj, 11400.0f,-2000.0f, 0.0f, 0,0);
@@ -807,30 +806,33 @@ void entry_cmd_task(void const * argument)
                          //  BT_MASTER_Start_Task(); // 启动行为树主控任务
   BT_CZ_Init_Task();
   BT_Init_R2_MC_Mission();
+  BT_PS_Init_Task();
   mf_planner_ctx.map_color = RED_MAP;
 
   /* Infinite loop */
   for (;;)
   {
 		//  MF_Scan_Command_Send(camera_command);
-    if (task_flag == 1)
+//    if (task_flag == 1)
+//    {
+//      BT_MASTER_Start_Task();
+//      task_flag = 0;
+//    }
+    if (MC_task == 1)
     {
-      BT_MASTER_Start_Task();
-      task_flag = 0;
+     // BT_Start_R2_MC_Mission();
+     BT_PS_Start_Task();
+      MC_task=0;
     }
-    // if (MC_task == 1)
-    // {
-    //   BT_Start_R2_MC_Mission();
-    //   MC_task=0;
-    // }
-    // BT_Customized_Tick1ms_R2_MC();
+    BT_PS_Tick();
+    //BT_Customized_Tick1ms_R2_MC();
     //  if(CZ_task == 1)
-    // {
-    //  BT_CZ_Start_Task();
-    //  CZ_task = 0;
-    // };
-    BT_MASTER_Tick(); // 每1ms调用，内部降频10ms，行为树主控任务周期调用
-    // BT_Customized_Tick1ms_CZ();
+    //  {
+    //   BT_CZ_Start_Task();
+    //   CZ_task = 0;
+    //  };
+    //BT_MASTER_Tick(); // 每1ms调用，内部降频10ms，行为树主控任务周期调用
+     //BT_Customized_Tick1ms_CZ();
     osDelay(1);
   }
   /* USER CODE END entry_cmd_task */

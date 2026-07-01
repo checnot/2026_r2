@@ -1,4 +1,4 @@
-﻿#ifndef __BT_CUSTOMIZED_H
+#ifndef __BT_CUSTOMIZED_H
 #define __BT_CUSTOMIZED_H
 
 #include "main.h"
@@ -51,8 +51,13 @@
 **************************************** */
 #define R_CLAMP_TO_CHASSIS_CENTER_DIST 132.0f /* 夹爪中心到底盘中心的X方向距离 (mm) */
 #define B_CLAMP_TO_CHASSIS_CENTER_DIST 132.0f /* 夹爪中心到底盘中心的X方向距离 (mm) */
-#define R_RACK_STABLE_TIMES_CONDITION 70      /* 取矛头时到达目标位置次数，保证稳定抓取 */
-#define B_RACK_STABLE_TIMES_CONDITION 80      /* 取矛头时到达目标位置次数，保证稳定抓取 */
+#define R_RACK_STABLE_TIMES_CONDITION 50      /* 取矛头时到达目标位置次数，保证稳定抓取（降低以加速） */
+#define B_RACK_STABLE_TIMES_CONDITION 50      /* 取矛头时到达目标位置次数，保证稳定抓取 */
+
+/* ===== 伸缩堵转保护参数 ===== */
+#define R_EXT_STALL_CNT_MAX      50            /* 堵转判定连续计数 */
+#define R_EXT_STALL_CURRENT_MA   3000          /* 堵转电流阈值 */
+#define R_EXT_JAM_MAX_RETRIES    2             /* 同一位置堵转最大重试次数 */
 
 /***************************************
  * 🔴 红区路径点 (Y为负)
@@ -257,6 +262,8 @@ typedef struct
     uint8_t DOCKING_SUCCESS ; //是否成功完成对接的标志，由R1发送指令控制 
     uint8_t MF_ENTRY_INSTRUCTION  ; //是否收到R1发送的进入MF指令的标志，由R1发送指令控制，收到后进入MF任务流程 
     uint8_t MF_MISSION_Req ; //MF任务执行标志，收到进入MF指令后置1
+    uint8_t ext_stall_cnt;      /* 伸缩堵转连续计数 */
+    uint8_t ext_jam_retries;    /* 当前位置堵转重试次数 */
     R2_MC_MISSION_STATE mc_mission_state; /* 武馆任务状态机当前状态 */
 }MC_Blackboard; 
 
@@ -264,12 +271,18 @@ typedef struct
 /* ================================================ 预选赛 MC 行为树 ================================================ */
 /* 独立状态机和黑板，不共用原 MC 段。对杆位置固定，与 MC 相同 */
 
-/* 预选赛矛架位置（共用 RACK_1/2/3） */
-#define PS_RACK_1_X R_CHASSIS_RACK_1_X
-#define PS_RACK_2_X R_CHASSIS_RACK_2_X
-#define PS_RACK_3_X R_CHASSIS_RACK_3_X
-#define PS_RACK_Y    R_CHASSIS_RACK_Y
-#define PS_RACK_W    R_CHASSIS_RACK_W
+/* 预选赛矛架位置 — 每个位置独立 X/Y/W，方便红蓝区修改 */
+#define PS_RACK_1_X  R_CHASSIS_RACK_1_X
+#define PS_RACK_1_Y  R_CHASSIS_RACK_Y_1   /* 位置1 Y 与其余不同 */
+#define PS_RACK_1_W  R_CHASSIS_RACK_W_1   /* 位置1 W 与其余不同 */
+#define PS_RACK_2_X  R_CHASSIS_RACK_2_X
+#define PS_RACK_2_Y  R_CHASSIS_RACK_Y
+#define PS_RACK_2_W  R_CHASSIS_RACK_W
+#define PS_RACK_3_X  R_CHASSIS_RACK_3_X
+#define PS_RACK_3_Y  R_CHASSIS_RACK_Y
+#define PS_RACK_3_W  R_CHASSIS_RACK_W
+/* 🟡 蓝区替换：改为 B_CHASSIS_RACK_4/5/6_X/Y + B_CHASSIS_RACK_W 即可 */
+
 /* 对杆位置固定，与 MC 共用 */
 #define PS_DOCK_X  R_CHASSIS_DOCKING_X
 #define PS_DOCK_Y  R_CHASSIS_DOCKING_Y
@@ -297,6 +310,8 @@ typedef struct
     uint8_t dock_success;    /* 对杆完成标志，由外部置位 */
     uint8_t mf_req;
     uint8_t round_count;
+    uint8_t ext_stall_cnt;
+    uint8_t ext_jam_retries;
     PS_MC_MissionState state;
 } PS_MC_Blackboard;
 
@@ -470,17 +485,17 @@ void BT_Customized_Tick1ms_MF(void);
 
 /* ================================================ CZ 对抗区行为树接口 ================================================ */
 
-#define CZ_POS_STABLE_CONDITION 50  /* 扫描位置稳定次数阈值，类似MC取矛头 */
+#define CZ_POS_STABLE_CONDITION 20  /* 扫描位置稳定次数阈值，类似MC取矛头 */
 
 /* 对抗区机械臂放块坐标 */
 #define CZ_ARM_PLACE_1_X 0.25f       /* 对抗区放块机械臂抬高目标 X */
 #define CZ_ARM_PLACE_1_Y 0.85f       /* 对抗区放块机械臂抬高目标 Y */
-#define CZ_ARM_PLACE_PITCH 20.0f       /* 对抗区放块机械臂抬高目标 pitch */
+#define CZ_ARM_PLACE_PITCH 30.0f       /* 对抗区放块机械臂抬高目标 pitch */
 #define CZ_ARM_PLACE_2_X 0.25f       /* 对抗区放块机械臂前伸放置目标 X */
 #define CZ_ARM_PLACE_2_Y 0.85f       /* 对抗区放块机械臂前伸放置目标 Y */
 #define CZ_ARM_PLACE_TIME 500    /* 放块停留时间 (ms) */
 #define CZ_ARM_PLACE_TIMEOUT_MS 8000 /* 放块超时时间 (ms) */
-#define CZ_PUMP_WAIT_MS 3000      /* 关气泵后等待时间 (ms) */
+#define CZ_PUMP_WAIT_MS 2000      /* 关气泵后等待时间 (ms) */
 
 /* R1 平台等待 & 九宫格第三层坐标 (🟡需实测填入真实值) */
 #define R_CHASSIS_R1_WAIT_X 11500.0f     /* 🟡 R1平台等待点 X */

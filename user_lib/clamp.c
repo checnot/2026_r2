@@ -11,7 +11,7 @@ void clamp_lift_control(uint8_t lift_flag, M3508_Motor_Struct *motor)
     if (lift_flag == 0)
         target_position = CLAMP_LIFT_SPECIAL_POSITION1;
     else if (lift_flag == 1)
-        target_position = CLAMP_LIFT_SPECIAL_POSITION2;
+        target_position =  CLAMP_LIFT_SPECIAL_POSITION2;
 
     int32_t position_error = target_position - motor->Angle_Sum;
     int32_t abs_err = abs_int32(position_error);
