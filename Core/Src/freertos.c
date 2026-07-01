@@ -255,11 +255,9 @@ void StartDefaultTask(void const * argument)
     // data_send_vofa[3] = arm.y0_now;
     // data_send_vofa[4] = arm_traj.traj_y.out_pos;
     // data_send_vofa[5] = arm_traj.traj_queue_y.points[arm_traj.traj_queue_y.tail > 0 ? arm_traj.traj_queue_y.tail - 1 : 0];
-
     // data_send_vofa[0] = Radar_Pos.reliable_yaw;
     // data_send_vofa[1] = chassis_route_traj.traj_vw.target_pos;
     // data_send_vofa[2] = Radar_Pos.reliable_x;
-
     // 此处measure.Pos是实际转子位置减去初始位置（即电机上电时的位置），加上初始位置的目的是为了显示实际的机械位置（相对于上电时的零点）
     // 因此此处将measure.pos加上init_pos显示的数值是电机的实际位置，更直观地和发给电机的位置环目标进行对比
     // data_send_vofa[0] =chassis_route_traj.traj_vx.out_pos ;
@@ -279,6 +277,16 @@ void StartDefaultTask(void const * argument)
     // data_send_vofa[5] = Radar_Pos.radar_y_filtered;   // ch5: 卡尔曼滤波Y
     // data_send_vofa[6] = radar_y_lowpass;              // ch6: 一阶低通Y
     // data_send_vofa[7] = Radar_Pos.reliable_y;         // ch7: 最终使用Y
+ 
+    data_send_vofa[0] = m3508_fdcan3[0].M3508_Speed_PID.Target; // ch0: 目标速度
+    data_send_vofa[1] = m3508_fdcan3[0].Now_Speed;              // ch1: 实际速度
+    data_send_vofa[2] = m3508_fdcan3[1].M3508_Speed_PID.Target; // ch2: 目标速度
+    data_send_vofa[3] = m3508_fdcan3[1].Now_Speed;              // ch3: 实际速度
+    data_send_vofa[4] = m3508_fdcan3[2].M3508_Speed_PID.Target; // ch4: 目标速度
+    data_send_vofa[5] = m3508_fdcan3[2].Now_Speed;              // ch5: 实际速度
+    data_send_vofa[6] = m3508_fdcan3[3].M3508_Speed_PID.Target; // ch6: 目标速度
+    data_send_vofa[7] = m3508_fdcan3[3].Now_Speed;              // ch7: 实际速度
+
     vofa_send_to_show_justfloat(&huart7, data_send_vofa);
 
     // vofa显示调试信息

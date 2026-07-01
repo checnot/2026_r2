@@ -2308,19 +2308,16 @@ static BT_Status Act_CZ_Mission(void)
             if (++CZ_bb.cz_timer_ms * 10 >= CZ_PUMP_WAIT_MS)
             {
                 CZ_bb.scan_count++;
-                if (CZ_bb.scan_count >= 2)
+                /* 07.01.1013 R2已改为存一拿一，因此共2个块 */
+                if (CZ_bb.scan_count >= 1)
                 {
-                    /* 两次放置完成，先去取存块 */
-                    CZ_bb.cz_mission_state = CZ_PICK_STORE;
-                }
-                else
-                {
+                    /* 单？次放置完成，将机械臂过渡到背向 */
+                    arm_mode_switch_to_transition(&arm, &arm_traj, &arm_trans_traj, ARM_TRANS_FRONT_TO_BACK);
                     /* 返回扫描点进行第二次扫描 */
                     taskENTER_CRITICAL();
-                    arm_queue_add_point(&arm_traj, PICK_REST_X, PICK_REST_Y, 0.0f, 0, 0, 0.0f);
                     chassis_route_point_add(&chassis_route_traj, R_CHASSIS_CZ_CENTER_X, R_CHASSIS_CZ_CENTER_Y, R_CHASSIS_CZ_CENTER_W, 0, 0);
                     taskEXIT_CRITICAL();
-                    CZ_bb.cz_mission_state = CZ_RETURN_TO_SCAN;
+                    CZ_bb.cz_mission_state = CZ_PICK_STORE_F2B;
                 }
                 CZ_bb.cz_timer_ms = 0;
             }
@@ -2359,14 +2356,59 @@ static BT_Status Act_CZ_Mission(void)
             return BT_RUNNING;
         }
 
-        case CZ_PICK_STORE:
+        case CZ_PICK_STORE_F2B:
         {
-            /*
-             * 🟡取存块逻辑（暂空，立即完成�?
-             * TODO: 填写取存块的机械�?底盘动作
-             */
-            CZ_bb.cz_mission_state = CZ_DONE;
-            CZ_bb.cz_timer_ms = 0;
+            if(arm.mode == ARM_MODE_BACK)
+            {
+                taskENTER_CRITICAL();
+                arm_queue_add_point(&arm_traj, STORE_PRE_X, STORE_PRE_Y, 0.0f, 0, ARM_PUMP_SUCK, 270.0f/180.0f*PI);
+                arm_queue_add_point(&arm_traj, STORE_X, STORE_Y-0.075f, 0.0f, STORE_TIME, ARM_PUMP_SUCK, 270.0f/180.0f*PI);
+                taskEXIT_CRITICAL();
+                CZ_bb.cz_mission_state = CZ_PICK_STORE_PICK;
+                CZ_bb.cz_timer_ms = 0;
+                return BT_RUNNING;
+            }
+            else if (++CZ_bb.cz_timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS)
+            {
+                return BT_FAILURE;
+            }
+
+            return BT_RUNNING;
+        }
+
+        case CZ_PICK_STORE_PICK:
+        {
+            if(arm_if_arrived_xy(STORE_X+0.075f, STORE_Y-0.075f))
+            {
+                HAL_GPIO_WritePin(GPIOD, GPIO_PIN_5, GPIO_PIN_RESET);  // 关闭存块气泵
+                arm_mode_switch_to_transition(&arm, &arm_traj, &arm_trans_traj, ARM_TRANS_BACK_TO_FRONT);
+                CZ_bb.cz_mission_state = CZ_PICK_STORE_B2F;
+                CZ_bb.cz_timer_ms = 0;
+                return BT_RUNNING;
+            }
+            else if (++CZ_bb.cz_timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS)
+            {
+                return BT_FAILURE;
+            }
+
+            return BT_RUNNING;
+        }
+
+        case CZ_PICK_STORE_B2F:
+        {
+            if(arm.mode == ARM_MODE_FRONT)
+            {
+                arm_queue_add_point(&arm_traj, PICK_REST_X, PICK_REST_Y, 0.0f, 0, ARM_PUMP_SUCK, CZ_ARM_PLACE_PITCH/180.0f*PI);
+                CZ_bb.cz_mission_state = CZ_DONE;
+                CZ_bb.cz_timer_ms = 0;
+                CZ_bb.pos_stable_times = 0;
+                return BT_RUNNING;
+            }
+            else if (++CZ_bb.cz_timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS)
+            {
+                return BT_FAILURE;
+            }
+
             return BT_RUNNING;
         }
 
