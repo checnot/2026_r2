@@ -873,18 +873,42 @@ bool MFPlanner_BuildPhase1(MF_Planner* ctx,
     /* 此处应修改为实际的相机扫描 */
     MFPlanner_ScanRows(ctx, 1, 2);
 
-    /* 【规则】R2 最终要站上 (1,1) 完成第二次扫描，
-     * 因此真正必须清除的是挡在 (1,1) 上的 R2KFS(如果有)，
-     * 而不是 row1 上任意一个先被扫到的 R2KFS(row1 其它列的 R2KFS
-     * 不影响能否登上 (1,1)，留给阶段2处理即可) */
-    bool row1_has_r2kfs = (ctx->cell[1][1] == MF_CELL_R2KFS);
-    uint8_t kfs_c = 1;
+    /* 【规则】只要 row1(col0/col1/col2 任意一列)上存在 R2KFS，
+     * 阶段1就必须先拾取其中一个才能进入阶段2；若 (1,1) 本身是
+     * R2KFS 则优先拾取它(直接挡住登顶点)，否则在 col0/col2 的
+     * R2KFS 中选可达且代价最低的一个拾取，其余留给阶段2处理 */
+    bool row1_has_r2kfs = false;
+    uint8_t kfs_c = 0;
+
+    if (ctx->cell[1][1] == MF_CELL_R2KFS) {
+        row1_has_r2kfs = true;
+        kfs_c = 1;
+    } else {
+        int16_t best_cost = 0x3FFF;
+        for (uint8_t c = 0; c < MF_COLS; c++) {
+            if (ctx->cell[1][c] != MF_CELL_R2KFS) {
+                continue;
+            }
+            uint8_t cand_path[MF_MAX_NODES];
+            uint8_t cand_len = 0;
+            int16_t cand_cost = 0;
+            if (!MF_AStar(ctx, cur_r, cur_c, 0, c,
+                          allow_r2kfs_cross, cand_path, &cand_len, &cand_cost)) {
+                continue;
+            }
+            if (!row1_has_r2kfs || cand_cost < best_cost) {
+                row1_has_r2kfs = true;
+                best_cost = cand_cost;
+                kfs_c = c;
+            }
+        }
+    }
 
     if (row1_has_r2kfs) {
         /* ======================================================== */
-        /* (1,1) 上有 R2KFS：走到其正下方 row0 格，面北拾取         */
-        /* 【规则】R2 必须站在 row0 拾取 (1,1) 的 R2KFS，          */
-        /*        拾取后该格变通路，R2 才能 step_up 登上去          */
+        /* row1,col(kfs_c) 上有 R2KFS：走到其正下方 row0 格，面北拾取 */
+        /* 【规则】R2 必须站在 row0 拾取该 R2KFS，                   */
+        /*        若 kfs_c==1 则拾取后 (1,1) 变通路，R2 才能 step_up */
         /* ======================================================== */
         uint8_t kfs_r = 1;
         uint8_t path[MF_MAX_NODES];

@@ -573,10 +573,25 @@
       scanRows(realCell, ctx, 1, 2);
       segments.push({ key: 'phase1-scan1', label: '扫描 row1~row2 → 揭示实际 KFS 分布', actions: [], note: true });
 
-      // 最终要站上 (1,1) 完成第二次扫描，因此只需清除挡在 (1,1) 上的 R2KFS，
-      // row1 其它列的 R2KFS 不影响能否登上 (1,1)，留给阶段2处理即可
+      // 只要 row1(col0/col1/col2 任意一列)上存在 R2KFS，阶段1就必须先拾取其中一个；
+      // 若 (1,1) 本身是 R2KFS 则优先选它(直接挡住登顶点)，否则在 col0/col2 中选
+      // 可达且代价最低的一个，其余留给阶段2处理
       let row1HasR2 = (ctx.cell[1][1] === MF_CELL_R2KFS);
       let kfsC = 1;
+
+      if (!row1HasR2) {
+        let bestCost = Infinity;
+        for (let c = 0; c < MF_COLS; c++) {
+          if (ctx.cell[1][c] !== MF_CELL_R2KFS) continue;
+          const cand = aStar(ctx, curR, curC, 0, c, allowR2Cross);
+          if (!cand.ok) continue;
+          if (!row1HasR2 || cand.cost < bestCost) {
+            row1HasR2 = true;
+            bestCost = cand.cost;
+            kfsC = c;
+          }
+        }
+      }
 
       if (row1HasR2) {
         const kfsR = 1;
