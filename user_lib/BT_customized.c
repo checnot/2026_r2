@@ -2204,7 +2204,7 @@ static BT_Status Act_CZ_Mission(void)
             {
                 taskENTER_CRITICAL();
                 arm_queue_add_point(&arm_traj, STORE_PRE_X, STORE_PRE_Y, 0.0f, 0, ARM_PUMP_SUCK, 270.0f/180.0f*PI);
-                arm_queue_add_point(&arm_traj, STORE_X, STORE_Y-0.075f, 0.0f, STORE_TIME, ARM_PUMP_SUCK, 270.0f/180.0f*PI);
+                arm_queue_add_point(&arm_traj, STORE_X+0.075f, STORE_Y-0.08f, 0.0f, STORE_TIME, ARM_PUMP_SUCK, 270.0f/180.0f*PI);
                 taskEXIT_CRITICAL();
                 CZ_bb.cz_mission_state = CZ_PICK_STORE_PICK;
                 CZ_bb.cz_timer_ms = 0;
@@ -2220,7 +2220,7 @@ static BT_Status Act_CZ_Mission(void)
 
         case CZ_PICK_STORE_PICK:
         {
-            if(arm_if_arrived_xy(STORE_X+0.075f, STORE_Y-0.075f))
+            if(arm_if_arrived_xy(STORE_X+0.075f, STORE_Y-0.05f))
             {
                 HAL_GPIO_WritePin(GPIOD, GPIO_PIN_5, GPIO_PIN_RESET);  // 关闭存块气泵
                 arm_mode_switch_to_transition(&arm, &arm_traj, &arm_trans_traj, ARM_TRANS_BACK_TO_FRONT);

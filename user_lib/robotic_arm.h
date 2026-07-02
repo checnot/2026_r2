@@ -15,8 +15,8 @@
 #include "go_m8010.h"
 
 // 人为设定的“机械臂末端合成上限”
-#define GLOBAL_V_MAX 2.0f  // 合成最大速度(m/s)
-#define GLOBAL_A_MAX 4.0f  // 合成最大加速度(m/s^2)
+#define GLOBAL_V_MAX 3.5f  // 合成最大速度(m/s)
+#define GLOBAL_A_MAX 3.0f  // 合成最大加速度(m/s^2)
 
 #define PITCH_V_MAX (2.5f*PI)  // pitch 最大速度(rad/s)
 #define PITCH_A_MAX (1.25f*PI)  // pitch 最大加速度(rad/s^2)
@@ -43,7 +43,7 @@ typedef struct
 
 /* ========================== 机械臂工作区域过渡相关 ========================== */
 
-#define TRANS_V_MAX (3.0f*PI)  // 过渡最大关节速度(rad/s)
+#define TRANS_V_MAX (4.0f*PI)  // 过渡最大关节速度(rad/s)
 #define TRANS_A_MAX (1.5f*PI)       // 合成最大关节加速度(rad/s^2)
 
 #define UPPERARM_LIMIT_DEG_MIN (19.3f) //实测大臂与云台平面的夹角最小约为"19.3度"

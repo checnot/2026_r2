@@ -118,13 +118,13 @@
 #define R_CHASSIS_CZ_CENTER_Y -3055.0f        /* 红区 对抗区扫描 Y (mm) */
 #define R_CHASSIS_CZ_CENTER_W 90.0f           /* 红区 对抗区扫描 W (deg) */
 
-#define R_CHASSIS_SUDUKU_1_X 11290.0f         /* 红区 九宫格第一列 X (mm) */
+#define R_CHASSIS_SUDUKU_1_X 11310.0f         /* 红区 九宫格第一列 X (mm) */
 #define R_CHASSIS_SUDUKU_1_Y -1200.0f          /* 红区 九宫格第一列 Y (mm) */
 #define R_CHASSIS_SUDUKU_1_W 90.0f            /* 红区 九宫格第一列 W (deg) */
-#define R_CHASSIS_SUDUKU_2_X 10750.0f         /* 红区 九宫格第二列 X (mm) */
+#define R_CHASSIS_SUDUKU_2_X 10770.0f         /* 红区 九宫格第二列 X (mm) */
 #define R_CHASSIS_SUDUKU_2_Y -1200.0f          /* 红区 九宫格第二列 Y (mm) */
 #define R_CHASSIS_SUDUKU_2_W 90.0f            /* 红区 九宫格第二列 W (deg) */
-#define R_CHASSIS_SUDUKU_3_X 10210.0f         /* 红区 九宫格第三列 X (mm) */
+#define R_CHASSIS_SUDUKU_3_X 10230.0f         /* 红区 九宫格第三列 X (mm) */
 #define R_CHASSIS_SUDUKU_3_Y -1200.0f          /* 红区 九宫格第三列 Y (mm) */
 #define R_CHASSIS_SUDUKU_3_W 90.0f            /* 红区 九宫格第三列 W (deg) */
 
@@ -389,8 +389,11 @@ typedef enum {
 extern ArmStoreState arm_store_state;
 extern uint8_t arm_store_slot;
 
-#define PICK_REST_X 0.2f             /* 机械臂待机位置 X */
-#define PICK_REST_Y 0.4f             /* 机械臂待机位置 Y */
+#define PICK_PRE_REST_X 0.2f             /* 机械臂预待机位置 X */
+#define PICK_PRE_REST_Y 0.4f             /* 机械臂预待机位置 Y */
+#define PICK_REST_X     0.215f            /* 机械臂待机位置 X */
+#define PICK_REST_Y     0.25f             /* 机械臂待机位置 Y */
+
 
 #define PICK_HANDS_UP_X 0.15f       /* 演示用抬手坐标 */
 #define PICK_HANDS_UP_Y 0.9f       /* 演示用抬手坐标 */
@@ -470,7 +473,7 @@ void BT_Customized_Tick1ms_MF(void);
 
 /* ================================================ CZ 对抗区行为树接口 ================================================ */
 
-#define CZ_POS_STABLE_CONDITION 50  /* 扫描位置稳定次数阈值，类似MC取矛头 */
+#define CZ_POS_STABLE_CONDITION 10  /* 扫描位置稳定次数阈值，类似MC取矛头 */
 
 /* 对抗区机械臂放块坐标 */
 #define CZ_ARM_PLACE_1_X 0.25f       /* 对抗区放块机械臂抬高目标 X */
