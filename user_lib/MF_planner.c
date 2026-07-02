@@ -9,10 +9,12 @@
  * 核心思想：
  * 1) MF 区被抽象为 6x3 栅格(行从下到上 0~5，列从左到右 0~2)。
  * 2) 每个格子带高度(0/200/400/600mm)，移动约束为相邻格且高度差为 0 或 +/-200。
- * 3) A* 只在“走格子”层面算代价(每步代价=1)，不考虑动作代价。
+ * 3) A* 在“走格子”层面算代价：每步代价=1，若目标格为 R1KFS 则额外加 MF_WAIT_R1_COST，
+ *    使规划自动倾向于穿越次数更少的路径，仅在无法避开时才接受穿越。
  * 4) 规划结果不是路径点列表，而是包含“上台阶/下台阶/平移/取方块/等待”的动作序列。
  * 5) R2KFS 视为“轻度障碍”：不能登上，但可到相邻格面对并拾取，拾取后变通路。
- * 6) R1KFS 能避则避；若完全阻断，则允许路径穿过，自动插入“等待R1取走”动作。
+ * 6) R1KFS 恒定可穿越，但穿越代价高：能避则避，若绕路代价更高或完全阻断，
+ *    则接受穿过，自动插入“等待R1取走”动作。
  * 7) FAKEKFS 永久不可接触与不可登上。
  * 8) 规划一次生成全程动作列表；执行阶段若遇等待，R1移除后继续，不重新规划。
  *
@@ -28,6 +30,12 @@
 /* 方向增量：北1、东1、南-1、西-1 */
 static const int8_t k_dir_dr[4] = { 1, 0, -1, 0 };
 static const int8_t k_dir_dc[4] = { 0, 1, 0, -1 };
+
+/* 穿越一次 R1KFS 相对于普通一步的额外代价：总代价 = 步数 + MF_WAIT_R1_COST * 穿越次数 */
+#define MF_WAIT_R1_COST 20
+
+/* 移开一次 R2KFS 相对于普通一步的额外代价：比普通移动(1)大，比等待R1(1+20)小 */
+#define MF_MOVE_R2_COST 10
 
 MF_Planner mf_planner_ctx;
 
@@ -97,12 +105,15 @@ static int16_t MF_Manhattan(uint8_t r1, uint8_t c1, uint8_t r2, uint8_t c2)
  * @param ctx 规划器上下文
  * @param r 目标行
  * @param c 目标列
- * @param allow_r1kfs 是否允许穿过 R1KFS
+ * @param allow_r2kfs_cross 是否允许把 R2KFS 当作可移开的“轻度障碍”穿越；
+ *        false 表示 R2KFS 视为不可登上的硬障碍(用于禁止最后一个 R2KFS 拾取完成后
+ *        再规划 MOVE_R2 动作的场景，例如走向出口的路径搜索)
  * @return true 表示不可登上
- * @note R2KFS 与 FAKEKFS 永远不可登上，R1KFS 是否可走由 allow_r1kfs 控制
- * @note R2KFS/FAKEKFS 仅允许“相邻拾取”，不允许踏上
+ * @note R1KFS 恒定可“穿越”，但穿越代价高，由 MF_AStar 体现；FAKEKFS 永远不可登上
+ * @note R2KFS 仅当 allow_r2kfs_cross 为 true 时才可“穿越”(移开)，
+ *       若规划选择直接穿越则由 MF_AddPathActions 插入“移开”动作
  */
-static bool MF_IsBlockedForMove(const MF_Planner* ctx, uint8_t r, uint8_t c, bool allow_r1kfs)
+static bool MF_IsBlockedForMove(const MF_Planner* ctx, uint8_t r, uint8_t c, bool allow_r2kfs_cross)
 {
     /* 读取目标格子类型 */
     MF_CellType t = ctx->cell[r][c];
@@ -115,10 +126,14 @@ static bool MF_IsBlockedForMove(const MF_Planner* ctx, uint8_t r, uint8_t c, boo
         return true;
     }
     if (t == MF_CELL_R1KFS) {
-        /* R1KFS 是否可穿过取决于 allow_r1kfs */
-        return allow_r1kfs ? false : true;
+        /* R1KFS 恒定可穿越，穿越代价由 MF_AStar 中的 MF_WAIT_R1_COST 体现 */
+        return false;
     }
-    /* R2KFS 与 FAKEKFS 永远不可登上 */
+    if (t == MF_CELL_R2KFS) {
+        /* R2KFS 是否可“移开后穿越”取决于调用方是否仍允许 MOVE_R2 动作 */
+        return !allow_r2kfs_cross;
+    }
+    /* FAKEKFS 永远不可登上 */
     return true;
 }
 
@@ -160,19 +175,22 @@ AStarNode ASTAR_nodes[MF_MAX_NODES];
  * @param sc 起点列
  * @param gr 目标行
  * @param gc 目标列
- * @param allow_r1kfs 是否允许穿过 R1KFS
+ * @param allow_r2kfs_cross 是否允许把 R2KFS 当作可穿越(移开)的轻度障碍；
+ *        false 表示 R2KFS 视为硬障碍，规划出的路径不会再产生 MOVE_R2 动作
  * @param out_path 输出路径(索引数组)
  * @param out_len 输出路径长度
+ * @param out_cost 输出路径总代价(可为 NULL)，用于候选路径之间的比较
  * @return true 表示找到路径
- * @note 只考虑“走格子”代价，每步=1；返回索引路径(包含起点与终点)
- * @note allow_r1kfs==true 时允许穿过 R1KFS(并由上层插入等待动作)
+ * @note 每步代价=1，若目标格为 R1KFS 则额外加 MF_WAIT_R1_COST；返回索引路径(包含起点与终点)
+ * @note R1KFS 恒定可穿越，穿越次数越多、绕路带来的代价差越大，越容易被 A* 放弃
  */
 static bool MF_AStar(const MF_Planner* ctx,
                      uint8_t sr, uint8_t sc,
                      uint8_t gr, uint8_t gc,
-                     bool allow_r1kfs,
+                     bool allow_r2kfs_cross,
                      uint8_t* out_path,
-                     uint8_t* out_len)
+                     uint8_t* out_len,
+                     int16_t* out_cost)
 {
     for (uint8_t i = 0; i < MF_MAX_NODES; i++) {
         /* 初始化代价为极大值，表示尚未访问 */
@@ -233,6 +251,9 @@ static bool MF_AStar(const MF_Planner* ctx,
                 out_path[i] = path[count - 1 - i];
             }
             *out_len = count;
+            if (out_cost != NULL) {
+                *out_cost = ASTAR_nodes[goal_index].g;
+            }
             return true;
         }
 
@@ -253,7 +274,7 @@ static bool MF_AStar(const MF_Planner* ctx,
             /* 强转为无符号便于索引 */
             uint8_t ur = (uint8_t)nr;
             uint8_t uc = (uint8_t)nc;
-            if (MF_IsBlockedForMove(ctx, ur, uc, allow_r1kfs)) {
+            if (MF_IsBlockedForMove(ctx, ur, uc, allow_r2kfs_cross)) {
                 continue;
             }
             if (! MF_IsStepAllowed(ctx, cr, cc, ur, uc)) {
@@ -265,8 +286,14 @@ static bool MF_AStar(const MF_Planner* ctx,
                 /* 已在关闭集则跳过 */
                 continue;
             }
-            /* 新路径代价 = 当前代价 + 1 */
-            int16_t tentative_g = (int16_t)(ASTAR_nodes[current].g + 1);
+            /* 新路径代价 = 当前代价 + 单步代价(R1KFS 额外加 MF_WAIT_R1_COST，R2KFS 额外加 MF_MOVE_R2_COST) */
+            int16_t step_cost = 1;
+            if (ctx->cell[ur][uc] == MF_CELL_R1KFS) {
+                step_cost = (int16_t)(1 + MF_WAIT_R1_COST);
+            } else if (ctx->cell[ur][uc] == MF_CELL_R2KFS) {
+                step_cost = (int16_t)(1 + MF_MOVE_R2_COST);
+            }
+            int16_t tentative_g = (int16_t)(ASTAR_nodes[current].g + step_cost);
             if (!ASTAR_nodes[nidx].in_open || tentative_g < ASTAR_nodes[nidx].g) {
                 /* 记录更优父节点与代价 */
                 ASTAR_nodes[nidx].parent = current;
@@ -354,6 +381,15 @@ static bool MF_AddPathActions(MF_Planner* ctx,
             ctx->cell[r2][c2] = MF_CELL_EMPTY;
         }
 
+        /* 遇到 R2KFS：路径选择直接穿越而非绕路/拾取，先移开(丢弃)再进入该格 */
+        if (ctx->cell[r2][c2] == MF_CELL_R2KFS) {
+            if (!MF_PushAction(ctx, MF_ACT_MOVE_R2, dir, r2, c2)) {
+                return false;
+            }
+            /* 移开后该格变通路 */
+            ctx->cell[r2][c2] = MF_CELL_EMPTY;
+        }
+
         /* 高度差决定平移/上/下 */
         int16_t h1 = (int16_t)ctx->height[r1][c1];
         int16_t h2 = (int16_t)ctx->height[r2][c2];
@@ -387,29 +423,32 @@ static bool MF_AddPathActions(MF_Planner* ctx,
  * @param sc 起点列
  * @param target_r 目标格行
  * @param target_c 目标格列
- * @param allow_r1kfs 是否允许穿过 R1KFS
+ * @param allow_r2kfs_cross 是否允许把沿途 R2KFS 当作可穿越(移开)的轻度障碍
  * @param out_path 输出路径索引数组
  * @param out_len 输出路径长度
  * @param out_adj_r 输出相邻格行
  * @param out_adj_c 输出相邻格列
+ * @param out_cost 输出路径总代价(可为 NULL)
  * @return true 表示找到路径
  * @note R2 必须相邻面对才能取 R2KFS，因此这里找目标格的最佳相邻格
- * @note 返回的路径终点就是“可站立的相邻格”
+ * @note 返回的路径终点就是“可站立的相邻格”；候选相邻格按总代价(而非步数)比较
  */
 static bool MF_FindPathToAdjacent(const MF_Planner* ctx,
                                   uint8_t sr, uint8_t sc,
                                   uint8_t target_r, uint8_t target_c,
-                                  bool allow_r1kfs,
+                                  bool allow_r2kfs_cross,
                                   uint8_t* out_path,
                                   uint8_t* out_len,
                                   uint8_t* out_adj_r,
-                                  uint8_t* out_adj_c)
+                                  uint8_t* out_adj_c,
+                                  int16_t* out_cost)
 {
     bool found = false;
     uint8_t best_path[MF_MAX_NODES];
     uint8_t best_len = 0;
     uint8_t best_r = 0;
     uint8_t best_c = 0;
+    int16_t best_cost = 0x3FFF;
 
     for (uint8_t d = 0; d < 4; d++) {
         /* 枚举目标格四个相邻格 */
@@ -420,17 +459,19 @@ static bool MF_FindPathToAdjacent(const MF_Planner* ctx,
         }
         uint8_t ur = (uint8_t)ar;
         uint8_t uc = (uint8_t)ac;
-        if (MF_IsBlockedForMove(ctx, ur, uc, allow_r1kfs)) {
+        if (MF_IsBlockedForMove(ctx, ur, uc, allow_r2kfs_cross)) {
             continue;
         }
         /* 对每个可站立相邻格做 A* */
         uint8_t path[MF_MAX_NODES];
         uint8_t len = 0;
-        if (MF_AStar(ctx, sr, sc, ur, uc, allow_r1kfs, path, &len)) {
-            if (!found || len < best_len) {
-                /* 记录更短路径 */
+        int16_t cost = 0;
+        if (MF_AStar(ctx, sr, sc, ur, uc, allow_r2kfs_cross, path, &len, &cost)) {
+            if (!found || cost < best_cost) {
+                /* 记录代价更低的路径 */
                 found = true;
                 best_len = len;
+                best_cost = cost;
                 memcpy(best_path, path, len);
                 best_r = ur;
                 best_c = uc;
@@ -447,6 +488,9 @@ static bool MF_FindPathToAdjacent(const MF_Planner* ctx,
     *out_len = best_len;
     *out_adj_r = best_r;
     *out_adj_c = best_c;
+    if (out_cost != NULL) {
+        *out_cost = best_cost;
+    }
     return true;
 }
 
@@ -546,203 +590,192 @@ void MFPlanner_LoadFixedDemoMap(MF_Planner* ctx)
 
 }
 
-/**
- * @brief 生成完整动作列表(一次性规划)
- * @param ctx 规划器上下文
- * @param start_row R2 初始行(入口区地面通常为 row0)
- * @param start_col R2 初始列(0~2)
- * @param r2kfs_need 需要拾取的 R2KFS 数量
- * @return true 表示规划成功
- * @note 决策核心
- * @note 规划顺序为：依次选择一个最近的 R2KFS -> 走到相邻格 -> 面对拾取
- * @note 若 R1KFS 阻断路径，则允许穿过并插入等待动作
- */
-bool MFPlanner_BuildFullPlan(MF_Planner* ctx,
-                             uint8_t start_row,
-                             uint8_t start_col,
-                             uint8_t r2kfs_need)
-{
-    /* 重置动作列表与执行指针 */
-    ctx->action_count = 0;
-    ctx->action_index = 0;
+// /**
+//  * @brief 生成完整动作列表(一次性规划)
+//  * @param ctx 规划器上下文
+//  * @param start_row R2 初始行(入口区地面通常为 row0)
+//  * @param start_col R2 初始列(0~2)
+//  * @param r2kfs_need 需要拾取的 R2KFS 数量
+//  * @return true 表示规划成功
+//  * @note 决策核心
+//  * @note 规划顺序为：依次选择一个最近的 R2KFS -> 走到相邻格 -> 面对拾取
+//  * @note 若 R1KFS 阻断路径，则允许穿过并插入等待动作
+//  */
+// bool MFPlanner_BuildFullPlan(MF_Planner* ctx,
+//                              uint8_t start_row,
+//                              uint8_t start_col,
+//                              uint8_t r2kfs_need)
+// {
 
-    /* 当前搜索起点(随拾取推进) */
-    uint8_t cur_r = start_row;
-    uint8_t cur_c = start_col;
-
-    for (uint8_t picked = 0; picked < r2kfs_need; picked++) {
-        /* 每轮选取一个最近的 R2KFS */
-        bool found_any = false;
-        /* 是否允许穿过 R1KFS */
-        bool allow_r1kfs = false;
-        uint8_t best_target_r = 0;
-        uint8_t best_target_c = 0;
-        uint8_t best_path[MF_MAX_NODES];
-        uint8_t best_len = 0;
-        uint8_t best_adj_r = 0;
-        uint8_t best_adj_c = 0;
-
-        /* 先尝试“避开 R1KFS”的路径 */
-        for (uint8_t pass = 0; pass < 2 && !found_any; pass++) {
-            /* pass=0: 不允许穿过 R1KFS；pass=1: 允许穿过 */
-            allow_r1kfs = (pass == 1);
-            for (uint8_t r = 0; r < MF_ROWS; r++) {
-                for (uint8_t c = 0; c < MF_COLS; c++) {
-                    if (ctx->cell[r][c] != MF_CELL_R2KFS) {
-                        /* 不是 R2KFS 直接跳过 */
-                        continue;
-                    }
-                    /* 尝试到达该 R2KFS 的相邻格 */
-                    uint8_t path[MF_MAX_NODES];
-                    uint8_t len = 0;
-                    uint8_t adj_r = 0;
-                    uint8_t adj_c = 0;
-                    if (MF_FindPathToAdjacent(ctx, cur_r, cur_c, r, c,
-                                              allow_r1kfs, path, &len, &adj_r, &adj_c)) {
-                        /* ============================================================ */
-                        /* 【修改3】检查拿完此 R2KFS 后能否到达出口                     */
-                        /* - 最后一步(picked == r2kfs_need-1)：只清除当前候选，       */
-                        /*   其余未拿 R2KFS 保留为真实障碍，避免选了到不了出口的 KFS   */
-                        /* - 非最后步：乐观清除所有 R2KFS（后续还会再选可打通）        */
-                        /* ============================================================ */
-                        {
-                            MF_CellType saved_cell[MF_ROWS][MF_COLS];
-                            uint8_t rr, cc;
-                            bool can_reach_exit;
-                            uint8_t ep[MF_MAX_NODES];
-                            uint8_t elen;
-
-                            memcpy(saved_cell, ctx->cell, sizeof(ctx->cell));
-                            if (picked == r2kfs_need - 1) {
-                                /* 最后一步：只清除当前候选这一个 R2KFS */
-                                ctx->cell[r][c] = MF_CELL_EMPTY;
-                            } else {
-                                /* 非最后步：乐观清除所有 R2KFS（后续迭代还会再选） */
-                                for (rr = 0; rr < MF_ROWS; rr++) {
-                                    for (cc = 0; cc < MF_COLS; cc++) {
-                                        if (ctx->cell[rr][cc] == MF_CELL_R2KFS) {
-                                            ctx->cell[rr][cc] = MF_CELL_EMPTY;
-                                        }
-                                    }
-                                }
-                            }
-                            can_reach_exit = false;
-                            if (MF_AStar(ctx, adj_r, adj_c, 5, 0, true, ep, &elen)) {
-                                can_reach_exit = true;
-                            }
-                            if (!can_reach_exit && MF_AStar(ctx, adj_r, adj_c, 5, 2, true, ep, &elen)) {
-                                can_reach_exit = true;
-                            }
-                            memcpy(ctx->cell, saved_cell, sizeof(ctx->cell));
-                            if (!can_reach_exit) {
-                                continue; /* 该候选拿完后无法到出口，跳过 */
-                            }
-                        }
-
-                        if (!found_any || len < best_len) {
-                            /* 记录更短的候选 */
-                            found_any = true;
-                            best_len = len;
-                            memcpy(best_path, path, len);
-                            best_target_r = r;
-                            best_target_c = c;
-                            best_adj_r = adj_r;
-                            best_adj_c = adj_c;
-                        }
-                    }
-                }
-            }
-        }
-
-        if (!found_any) {
-            /* 没有任何 R2KFS 可达，规划失败 */
-            return false;
-        }
-
-        /* 将路径翻译为动作 */
-        if (!MF_AddPathActions(ctx, best_path, best_len)) {
-            return false;
-        }
-
-        /* 在相邻格面对 R2KFS 取走 */
-        int8_t dr = (int8_t)best_target_r - (int8_t)best_adj_r;
-        int8_t dc = (int8_t)best_target_c - (int8_t)best_adj_c;
-        /* 面向目标格的方向即为拾取方向 */
-        MF_Dir pick_dir = MF_DirFromDelta(dr, dc);
-        /* 计算拾取动作的相对高度 */
-        int16_t height_diff = (int16_t)ctx->height[best_target_r][best_target_c]
-                                    - (int16_t)ctx->height[best_adj_r][best_adj_c];
-        /* 向数组中填入动作 */
-        if (!MF_PushAction(ctx, MF_ACT_PICK_R2, pick_dir, best_target_r, best_target_c)) {
-            return false;
-        }
-        /* 回填高度差到刚 push 的动作中 */
-        ctx->actions[ctx->action_count - 1].height_pick_diff = height_diff;
-
-        /* 取走后变为通路 */
-        ctx->cell[best_target_r][best_target_c] = MF_CELL_EMPTY;
-
-        /* 更新当前位置为相邻格 */
-        cur_r = best_adj_r;
-        cur_c = best_adj_c;
-    }
-
-
-    /* ================================================================ */
-    /* 所有 R2KFS 拾取完毕后，规划从当前位置走到出口区地面(row5)的路径 */
-    /* 出口候选列：col0 和 col2，选择总路程更短的那一个                */
-    /* ================================================================ */
-    bool allow_r1kfs_for_exit = true; /* 允许穿过 R1KFS(此时已无 R2KFS 需要保护) */
-
-    /* 两个出口候选：row5,col0 和 row5,col2 */
-    uint8_t exit_candidates_row[2] = { 5, 5 };    /* 两个候选出口行 */
-    uint8_t exit_candidates_col[2] = { 0, 2 };    /* 两个候选出口列 */
-
-    bool found_exit = false;                       /* 是否找到可达出口 */
-    uint8_t best_exit_path[MF_MAX_NODES];          /* 最优出口路径 */
-    uint8_t best_exit_len = 0;                     /* 最优出口路径长度 */
-
-    for (uint8_t e = 0; e < 2; e++) {
-        /* 依次对每个候选出口跑 A* */
-        uint8_t exit_r = exit_candidates_row[e];
-        uint8_t exit_c = exit_candidates_col[e];
-
-        /* 若当前位置已在候选出口上，直接选中(路程为0) */
-        if (cur_r == exit_r && cur_c == exit_c) {
-            found_exit = true;
-            best_exit_len = 0;
-            break; /* 已到出口，无需再找 */
-        }
-
-        uint8_t exit_path[MF_MAX_NODES];
-        uint8_t exit_len = 0;
-
-        /* A* 搜索从当前位置到该候选出口的路径 */
-        if (MF_AStar(ctx, cur_r, cur_c, exit_r, exit_c,
-                        allow_r1kfs_for_exit, exit_path, &exit_len)) {
-            /* 比较路径长度，保留更短的 */
-            if (!found_exit || exit_len < best_exit_len) {
-                found_exit = true;
-                best_exit_len = exit_len;
-                memcpy(best_exit_path, exit_path, exit_len);
-            }
-        }
-    }
-
-    if (found_exit && best_exit_len > 0) {
-        /* 将最优出口路径翻译为移动动作序列 */
-        if (!MF_AddPathActions(ctx, best_exit_path, best_exit_len)) {
-            return false;
-        }
-    }
-    /* 【修改4】找不到任何出口路径时返回失败，不再静默吞掉 */
-    if (!found_exit) {
-        return false;
-    }
-
-
-    return true;
-}
+//     /* 重置动作列表与执行指针 */
+//     ctx->action_count = 0;
+//     ctx->action_index = 0;
+//     /* 当前搜索起点(随拾取推进) */
+//     uint8_t cur_r = start_row;
+//     uint8_t cur_c = start_col;
+//     for (uint8_t picked = 0; picked < r2kfs_need; picked++) {
+//         /* 每轮选取一个总代价最低的 R2KFS(R1KFS 恒定可穿越，但穿越代价高) */
+//         bool found_any = false;
+//         /* 拾取阶段沿途仍允许穿越其他 R2KFS(产生 MOVE_R2)，只有最终出口路径禁止 */
+//         bool allow_r2kfs_cross = true;
+//         uint8_t best_target_r = 0;
+//         uint8_t best_target_c = 0;
+//         uint8_t best_path[MF_MAX_NODES];
+//         uint8_t best_len = 0;
+//         uint8_t best_adj_r = 0;
+//         uint8_t best_adj_c = 0;
+//         int16_t best_cost = 0x3FFF;
+//         for (uint8_t r = 0; r < MF_ROWS; r++) {
+//             for (uint8_t c = 0; c < MF_COLS; c++) {
+//                 if (ctx->cell[r][c] != MF_CELL_R2KFS) {
+//                     /* 不是 R2KFS 直接跳过 */
+//                     continue;
+//                 }
+//                 /* 尝试到达该 R2KFS 的相邻格 */
+//                 uint8_t path[MF_MAX_NODES];
+//                 uint8_t len = 0;
+//                 uint8_t adj_r = 0;
+//                 uint8_t adj_c = 0;
+//                 int16_t cost = 0;
+//                 if (MF_FindPathToAdjacent(ctx, cur_r, cur_c, r, c,
+//                                           allow_r2kfs_cross, path, &len, &adj_r, &adj_c, &cost)) {
+//                     /* ============================================================ */
+//                     /* 【修改3】检查拿完此 R2KFS 后能否到达出口                     */
+//                     /* - 最后一步(picked == r2kfs_need-1)：只清除当前候选，       */
+//                     /*   其余未拿 R2KFS 保留为真实障碍，避免选了到不了出口的 KFS   */
+//                     /* - 非最后步：乐观清除所有 R2KFS（后续还会再选可打通）        */
+//                     /* - 出口可达性按“最后拾取完成后禁止 MOVE_R2”的真实规则检查， */
+//                     /*   即此处禁止穿越剩余 R2KFS，与后续真正规划出口路径的约束一致 */
+//                     /* ============================================================ */
+//                     {
+//                         MF_CellType saved_cell[MF_ROWS][MF_COLS];
+//                         uint8_t rr, cc;
+//                         bool can_reach_exit;
+//                         bool is_last_pick = (picked == r2kfs_need - 1);
+//                         /* 最后一次拾取完成后不再允许 MOVE_R2，出口可达性检查需与之一致 */
+//                         bool allow_r2kfs_cross_for_check = !is_last_pick;
+//                         uint8_t ep[MF_MAX_NODES];
+//                         uint8_t elen;
+//                         int16_t ecost;
+//                         memcpy(saved_cell, ctx->cell, sizeof(ctx->cell));
+//                         if (is_last_pick) {
+//                             /* 最后一步：只清除当前候选这一个 R2KFS */
+//                             ctx->cell[r][c] = MF_CELL_EMPTY;
+//                         } else {
+//                             /* 非最后步：乐观清除所有 R2KFS（后续迭代还会再选） */
+//                             for (rr = 0; rr < MF_ROWS; rr++) {
+//                                 for (cc = 0; cc < MF_COLS; cc++) {
+//                                     if (ctx->cell[rr][cc] == MF_CELL_R2KFS) {
+//                                         ctx->cell[rr][cc] = MF_CELL_EMPTY;
+//                                     }
+//                                 }
+//                             }
+//                         }
+//                         can_reach_exit = false;
+//                         if (MF_AStar(ctx, adj_r, adj_c, 5, 0, allow_r2kfs_cross_for_check, ep, &elen, &ecost)) {
+//                             can_reach_exit = true;
+//                         }
+//                         if (!can_reach_exit && MF_AStar(ctx, adj_r, adj_c, 5, 2, allow_r2kfs_cross_for_check, ep, &elen, &ecost)) {
+//                             can_reach_exit = true;
+//                         }
+//                         memcpy(ctx->cell, saved_cell, sizeof(ctx->cell));
+//                         if (!can_reach_exit) {
+//                             continue; /* 该候选拿完后无法到出口，跳过 */
+//                         }
+//                     }
+//                     if (!found_any || cost < best_cost) {
+//                         /* 记录总代价更低的候选(步数 + R1KFS 穿越代价) */
+//                         found_any = true;
+//                         best_len = len;
+//                         best_cost = cost;
+//                         memcpy(best_path, path, len);
+//                         best_target_r = r;
+//                         best_target_c = c;
+//                         best_adj_r = adj_r;
+//                         best_adj_c = adj_c;
+//                     }
+//                 }
+//             }
+//         }
+//         if (!found_any) {
+//             /* 没有任何 R2KFS 可达，规划失败 */
+//             return false;
+//         }
+//         /* 将路径翻译为动作 */
+//         if (!MF_AddPathActions(ctx, best_path, best_len)) {
+//             return false;
+//         }
+//         /* 在相邻格面对 R2KFS 取走 */
+//         int8_t dr = (int8_t)best_target_r - (int8_t)best_adj_r;
+//         int8_t dc = (int8_t)best_target_c - (int8_t)best_adj_c;
+//         /* 面向目标格的方向即为拾取方向 */
+//         MF_Dir pick_dir = MF_DirFromDelta(dr, dc);
+//         /* 计算拾取动作的相对高度 */
+//         int16_t height_diff = (int16_t)ctx->height[best_target_r][best_target_c]
+//                                     - (int16_t)ctx->height[best_adj_r][best_adj_c];
+//         /* 向数组中填入动作 */
+//         if (!MF_PushAction(ctx, MF_ACT_PICK_R2, pick_dir, best_target_r, best_target_c)) {
+//             return false;
+//         }
+//         /* 回填高度差到刚 push 的动作中 */
+//         ctx->actions[ctx->action_count - 1].height_pick_diff = height_diff;
+//         /* 取走后变为通路 */
+//         ctx->cell[best_target_r][best_target_c] = MF_CELL_EMPTY;
+//         /* 更新当前位置为相邻格 */
+//         cur_r = best_adj_r;
+//         cur_c = best_adj_c;
+//     }
+//     /* ================================================================ */
+//     /* 所有 R2KFS 拾取完毕后，规划从当前位置走到出口区地面(row5)的路径 */
+//     /* 出口候选列：col0 和 col2，选择总路程更短的那一个                */
+//     /* 此时已完成全部所需 R2KFS 拾取，不允许再规划 MOVE_R2 动作，       */
+//     /* 剩余 R2KFS 一律视为硬障碍，只能绕路或等待 R1KFS 清理             */
+//     /* ================================================================ */
+//     bool allow_r2kfs_cross_for_exit = false;
+//     /* 两个出口候选：row5,col0 和 row5,col2 */
+//     uint8_t exit_candidates_row[2] = { 5, 5 };    /* 两个候选出口行 */
+//     uint8_t exit_candidates_col[2] = { 0, 2 };    /* 两个候选出口列 */
+//     bool found_exit = false;                       /* 是否找到可达出口 */
+//     uint8_t best_exit_path[MF_MAX_NODES];          /* 最优出口路径 */
+//     uint8_t best_exit_len = 0;                     /* 最优出口路径长度 */
+//     int16_t best_exit_cost = 0x3FFF;               /* 最优出口路径总代价 */
+//     for (uint8_t e = 0; e < 2; e++) {
+//         /* 依次对每个候选出口跑 A* */
+//         uint8_t exit_r = exit_candidates_row[e];
+//         uint8_t exit_c = exit_candidates_col[e];
+//         /* 若当前位置已在候选出口上，直接选中(路程为0) */
+//         if (cur_r == exit_r && cur_c == exit_c) {
+//             found_exit = true;
+//             best_exit_len = 0;
+//             break; /* 已到出口，无需再找 */
+//         }
+//         uint8_t exit_path[MF_MAX_NODES];
+//         uint8_t exit_len = 0;
+//         int16_t exit_cost = 0;
+//         /* A* 搜索从当前位置到该候选出口的路径(禁止穿越 R2KFS) */
+//         if (MF_AStar(ctx, cur_r, cur_c, exit_r, exit_c,
+//                         allow_r2kfs_cross_for_exit, exit_path, &exit_len, &exit_cost)) {
+//             /* 比较总代价，保留更低的 */
+//             if (!found_exit || exit_cost < best_exit_cost) {
+//                 found_exit = true;
+//                 best_exit_len = exit_len;
+//                 best_exit_cost = exit_cost;
+//                 memcpy(best_exit_path, exit_path, exit_len);
+//             }
+//         }
+//     }
+//     if (found_exit && best_exit_len > 0) {
+//         /* 将最优出口路径翻译为移动动作序列 */
+//         if (!MF_AddPathActions(ctx, best_exit_path, best_exit_len)) {
+//             return false;
+//         }
+//     }
+//     /* 【修改4】找不到任何出口路径时返回失败，不再静默吞掉 */
+//     if (!found_exit) {
+//         return false;
+//     }
+//     return true;
+// }
 
 /* ========================================== 多步/动态规划 ========================================== */
 
@@ -817,16 +850,16 @@ bool MFPlanner_BuildPhase1(MF_Planner* ctx,
     // ctx->action_count = 0;
     // ctx->action_index = 0;
 
-    /* 阶段1不允许穿过 R1KFS(保守策略) */
-    bool allow_r1kfs = false;
+    /* 阶段1不允许穿越 R2KFS(保守策略，路径规划应避开而非移开) */
+    bool allow_r2kfs_cross = false;
 
     /* 追踪当前位置：随拾取/移动更新 */
     uint8_t cur_r = start_row;
     uint8_t cur_c = start_col;
 
     /* ============================================================ */
-    /* 规则约束：R2 必须先站在 row0 拾取至少一个 row1 上的 R2KFS */
-    /* 才能登上 row1                                                */
+    /* 规则约束：若 (1,1) 上有 R2KFS 挡住登顶点，                  */
+    /* R2 必须先站在 (0,1) 拾取该 R2KFS 才能登上 (1,1)             */
     /* ============================================================ */
 
     /* 在 row0,col1 面朝北扫描前三行(row1/row2/row3) */
@@ -840,22 +873,18 @@ bool MFPlanner_BuildPhase1(MF_Planner* ctx,
     /* 此处应修改为实际的相机扫描 */
     MFPlanner_ScanRows(ctx, 1, 2);
 
-    /* 扫描 row1 上是否有 R2KFS */
-    bool row1_has_r2kfs = false;
-    uint8_t kfs_c = 0; /* row1 上第一个 R2KFS 的列号 */
-    for (uint8_t c = 0; c < MF_COLS; c++) {
-        if (ctx->cell[1][c] == MF_CELL_R2KFS) {
-            row1_has_r2kfs = true;
-            kfs_c = c;
-            break;
-        }
-    }
+    /* 【规则】R2 最终要站上 (1,1) 完成第二次扫描，
+     * 因此真正必须清除的是挡在 (1,1) 上的 R2KFS(如果有)，
+     * 而不是 row1 上任意一个先被扫到的 R2KFS(row1 其它列的 R2KFS
+     * 不影响能否登上 (1,1)，留给阶段2处理即可) */
+    bool row1_has_r2kfs = (ctx->cell[1][1] == MF_CELL_R2KFS);
+    uint8_t kfs_c = 1;
 
     if (row1_has_r2kfs) {
         /* ======================================================== */
-        /* row1 上有 R2KFS：走到其正下方 row0 格，面北拾取         */
-        /* 【规则】R2 必须站在 row0 拾取 row1 上的 R2KFS，        */
-        /*        拾取后 row1 该格变通路，R2 才能 step_up 登上去   */
+        /* (1,1) 上有 R2KFS：走到其正下方 row0 格，面北拾取         */
+        /* 【规则】R2 必须站在 row0 拾取 (1,1) 的 R2KFS，          */
+        /*        拾取后该格变通路，R2 才能 step_up 登上去          */
         /* ======================================================== */
         uint8_t kfs_r = 1;
         uint8_t path[MF_MAX_NODES];
@@ -870,13 +899,13 @@ bool MFPlanner_BuildPhase1(MF_Planner* ctx,
         if (!MF_InBounds((int8_t)adj_r, (int8_t)adj_c)) {
             return false;
         }
-        if (MF_IsBlockedForMove(ctx, adj_r, adj_c, allow_r1kfs)) {
+        if (MF_IsBlockedForMove(ctx, adj_r, adj_c, allow_r2kfs_cross)) {
             return false;
         }
 
         /* 规划从当前位置到 row0 相邻格的路径（纯 row0 平移，无高度差） */
         if (!MF_AStar(ctx, cur_r, cur_c, adj_r, adj_c,
-                      allow_r1kfs, path, &path_len)) {
+                      allow_r2kfs_cross, path, &path_len, NULL)) {
             return false;
         }
         if (!MF_AddPathActions(ctx, path, path_len)) {
@@ -914,7 +943,7 @@ bool MFPlanner_BuildPhase1(MF_Planner* ctx,
             uint8_t path[MF_MAX_NODES];
             uint8_t path_len = 0;
             if (!MF_AStar(ctx, cur_r, cur_c, target_r, target_c,
-                          allow_r1kfs, path, &path_len)) {
+                          allow_r2kfs_cross, path, &path_len, NULL)) {
                 return false;
             }
             if (!MF_AddPathActions(ctx, path, path_len)) {
@@ -951,79 +980,85 @@ bool MFPlanner_BuildPhase2(MF_Planner* ctx, uint8_t r2kfs_need)
     /* ============================================================ */
 
     for (uint8_t picked = 0; picked < r2kfs_need; picked++) {
-        /* 每轮选取一个最近的 R2KFS */
+        /* 每轮选取一个总代价最低的 R2KFS(R1KFS 恒定可穿越，但穿越代价高) */
         bool found_any = false;
-        bool allow_r1kfs = false;
+        /* 拾取阶段沿途仍允许穿越其他 R2KFS(产生 MOVE_R2)，只有最终出口路径禁止 */
+        bool allow_r2kfs_cross = true;
         uint8_t best_target_r = 0;
         uint8_t best_target_c = 0;
         uint8_t best_path[MF_MAX_NODES];
         uint8_t best_len = 0;
         uint8_t best_adj_r = 0;
         uint8_t best_adj_c = 0;
+        int16_t best_cost = 0x3FFF;
 
-        /* 先尝试"避开 R1KFS"的路径 */
-        for (uint8_t pass = 0; pass < 2 && !found_any; pass++) {
-            allow_r1kfs = (pass == 1);
-            for (uint8_t r = 0; r < MF_ROWS; r++) {
-                for (uint8_t c = 0; c < MF_COLS; c++) {
-                    if (ctx->cell[r][c] != MF_CELL_R2KFS) {
-                        continue;
-                    }
-                    uint8_t path[MF_MAX_NODES];
-                    uint8_t len = 0;
-                    uint8_t adj_r = 0;
-                    uint8_t adj_c = 0;
-                    if (MF_FindPathToAdjacent(ctx, cur_r, cur_c, r, c,
-                                              allow_r1kfs, path, &len, &adj_r, &adj_c)) {
-                        /* ============================================================ */
-                        /* 【修改1】检查拿完此 R2KFS 后能否到达出口                     */
-                        /* - 最后一步(picked == r2kfs_need-1)：只清除当前候选，       */
-                        /*   其余未拿 R2KFS 保留为真实障碍，避免选了到不了出口的 KFS   */
-                        /* - 非最后步：乐观清除所有 R2KFS（后续还会再选可打通）        */
-                        /* ============================================================ */
-                        {
-                            MF_CellType saved_cell[MF_ROWS][MF_COLS];
-                            uint8_t rr, cc;
-                            bool can_reach_exit;
-                            uint8_t ep[MF_MAX_NODES];
-                            uint8_t elen;
+        for (uint8_t r = 0; r < MF_ROWS; r++) {
+            for (uint8_t c = 0; c < MF_COLS; c++) {
+                if (ctx->cell[r][c] != MF_CELL_R2KFS) {
+                    continue;
+                }
+                uint8_t path[MF_MAX_NODES];
+                uint8_t len = 0;
+                uint8_t adj_r = 0;
+                uint8_t adj_c = 0;
+                int16_t cost = 0;
+                if (MF_FindPathToAdjacent(ctx, cur_r, cur_c, r, c,
+                                          allow_r2kfs_cross, path, &len, &adj_r, &adj_c, &cost)) {
+                    /* ============================================================ */
+                    /* 【修改1】检查拿完此 R2KFS 后能否到达出口                     */
+                    /* - 最后一步(picked == r2kfs_need-1)：只清除当前候选，       */
+                    /*   其余未拿 R2KFS 保留为真实障碍，避免选了到不了出口的 KFS   */
+                    /* - 非最后步：乐观清除所有 R2KFS（后续还会再选可打通）        */
+                    /* - 出口可达性按“最后拾取完成后禁止 MOVE_R2”的真实规则检查， */
+                    /*   即此处禁止穿越剩余 R2KFS，与后续真正规划出口路径的约束一致 */
+                    /* ============================================================ */
+                    {
+                        MF_CellType saved_cell[MF_ROWS][MF_COLS];
+                        uint8_t rr, cc;
+                        bool can_reach_exit;
+                        bool is_last_pick = (picked == r2kfs_need - 1);
+                        /* 最后一次拾取完成后不再允许 MOVE_R2，出口可达性检查需与之一致 */
+                        bool allow_r2kfs_cross_for_check = !is_last_pick;
+                        uint8_t ep[MF_MAX_NODES];
+                        uint8_t elen;
+                        int16_t ecost;
 
-                            memcpy(saved_cell, ctx->cell, sizeof(ctx->cell));
-                            if (picked == r2kfs_need - 1) {
-                                /* 最后一步：只清除当前候选这一个 R2KFS */
-                                ctx->cell[r][c] = MF_CELL_EMPTY;
-                            } else {
-                                /* 非最后步：乐观清除所有 R2KFS（后续迭代还会再选） */
-                                for (rr = 0; rr < MF_ROWS; rr++) {
-                                    for (cc = 0; cc < MF_COLS; cc++) {
-                                        if (ctx->cell[rr][cc] == MF_CELL_R2KFS) {
-                                            ctx->cell[rr][cc] = MF_CELL_EMPTY;
-                                        }
+                        memcpy(saved_cell, ctx->cell, sizeof(ctx->cell));
+                        if (is_last_pick) {
+                            /* 最后一步：只清除当前候选这一个 R2KFS */
+                            ctx->cell[r][c] = MF_CELL_EMPTY;
+                        } else {
+                            /* 非最后步：乐观清除所有 R2KFS（后续迭代还会再选） */
+                            for (rr = 0; rr < MF_ROWS; rr++) {
+                                for (cc = 0; cc < MF_COLS; cc++) {
+                                    if (ctx->cell[rr][cc] == MF_CELL_R2KFS) {
+                                        ctx->cell[rr][cc] = MF_CELL_EMPTY;
                                     }
                                 }
                             }
-                            can_reach_exit = false;
-                            if (MF_AStar(ctx, adj_r, adj_c, 5, 0, true, ep, &elen)) {
-                                can_reach_exit = true;
-                            }
-                            if (!can_reach_exit && MF_AStar(ctx, adj_r, adj_c, 5, 2, true, ep, &elen)) {
-                                can_reach_exit = true;
-                            }
-                            memcpy(ctx->cell, saved_cell, sizeof(ctx->cell));
-                            if (!can_reach_exit) {
-                                continue; /* 该候选拿完后无法到出口，跳过 */
-                            }
                         }
+                        can_reach_exit = false;
+                        if (MF_AStar(ctx, adj_r, adj_c, 5, 0, allow_r2kfs_cross_for_check, ep, &elen, &ecost)) {
+                            can_reach_exit = true;
+                        }
+                        if (!can_reach_exit && MF_AStar(ctx, adj_r, adj_c, 5, 2, allow_r2kfs_cross_for_check, ep, &elen, &ecost)) {
+                            can_reach_exit = true;
+                        }
+                        memcpy(ctx->cell, saved_cell, sizeof(ctx->cell));
+                        if (!can_reach_exit) {
+                            continue; /* 该候选拿完后无法到出口，跳过 */
+                        }
+                    }
 
-                        if (!found_any || len < best_len) {
-                            found_any = true;
-                            best_len = len;
-                            memcpy(best_path, path, len);
-                            best_target_r = r;
-                            best_target_c = c;
-                            best_adj_r = adj_r;
-                            best_adj_c = adj_c;
-                        }
+                    if (!found_any || cost < best_cost) {
+                        found_any = true;
+                        best_len = len;
+                        best_cost = cost;
+                        memcpy(best_path, path, len);
+                        best_target_r = r;
+                        best_target_c = c;
+                        best_adj_r = adj_r;
+                        best_adj_c = adj_c;
                     }
                 }
             }
@@ -1062,15 +1097,18 @@ bool MFPlanner_BuildPhase2(MF_Planner* ctx, uint8_t r2kfs_need)
 
     /* ============================================================ */
     /* 出口候选：row5,col0 和 row5,col2，选路程更短的            */
+    /* 此时已完成全部所需 R2KFS 拾取，不允许再规划 MOVE_R2 动作， */
+    /* 剩余 R2KFS 一律视为硬障碍                                  */
     /* ============================================================ */
     {
-        bool allow_r1kfs_for_exit = true;
+        bool allow_r2kfs_cross_for_exit = false;
         uint8_t exit_candidates_row[2] = { 5, 5 };
         uint8_t exit_candidates_col[2] = { 0, 2 };
 
         bool found_exit = false;
         uint8_t best_exit_path[MF_MAX_NODES];
         uint8_t best_exit_len = 0;
+        int16_t best_exit_cost = 0x3FFF;
 
         for (uint8_t e = 0; e < 2; e++) {
             uint8_t exit_r = exit_candidates_row[e];
@@ -1084,12 +1122,14 @@ bool MFPlanner_BuildPhase2(MF_Planner* ctx, uint8_t r2kfs_need)
 
             uint8_t exit_path[MF_MAX_NODES];
             uint8_t exit_len = 0;
+            int16_t exit_cost = 0;
 
             if (MF_AStar(ctx, cur_r, cur_c, exit_r, exit_c,
-                         allow_r1kfs_for_exit, exit_path, &exit_len)) {
-                if (!found_exit || exit_len < best_exit_len) {
+                         allow_r2kfs_cross_for_exit, exit_path, &exit_len, &exit_cost)) {
+                if (!found_exit || exit_cost < best_exit_cost) {
                     found_exit = true;
                     best_exit_len = exit_len;
+                    best_exit_cost = exit_cost;
                     memcpy(best_exit_path, exit_path, exit_len);
                 }
             }

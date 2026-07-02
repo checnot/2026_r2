@@ -1,0 +1,829 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MF区规划器小网页（支持代价化R1KFS）</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #141b31;
+      --border: #2f3b66;
+      --text: #e7ecff;
+      --muted: #9fb0d8;
+      --blue: #3b82f6;
+      --empty: #dbeafe;
+      --r1: #22d3ee;
+      --r2: #f59e0b;
+      --fake: #ef4444;
+      --unknown: #64748b;
+    }
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    .wrap {
+      max-width: 980px;
+      margin: 24px auto;
+      padding: 16px;
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 16px;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+    }
+    h1 { font-size: 20px; margin: 0 0 12px; }
+    h2 { font-size: 16px; margin: 14px 0 8px; }
+    .row { margin: 10px 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .hint { color: var(--muted); font-size: 12px; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 86px);
+      grid-template-rows: repeat(6, 86px);
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+    .cell {
+      width: 86px;
+      height: 86px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      user-select: none;
+      font-weight: 700;
+      font-size: 12px;
+      position: relative;
+    }
+    .rowLabel {
+      position: absolute;
+      top: 4px;
+      left: 6px;
+      font-size: 11px;
+      opacity: 0.7;
+    }
+    .cell.empty { background: var(--empty); color: #0f172a; }
+    .cell.r1 { background: var(--r1); color: #042f36; }
+    .cell.r2 { background: var(--r2); color: #201000; }
+    .cell.fake { background: var(--fake); color: #fff; }
+    .cell.unknown { background: var(--unknown); color: #fff; }
+
+    .legend { display: grid; gap: 6px; }
+    .legendItem { display: flex; gap: 8px; align-items: center; }
+    .swatch { width: 12px; height: 12px; border-radius: 3px; border: 1px solid rgba(255,255,255,0.45); }
+
+    button, select, input {
+      border: 1px solid #334155;
+      background: #0f172a;
+      color: var(--text);
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-size: 13px;
+    }
+    button { cursor: pointer; }
+    button.primary { background: #1d4ed8; border-color: #3b82f6; }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th, td { border: 1px solid var(--border); padding: 6px; text-align: center; }
+    th { color: #bfdbfe; }
+    .mono { font-family: ui-monospace, Menlo, Consolas, monospace; }
+    .status { margin: 10px 0; min-height: 20px; color: #fcd34d; font-size: 13px; }
+    .ok { color: #4ade80; }
+    .bad { color: #f87171; }
+
+    .costInfo {
+      margin: 8px 0;
+      padding: 8px;
+      background: rgba(59, 130, 246, 0.1);
+      border-left: 3px solid #3b82f6;
+      font-size: 12px;
+    }
+
+    @media (max-width: 900px) {
+      .wrap { grid-template-columns: 1fr; }
+      .grid { justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="panel">
+      <h1>MF 规划器小网页（C 逻辑独立实现）</h1>
+      <p class="hint">点击格子放置方块，颜色含义：R1KFS(可清理)/R2KFS(待取)/FAKEKFS(禁区)/EMPTY(空格)。</p>
+
+      <div class="row" style="align-items:center; gap:12px;">
+        <label>笔刷：</label>
+        <select id="toolSelect"></select>
+        <button id="eraseBtn">清空全部</button>
+      </div>
+
+      <div class="row">
+        <button class="primary" id="randomBtn">随机摆放 R1/R2</button>
+        <button id="rotateBtn">列出规则说明</button>
+      </div>
+
+      <div class="grid" id="grid"></div>
+
+      <div class="legend">
+        <div class="legendItem"><span class="swatch" style="background:var(--empty)"></span>EMPTY</div>
+        <div class="legendItem"><span class="swatch" style="background:var(--r1)"></span>R1KFS（可等待清除）</div>
+        <div class="legendItem"><span class="swatch" style="background:var(--r2)"></span>R2KFS（要取）</div>
+        <div class="legendItem"><span class="swatch" style="background:var(--fake)"></span>FAKEKFS（障碍）</div>
+      </div>
+
+      <h2>场景配置</h2>
+      <div class="row">
+        <label>颜色:</label>
+        <select id="mapColorSel">
+          <option value="1">BLUE_MAP</option>
+          <option value="2">RED_MAP</option>
+        </select>
+        <label>起点行:</label>
+        <input id="startRow" type="number" min="0" max="5" value="0" style="width:60px;" />
+        <label>起点列:</label>
+        <input id="startCol" type="number" min="0" max="2" value="1" style="width:56px;" />
+      </div>
+      <div class="row">
+        <label>需要拾取R2个数:</label>
+        <input id="needInput" type="number" min="1" max="18" value="2" style="width:70px;" />
+        <button class="primary" id="phaseBtn">生成分阶段规划（Phase1→Phase2）</button>
+      </div>
+      <div class="status" id="status"></div>
+      <div class="hint">说明：本页已把你当前 MF_planner 的核心逻辑（A* + 动作构造）在 JS 中重现，便于调试方块布局与动作序列。规划流程对齐 MFPlanner_BuildPhase1→MFPlanner_BuildPhase2（先扫描 row1~2、若 row1 有 R2KFS 则先在 row0 相邻拾取后再登上、走到 (1,1) 后 SCAN 揭示 row3~4，再继续拾取剩余 R2KFS 并走到出口）。格子编辑器中的布局视为”真实地图”，规划开始时 row1~row4 先当作 UNKNOWN，随扫描逐步揭示。规则：完成最后一个所需 R2KFS 拾取后，剩余路径(到出口)不再允许 MOVE_R2，剩余 R2KFS 视为硬障碍。</div>
+    </section>
+
+    <section class="panel">
+      <h2>分阶段规划过程</h2>
+      <div id="segmentsView"><p class="hint">未生成</p></div>
+
+      <h2 style="margin-top:16px">JSON 导出</h2>
+      <pre id="jsonOut" class="mono">点击“生成分阶段规划”后显示</pre>
+
+      <div class="hint" style="margin-top:10px;">
+        行号定义：row 0 为入口底层，row 5 为出口底层（同 C 工程）。方向 N/E/S/W 对应 Δr: +1/0/ -1 ，Δc: 0/+1/0/-1。
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // ====== MF 常量定义（与 MF_planner.h 一致） ======
+    const MF_ROWS = 6;
+    const MF_COLS = 3;
+    const MF_WAIT_R1_COST = 20;  // 代价化参数
+    const MF_MOVE_R2_COST = 10;  // 代价化参数
+
+    const MF_CELL_EMPTY = 0;
+    const MF_CELL_R1KFS = 1;
+    const MF_CELL_R2KFS = 2;
+    const MF_CELL_FAKEKFS = 3;
+    const MF_CELL_UNKNOWN = 4;
+
+    const MF_DIR_NORTH = 0;
+    const MF_DIR_EAST = 1;
+    const MF_DIR_SOUTH = 2;
+    const MF_DIR_WEST = 3;
+
+    // 与 MF_planner.h 最新枚举顺序一致：MOVE_FLAT, STEP_UP, STEP_DOWN, PICK_R2, MOVE_R2, WAIT_R1, SCAN
+    const MF_ACT_MOVE_FLAT = 0;
+    const MF_ACT_STEP_UP = 1;
+    const MF_ACT_STEP_DOWN = 2;
+    const MF_ACT_PICK_R2 = 3;
+    const MF_ACT_MOVE_R2 = 4;
+    const MF_ACT_WAIT_R1 = 5;
+    const MF_ACT_SCAN = 6;
+
+    const DIR_NAME = ['N', 'E', 'S', 'W'];
+    const ACT_NAME = {
+      [MF_ACT_MOVE_FLAT]: 'MOVE_FLAT',
+      [MF_ACT_STEP_UP]: 'STEP_UP',
+      [MF_ACT_STEP_DOWN]: 'STEP_DOWN',
+      [MF_ACT_PICK_R2]: 'PICK_R2',
+      [MF_ACT_MOVE_R2]: 'MOVE_R2',
+      [MF_ACT_WAIT_R1]: 'WAIT_R1',
+      [MF_ACT_SCAN]: 'SCAN',
+    };
+
+    const DIR_DR = [1, 0, -1, 0];
+    const DIR_DC = [0, 1, 0, -1];
+
+    // 两套高度表（与 MF_planner.c 保持一致）
+    const HEIGHT_BLUE = [
+      [0, 0, 0],
+      [400, 200, 400],
+      [200, 400, 600],
+      [400, 600, 400],
+      [200, 400, 200],
+      [0, 0, 0],
+    ];
+
+    const HEIGHT_RED = [
+      [0, 0, 0],
+      [400, 200, 400],
+      [600, 400, 200],
+      [400, 600, 400],
+      [200, 400, 200],
+      [0, 0, 0],
+    ];
+
+    const toolNames = ['EMPTY', 'R1KFS', 'R2KFS', 'FAKEKFS'];
+    let toolValue = [MF_CELL_EMPTY, MF_CELL_R1KFS, MF_CELL_R2KFS, MF_CELL_FAKEKFS];
+
+    const toolSelect = document.getElementById('toolSelect');
+    const gridEl = document.getElementById('grid');
+
+    function cellClass(t) {
+      if (t === MF_CELL_EMPTY) return 'empty';
+      if (t === MF_CELL_R1KFS) return 'r1';
+      if (t === MF_CELL_R2KFS) return 'r2';
+      if (t === MF_CELL_FAKEKFS) return 'fake';
+      return 'unknown';
+    }
+    function cellLabel(t) {
+      return ['EMPTY', 'R1KFS', 'R2KFS', 'FAKEKFS', 'UNKNOWN'][t];
+    }
+
+    // 初始化编辑器状态
+    let cellState = Array.from({ length: MF_ROWS }, () => Array(MF_ROWS > MF_COLS ? Array(MF_COLS).fill(MF_CELL_EMPTY) : Array(MF_COLS).fill(MF_CELL_EMPTY)));
+
+    function inBounds(r, c) {
+      return r >= 0 && r < MF_ROWS && c >= 0 && c < MF_COLS;
+    }
+
+    function manhattan(r1, c1, r2, c2) {
+      return Math.abs(r1 - r2) + Math.abs(c1 - c2);
+    }
+
+    function toIndex(r, c) {
+      return r * MF_COLS + c;
+    }
+
+    function fromIndex(idx) {
+      return [Math.floor(idx / MF_COLS), idx % MF_COLS];
+    }
+
+    function dirFromDelta(dr, dc) {
+      if (dr === 1 && dc === 0) return MF_DIR_NORTH;
+      if (dr === 0 && dc === 1) return MF_DIR_EAST;
+      if (dr === -1 && dc === 0) return MF_DIR_SOUTH;
+      return MF_DIR_WEST;
+    }
+
+    // allowR2Cross: 是否允许把 R2KFS 当作可"移开后穿越"的轻度障碍；
+    // false 表示 R2KFS 视为硬障碍(用于最后一个 R2KFS 拾取完成后的出口路径搜索)
+    function isBlockedForMove(ctx, r, c, allowR2Cross) {
+      const t = ctx.cell[r][c];
+      if (t === MF_CELL_EMPTY) return false;
+      if (t === MF_CELL_UNKNOWN) return true;
+      if (t === MF_CELL_R1KFS) return false;  // R1KFS恒定可穿越，代价在A*中体现
+      if (t === MF_CELL_R2KFS) return !allowR2Cross;
+      return true; // FAKEKFS 永远不可登上
+    }
+
+    function isStepAllowed(ctx, r1, c1, r2, c2) {
+      const h1 = ctx.height[r1][c1];
+      const h2 = ctx.height[r2][c2];
+      const d = h2 - h1;
+      return d === 0 || d === 200 || d === -200;
+    }
+
+    function aStar(ctx, sr, sc, gr, gc, allowR2Cross) {
+      const nodeCount = MF_ROWS * MF_COLS;
+      const nodes = Array.from({ length: nodeCount }, () => ({
+        g: 1e9, f: 1e9, parent: -1, inOpen: false, inClosed: false
+      }));
+
+      const s = toIndex(sr, sc);
+      const g = toIndex(gr, gc);
+
+      nodes[s].g = 0;
+      nodes[s].f = manhattan(sr, sc, gr, gc);
+      nodes[s].inOpen = true;
+
+      while (true) {
+        let best = -1;
+        let bestF = 1e9;
+        let bestG = 1e9;
+
+        for (let i = 0; i < nodeCount; i++) {
+          const n = nodes[i];
+          if (!n.inOpen) continue;
+          if (n.f < bestF || (n.f === bestF && n.g < bestG)) {
+            bestF = n.f; bestG = n.g; best = i;
+          }
+        }
+        if (best < 0) return { ok: false, cost: 1e9 };
+
+        if (best === g) {
+          const path = [];
+          let idx = best;
+          while (idx >= 0) {
+            path.push(idx);
+            idx = nodes[idx].parent;
+          }
+          path.reverse();
+          return { ok: true, path, len: path.length, cost: nodes[g].g };
+        }
+
+        nodes[best].inOpen = false;
+        nodes[best].inClosed = true;
+        const [cr, cc] = fromIndex(best);
+
+        for (let d = 0; d < 4; d++) {
+          const nr = cr + DIR_DR[d];
+          const nc = cc + DIR_DC[d];
+          if (!inBounds(nr, nc)) continue;
+          if (isBlockedForMove(ctx, nr, nc, allowR2Cross)) continue;
+          if (!isStepAllowed(ctx, cr, cc, nr, nc)) continue;
+          const ni = toIndex(nr, nc);
+          if (nodes[ni].inClosed) continue;
+
+          // 代价计算：R1KFS/R2KFS穿越额外加权
+          let stepCost = 1;
+          if (ctx.cell[nr][nc] === MF_CELL_R1KFS) {
+            stepCost = 1 + MF_WAIT_R1_COST;
+          } else if (ctx.cell[nr][nc] === MF_CELL_R2KFS) {
+            stepCost = 1 + MF_MOVE_R2_COST;
+          }
+          const tentative = nodes[best].g + stepCost;
+
+          if (!nodes[ni].inOpen || tentative < nodes[ni].g) {
+            nodes[ni].parent = best;
+            nodes[ni].g = tentative;
+            nodes[ni].f = tentative + manhattan(nr, nc, gr, gc);
+            nodes[ni].inOpen = true;
+          }
+        }
+      }
+    }
+
+    function addPathActions(ctx, path, actions) {
+      for (let i = 1; i < path.length; i++) {
+        const [r1, c1] = fromIndex(path[i - 1]);
+        const [r2, c2] = fromIndex(path[i]);
+        const dr = r2 - r1;
+        const dc = c2 - c1;
+        const dir = dirFromDelta(dr, dc);
+
+        if (ctx.cell[r2][c2] === MF_CELL_R1KFS) {
+          actions.push({ type: MF_ACT_WAIT_R1, dir, row: r2, col: c2, height_pick_diff: 0 });
+          ctx.cell[r2][c2] = MF_CELL_EMPTY; // 假设等待后清除
+        }
+
+        if (ctx.cell[r2][c2] === MF_CELL_R2KFS) {
+          actions.push({ type: MF_ACT_MOVE_R2, dir, row: r2, col: c2, height_pick_diff: 0 });
+          ctx.cell[r2][c2] = MF_CELL_EMPTY; // 移开后变通路
+        }
+
+        const diff = ctx.height[r2][c2] - ctx.height[r1][c1];
+        if (diff === 0) {
+          actions.push({ type: MF_ACT_MOVE_FLAT, dir, row: r2, col: c2, height_pick_diff: 0 });
+        } else if (diff === 200) {
+          actions.push({ type: MF_ACT_STEP_UP, dir, row: r2, col: c2, height_pick_diff: 0 });
+        } else if (diff === -200) {
+          actions.push({ type: MF_ACT_STEP_DOWN, dir, row: r2, col: c2, height_pick_diff: 0 });
+        } else {
+          return { ok: false, msg: `超高差 (${r1},${c1})->(${r2},${c2})` };
+        }
+      }
+      return { ok: true };
+    }
+
+    function findPathToAdjacent(ctx, sr, sc, tr, tc, allowR2Cross) {
+      let found = false;
+      let bestCost = 1e9;  // 改为按代价比较
+      let bestPath = [];
+      let bestAdj = null;
+
+      for (let d = 0; d < 4; d++) {
+        const ar = tr + DIR_DR[d];
+        const ac = tc + DIR_DC[d];
+        if (!inBounds(ar, ac)) continue;
+        if (isBlockedForMove(ctx, ar, ac, allowR2Cross)) continue;
+
+        const res = aStar(ctx, sr, sc, ar, ac, allowR2Cross);
+        if (!res.ok) continue;
+
+        if (!found || res.cost < bestCost) {  // 按总代价比较，而非路径长度
+          found = true;
+          bestCost = res.cost;
+          bestPath = res.path;
+          bestAdj = [ar, ac];
+        }
+      }
+
+      if (!found) return { ok: false };
+      return { ok: true, path: bestPath, adj: bestAdj, cost: bestCost };
+    }
+
+    function cloneCells(src) {
+      return src.map(row => row.slice());
+    }
+
+    // 检查拿完候选 R2KFS 后能否到达出口。
+    // 最后一次拾取(pickedIsLast)必须按"出口阶段禁止 MOVE_R2"的真实规则检查，
+    // 与后续真正规划出口路径的约束保持一致；非最后一次仍乐观允许穿越其余 R2KFS。
+    function canReachExitAfterPick(ctx, adjR, adjC, pickedIsLast, targetR, targetC) {
+      const backup = cloneCells(ctx.cell);
+      if (pickedIsLast) {
+        ctx.cell[targetR][targetC] = MF_CELL_EMPTY;
+      } else {
+        for (let r = 0; r < MF_ROWS; r++) {
+          for (let c = 0; c < MF_COLS; c++) {
+            if (ctx.cell[r][c] === MF_CELL_R2KFS) ctx.cell[r][c] = MF_CELL_EMPTY;
+          }
+        }
+      }
+
+      const allowR2CrossForCheck = !pickedIsLast;
+      const ok = aStar(ctx, adjR, adjC, 5, 0, allowR2CrossForCheck).ok
+              || aStar(ctx, adjR, adjC, 5, 2, allowR2CrossForCheck).ok;
+      ctx.cell = backup;
+      return ok;
+    }
+
+    // 依次挑选代价最低的 R2KFS 拾取，拾取完毕后走到出口。
+    // 对齐 MF_planner.c 中 MFPlanner_BuildPhase2 的核心循环。
+    // segments（可选）：传入数组时，会按"每次拾取一段 + 最终出口一段"填充 { key, label, actions }。
+    function pickAllR2AndExit(ctx, startRow, startCol, r2Need, actions, segments) {
+      let curR = startRow;
+      let curC = startCol;
+
+      for (let picked = 0; picked < r2Need; picked++) {
+        let foundAny = false;
+        let bestCost = 1e9;  // 按代价比较
+        let bestPath = [];
+        let bestTarget = null;
+        let bestAdj = null;
+        const isLastPick = (picked === r2Need - 1);
+
+        // 单轮扫描：拾取阶段沿途仍允许穿越其他 R2KFS(产生 MOVE_R2)
+        for (let r = 0; r < MF_ROWS; r++) {
+          for (let c = 0; c < MF_COLS; c++) {
+            if (ctx.cell[r][c] !== MF_CELL_R2KFS) continue;
+            const p = findPathToAdjacent(ctx, curR, curC, r, c, true);
+            if (!p.ok) continue;
+
+            // 检查拿完这个候选能否走到出口(最后一次拾取按出口阶段的严格规则检查)
+            if (!canReachExitAfterPick(ctx, p.adj[0], p.adj[1], isLastPick, r, c)) continue;
+
+            if (!foundAny || p.cost < bestCost) {  // 按总代价比较
+              foundAny = true;
+              bestCost = p.cost;
+              bestPath = p.path;
+              bestTarget = [r, c];
+              bestAdj = p.adj;
+            }
+          }
+        }
+
+        if (!foundAny) return { ok: false, msg: `第 ${picked + 1} 个 R2KFS 无可行方案` };
+
+        const segActions = [];
+        const addRes = addPathActions(ctx, bestPath, segActions);
+        if (!addRes.ok) return { ok: false, msg: addRes.msg };
+
+        const [tr, tc] = bestTarget;
+        const [ar, ac] = bestAdj;
+        const dir = dirFromDelta(tr - ar, tc - ac);
+        const heightDiff = ctx.height[tr][tc] - ctx.height[ar][ac];
+        segActions.push({ type: MF_ACT_PICK_R2, dir, row: tr, col: tc, height_pick_diff: heightDiff });
+
+        ctx.cell[tr][tc] = MF_CELL_EMPTY;
+        curR = ar;
+        curC = ac;
+
+        actions.push(...segActions);
+        if (segments) {
+          segments.push({ key: `phase2-pick-${picked + 1}`, label: `阶段2：拾取第 ${picked + 1} 个 R2KFS（位于 row${tr},col${tc}）`, actions: segActions });
+        }
+      }
+
+      // 走到出口：此时已完成全部所需 R2KFS 拾取，不允许再规划 MOVE_R2 动作，
+      // 剩余 R2KFS 一律视为硬障碍，只能绕路或等待 R1KFS 清理
+      let foundExit = false;
+      let bestExitCost = 1e9;  // 按代价比较
+      let bestExitPath = [];
+      for (const exitC of [0, 2]) {
+        if (curR === 5 && curC === exitC) {
+          foundExit = true;
+          bestExitCost = 0;
+          break;
+        }
+        const p = aStar(ctx, curR, curC, 5, exitC, false);
+        if (!p.ok) continue;
+        if (!foundExit || p.cost < bestExitCost) {  // 按总代价比较
+          foundExit = true;
+          bestExitCost = p.cost;
+          bestExitPath = p.path;
+        }
+      }
+      if (!foundExit) return { ok: false, msg: '无出口路径' };
+      if (bestExitPath.length > 0) {
+        const segActions = [];
+        const ok = addPathActions(ctx, bestExitPath, segActions);
+        if (!ok.ok) return { ok: false, msg: ok.msg };
+        actions.push(...segActions);
+        if (segments) {
+          segments.push({ key: 'exit', label: '走向出口', actions: segActions });
+        }
+      }
+      return { ok: true, curR, curC };
+    }
+
+    // 用"真实地图"揭示指定行范围内的 UNKNOWN 格，对齐 MFPlanner_ScanRows
+    function scanRows(realCell, ctx, startRow, endRow) {
+      for (let r = startRow; r <= endRow && r < MF_ROWS; r++) {
+        for (let c = 0; c < MF_COLS; c++) {
+          if (ctx.cell[r][c] === MF_CELL_UNKNOWN) {
+            ctx.cell[r][c] = realCell[r][c];
+          }
+        }
+      }
+    }
+
+    // 阶段1：扫描 row1~2，若 row1 有 R2KFS 则先在 row0 相邻格拾取，
+    // 再走到 (1,1) 扫描 row3~4。对齐 MFPlanner_BuildPhase1。
+    // 返回 { ok, pickedCount, curR, curC, segments } ——segments 按时间顺序记录该阶段的每个子步骤。
+    function buildPhase1(ctx, realCell, startRow, startCol, actions) {
+      const segments = [];
+      let pickedCount = 0;
+      const allowR2Cross = false; // 阶段1不允许穿越 R2KFS(保守策略，路径规划应避开而非移开)
+
+      // 起始时 row1~row4 全部未知
+      for (let r = 1; r <= 4; r++) {
+        for (let c = 0; c < MF_COLS; c++) ctx.cell[r][c] = MF_CELL_UNKNOWN;
+      }
+      segments.push({ key: 'phase1-init', label: '初始状态：row1~row4 标记为 UNKNOWN', actions: [], note: true });
+
+      let curR = startRow;
+      let curC = startCol;
+
+      // 第一次扫描：揭示 row1~row2
+      scanRows(realCell, ctx, 1, 2);
+      segments.push({ key: 'phase1-scan1', label: '扫描 row1~row2 → 揭示实际 KFS 分布', actions: [], note: true });
+
+      // 最终要站上 (1,1) 完成第二次扫描，因此只需清除挡在 (1,1) 上的 R2KFS，
+      // row1 其它列的 R2KFS 不影响能否登上 (1,1)，留给阶段2处理即可
+      let row1HasR2 = (ctx.cell[1][1] === MF_CELL_R2KFS);
+      let kfsC = 1;
+
+      if (row1HasR2) {
+        const kfsR = 1;
+        const adjR = 0;
+        const adjC = kfsC;
+
+        if (!inBounds(adjR, adjC) || isBlockedForMove(ctx, adjR, adjC, allowR2Cross)) {
+          return { ok: false, msg: 'row1 R2KFS 正下方格不可站立' };
+        }
+
+        const p = aStar(ctx, curR, curC, adjR, adjC, allowR2Cross);
+        if (!p.ok) return { ok: false, msg: '阶段1：无法走到 row1 R2KFS 正下方格' };
+        const approachActions = [];
+        const addRes = addPathActions(ctx, p.path, approachActions);
+        if (!addRes.ok) return { ok: false, msg: addRes.msg };
+        actions.push(...approachActions);
+        segments.push({ key: 'phase1-approach', label: `阶段1：走到 row1 R2KFS 正下方格 (row0,col${adjC})`, actions: approachActions });
+
+        const pickDir = MF_DIR_NORTH;
+        const heightDiff = ctx.height[kfsR][kfsC] - ctx.height[adjR][adjC];
+        const pickActions = [{ type: MF_ACT_PICK_R2, dir: pickDir, row: kfsR, col: kfsC, height_pick_diff: heightDiff }];
+        actions.push(...pickActions);
+        segments.push({ key: 'phase1-pick', label: `阶段1：拾取 row1 上的 R2KFS (row${kfsR},col${kfsC})`, actions: pickActions });
+        pickedCount += 1;
+
+        ctx.cell[kfsR][kfsC] = MF_CELL_EMPTY;
+        curR = adjR;
+        curC = adjC;
+      } else {
+        segments.push({ key: 'phase1-no-pick', label: 'row1 上没有 R2KFS，跳过阶段1拾取', actions: [], note: true });
+      }
+
+      // 走到 (1,1)
+      if (!(curR === 1 && curC === 1)) {
+        const p = aStar(ctx, curR, curC, 1, 1, allowR2Cross);
+        if (!p.ok) return { ok: false, msg: '阶段1：无法走到 (1,1)' };
+        const toScanActions = [];
+        const addRes = addPathActions(ctx, p.path, toScanActions);
+        if (!addRes.ok) return { ok: false, msg: addRes.msg };
+        actions.push(...toScanActions);
+        segments.push({ key: 'phase1-toScan', label: '阶段1：走到 (1,1)', actions: toScanActions });
+      }
+
+      // 第二次扫描：在 (1,1) 面朝北，揭示 row3~row4
+      const scanActions = [{ type: MF_ACT_SCAN, dir: MF_DIR_NORTH, row: 1, col: 1, height_pick_diff: 0 }];
+      actions.push(...scanActions);
+      scanRows(realCell, ctx, 3, 4);
+      segments.push({ key: 'phase1-scan2', label: '阶段1：在 (1,1) 执行 SCAN，揭示 row3~row4', actions: scanActions });
+
+      return { ok: true, pickedCount, curR: 1, curC: 1, segments };
+    }
+
+    // 阶段2：从 (1,1) 开始继续拾取剩余 R2KFS 并走到出口，对齐 MFPlanner_BuildPhase2
+    // 返回 { ok, segments }
+    function buildPhase2(ctx, r2Need, actions) {
+      const segments = [];
+      if (r2Need === 0) {
+        segments.push({ key: 'phase2-none', label: '阶段2：无需再拾取，直接走向出口', actions: [], note: true });
+      }
+      const res = pickAllR2AndExit(ctx, 1, 1, r2Need, actions, segments);
+      if (!res.ok) return res;
+      return { ok: true, segments };
+    }
+
+    function renderGrid() {
+      gridEl.innerHTML = '';
+      for (let r = MF_ROWS - 1; r >= 0; r--) {
+        for (let c = 0; c < MF_COLS; c++) {
+          const t = cellState[r][c];
+          const div = document.createElement('div');
+          div.className = `cell ${cellClass(t)}`;
+          div.dataset.r = String(r);
+          div.dataset.c = String(c);
+          div.innerHTML = `<div class="rowLabel">row ${r}, col ${c}</div><div style="font-size:18px">${cellLabel(t)}</div>`;
+          div.onclick = () => {
+            const rr = Number(div.dataset.r);
+            const cc = Number(div.dataset.c);
+            cellState[rr][cc] = Number(toolSelect.value);
+            renderGrid();
+          };
+          gridEl.appendChild(div);
+        }
+      }
+    }
+
+    function fillTools() {
+      toolNames.forEach((name, idx) => {
+        const op = document.createElement('option');
+        op.value = String(toolValue[idx]);
+        op.textContent = name;
+        toolSelect.appendChild(op);
+      });
+      toolSelect.value = String(MF_CELL_R2KFS);
+      toolSelect.onchange = () => {
+        toolValue = Array.from(toolSelect.options).map(o => Number(o.value));
+      };
+    }
+
+    function setStatus(msg, ok = true) {
+      const s = document.getElementById('status');
+      s.textContent = msg || '';
+      s.className = `status ${ok ? 'ok' : 'bad'}`;
+    }
+
+    function renderSegments(segments) {
+      const view = document.getElementById('segmentsView');
+      if (!segments || segments.length === 0) {
+        view.innerHTML = '<p class="hint">未生成</p>';
+        return;
+      }
+
+      let globalIndex = 0;
+      view.innerHTML = segments.map(seg => {
+        if (seg.note && seg.actions.length === 0) {
+          return `<div class="costInfo">${seg.label}</div>`;
+        }
+        const rows = seg.actions.map((a) => {
+          globalIndex += 1;
+          return `<tr>
+            <td>${globalIndex}</td>
+            <td>${ACT_NAME[a.type] || a.type}</td>
+            <td>${DIR_NAME[a.dir] || '-'}</td>
+            <td>${a.row}</td>
+            <td>${a.col}</td>
+            <td>${a.height_pick_diff}</td>
+          </tr>`;
+        }).join('');
+        return `
+          <h2 style="margin-top:16px; font-size:14px;">${seg.label}</h2>
+          <table>
+            <thead>
+              <tr><th>#</th><th>动作</th><th>方向</th><th>行</th><th>列</th><th>height_diff</th></tr>
+            </thead>
+            <tbody>${rows || '<tr><td colspan="6" class="hint">（本步骤无移动动作）</td></tr>'}</tbody>
+          </table>`;
+      }).join('');
+    }
+
+    function renderActions(actions, segments) {
+      renderSegments(segments || []);
+      document.getElementById('jsonOut').textContent = JSON.stringify({
+        mapColor: document.getElementById('mapColorSel').value === '1' ? 'BLUE_MAP' : 'RED_MAP',
+        start: {
+          row: Number(document.getElementById('startRow').value),
+          col: Number(document.getElementById('startCol').value),
+        },
+        segments,
+        actions,
+      }, null, 2);
+    }
+
+    function randomFill() {
+      for (let r = 1; r <= 4; r++) {
+        for (let c = 0; c < MF_COLS; c++) {
+          const p = Math.random();
+          if (p < 0.12) cellState[r][c] = MF_CELL_FAKEKFS;
+          else if (p < 0.38) cellState[r][c] = MF_CELL_R2KFS;
+          else if (p < 0.5) cellState[r][c] = MF_CELL_R1KFS;
+          else cellState[r][c] = MF_CELL_EMPTY;
+        }
+      }
+      [0, 5].forEach((r) => {
+        for (let c = 0; c < MF_COLS; c++) cellState[r][c] = MF_CELL_EMPTY;
+      });
+      renderGrid();
+    }
+
+    document.getElementById('eraseBtn').onclick = () => {
+      for (let r = 0; r < MF_ROWS; r++) {
+        for (let c = 0; c < MF_COLS; c++) cellState[r][c] = MF_CELL_EMPTY;
+      }
+      setStatus('已清空网格');
+      renderGrid();
+      renderActions([], []);
+    };
+
+    document.getElementById('randomBtn').onclick = () => {
+      randomFill();
+      setStatus('已随机生成方块');
+    };
+
+    document.getElementById('rotateBtn').onclick = () => {
+      alert('规则描述（最新版本）：\n1) 将图分 6x3 行列格。row0 入口底层，row5 出口底层。\n2) R2KFS 可相邻拾取(PICK_R2)；在"拾取阶段"沿途也可被"移开"穿越(MOVE_R2，丢弃不存储，代价10)。\n3) 一旦拾取的 R2KFS 数量达到需求(r2kfs_need)，之后的所有路径(即走向出口的路径)禁止再规划 MOVE_R2 动作——剩余 R2KFS 一律视为硬障碍，只能绕路或等待 R1KFS 清理。走向"最后一个"目标 R2KFS 的路上仍允许穿越其他 R2KFS。\n4) R1KFS 恒定可穿越，但穿越代价高(代价 = 步数 + 穿越次数×20)，规划会自动倾向选穿越次数少的路径。\n5) FAKEKFS 永不可接触。\n6) 每步高度差仅允许 ±200/0。\n7) SCAN 动作表示在该位置进行扫描，用于分阶段规划中揭示 UNKNOWN 格。\n8) 分阶段规划：先扫描 row1~2，若 row1 有 R2KFS 需先在 row0 相邻拾取才能登上 row1，再走到(1,1)扫描 row3~4，最后继续拾取剩余 R2KFS 并走到出口。');
+    };
+
+    document.getElementById('phaseBtn').onclick = () => {
+      const startRow = Number(document.getElementById('startRow').value);
+      const startCol = Number(document.getElementById('startCol').value);
+      const need = Number(document.getElementById('needInput').value);
+      const mapColor = Number(document.getElementById('mapColorSel').value);
+
+      if (!inBounds(startRow, startCol)) {
+        setStatus('起点越界', false);
+        return;
+      }
+
+      // 用户当前编辑器内容视为"真实地图"（分阶段规划开始时对 R2 不可见）
+      const realCell = cloneCells(cellState);
+      realCell[0][0] = MF_CELL_EMPTY; realCell[0][1] = MF_CELL_EMPTY; realCell[0][2] = MF_CELL_EMPTY;
+      realCell[5][0] = MF_CELL_EMPTY; realCell[5][1] = MF_CELL_EMPTY; realCell[5][2] = MF_CELL_EMPTY;
+
+      const totalR2 = realCell.flat().filter(v => v === MF_CELL_R2KFS).length;
+      if (totalR2 === 0) {
+        setStatus('当前布局里没有 R2KFS，先放一些 R2KFS 再生成', false);
+        renderActions([], []);
+        return;
+      }
+
+      const r2Need = Math.min(need, totalR2);
+
+      const ctx = {
+        mapColor,
+        cell: cloneCells(realCell),
+        height: mapColor === 1 ? HEIGHT_BLUE : HEIGHT_RED,
+      };
+
+      const actions = [];
+      const phase1 = buildPhase1(ctx, realCell, startRow, startCol, actions);
+      if (!phase1.ok) {
+        setStatus(`阶段1生成失败：${phase1.msg}`, false);
+        renderActions([], []);
+        return;
+      }
+
+      const remainNeed = r2Need - phase1.pickedCount;
+      if (remainNeed < 0) {
+        setStatus('阶段1已拾取数量超过需求，请检查 R2 需求数', false);
+        renderActions(actions, phase1.segments);
+        return;
+      }
+
+      const phase2 = buildPhase2(ctx, remainNeed, actions);
+      if (!phase2.ok) {
+        setStatus(`阶段2生成失败：${phase2.msg}（阶段1已拾取 ${phase1.pickedCount} 个）`, false);
+        renderActions(actions, phase1.segments);
+        return;
+      }
+
+      const segments = [...phase1.segments, ...phase2.segments];
+      setStatus(`分阶段生成完成：阶段1拾取 ${phase1.pickedCount} 个，阶段2拾取 ${remainNeed} 个，共 ${actions.length} 条动作`, true);
+      renderActions(actions, segments);
+    };
+
+    fillTools();
+    renderGrid();
+    renderActions([], []);
+    setStatus('准备就绪', true);
+  </script>
+</body>
+</html>
