@@ -78,6 +78,51 @@
     .cell.fake { background: var(--fake); color: #fff; }
     .cell.unknown { background: var(--unknown); color: #fff; }
 
+    .actionMarks {
+      position: absolute;
+      left: 4px;
+      right: 4px;
+      bottom: 4px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 3px;
+      justify-content: center;
+      pointer-events: none;
+    }
+    .actionBadge {
+      min-width: 18px;
+      height: 18px;
+      padding: 0 4px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(255,255,255,0.65);
+      color: #fff;
+      font-size: 10px;
+      line-height: 1;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.28);
+    }
+    .actionBadge.move { background: #2563eb; }
+    .actionBadge.pick { background: #16a34a; }
+    .actionBadge.moveR2 { background: #c2410c; }
+    .actionBadge.wait { background: #9333ea; }
+    .actionBadge.scan { background: #0f766e; }
+
+    .actionLegend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 8px 0 12px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .actionLegend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
     .legend { display: grid; gap: 6px; }
     .legendItem { display: flex; gap: 8px; align-items: center; }
     .swatch { width: 12px; height: 12px; border-radius: 3px; border: 1px solid rgba(255,255,255,0.45); }
@@ -129,11 +174,19 @@
       </div>
 
       <div class="row">
-        <button class="primary" id="randomBtn">随机摆放 R1/R2</button>
+        <button class="primary" id="randomBtn">随机合法摆放</button>
         <button id="rotateBtn">列出规则说明</button>
       </div>
 
       <div class="grid" id="grid"></div>
+
+      <div class="actionLegend">
+        <span><i class="actionBadge move">M</i>移动</span>
+        <span><i class="actionBadge pick">P</i>取R2</span>
+        <span><i class="actionBadge moveR2">X</i>移开R2</span>
+        <span><i class="actionBadge wait">W</i>等R1</span>
+        <span><i class="actionBadge scan">S</i>扫描</span>
+      </div>
 
       <div class="legend">
         <div class="legendItem"><span class="swatch" style="background:var(--empty)"></span>EMPTY</div>
@@ -181,7 +234,7 @@
     const MF_ROWS = 6;
     const MF_COLS = 3;
     const MF_WAIT_R1_COST = 20;  // 代价化参数
-    const MF_MOVE_R2_COST = 10;  // 代价化参数
+    const MF_MOVE_R2_COST = 5;   // MOVE_R2 比正常移动多 5
 
     const MF_CELL_EMPTY = 0;
     const MF_CELL_R1KFS = 1;
@@ -241,6 +294,7 @@
 
     const toolSelect = document.getElementById('toolSelect');
     const gridEl = document.getElementById('grid');
+    let visualActions = [];
 
     function cellClass(t) {
       if (t === MF_CELL_EMPTY) return 'empty';
@@ -251,6 +305,33 @@
     }
     function cellLabel(t) {
       return ['EMPTY', 'R1KFS', 'R2KFS', 'FAKEKFS', 'UNKNOWN'][t];
+    }
+
+    function actionClass(type) {
+      if (type === MF_ACT_PICK_R2) return 'pick';
+      if (type === MF_ACT_MOVE_R2) return 'moveR2';
+      if (type === MF_ACT_WAIT_R1) return 'wait';
+      if (type === MF_ACT_SCAN) return 'scan';
+      return 'move';
+    }
+
+    function actionSymbol(type) {
+      if (type === MF_ACT_PICK_R2) return 'P';
+      if (type === MF_ACT_MOVE_R2) return 'X';
+      if (type === MF_ACT_WAIT_R1) return 'W';
+      if (type === MF_ACT_SCAN) return 'S';
+      return 'M';
+    }
+
+    function buildActionOverlay() {
+      const overlay = new Map();
+      visualActions.forEach((a, idx) => {
+        if (!inBounds(a.row, a.col)) return;
+        const key = `${a.row},${a.col}`;
+        if (!overlay.has(key)) overlay.set(key, []);
+        overlay.get(key).push({ index: idx + 1, action: a });
+      });
+      return overlay;
     }
 
     // 初始化编辑器状态
@@ -430,29 +511,66 @@
       return src.map(row => row.slice());
     }
 
-    // 检查拿完候选 R2KFS 后能否到达出口。
-    // 最后一次拾取(pickedIsLast)必须按"出口阶段禁止 MOVE_R2"的真实规则检查，
-    // 与后续真正规划出口路径的约束保持一致；非最后一次仍乐观允许穿越其余 R2KFS。
-    function canReachExitAfterPick(ctx, adjR, adjC, pickedIsLast, targetR, targetC) {
-      const backup = cloneCells(ctx.cell);
-      if (pickedIsLast) {
-        ctx.cell[targetR][targetC] = MF_CELL_EMPTY;
-      } else {
-        for (let r = 0; r < MF_ROWS; r++) {
-          for (let c = 0; c < MF_COLS; c++) {
-            if (ctx.cell[r][c] === MF_CELL_R2KFS) ctx.cell[r][c] = MF_CELL_EMPTY;
+    function applyPathCellEffects(ctx, path) {
+      for (let i = 1; i < path.length; i++) {
+        const [r, c] = fromIndex(path[i]);
+        if (ctx.cell[r][c] === MF_CELL_R1KFS || ctx.cell[r][c] === MF_CELL_R2KFS) {
+          ctx.cell[r][c] = MF_CELL_EMPTY;
+        }
+      }
+    }
+
+    function bestExitCost(ctx, curR, curC) {
+      let found = false;
+      let best = 1e9;
+      for (const exitC of [0, 2]) {
+        const p = aStar(ctx, curR, curC, 5, exitC, false);
+        if (!p.ok) continue;
+        if (!found || p.cost < best) {
+          found = true;
+          best = p.cost;
+        }
+      }
+      return found ? { ok: true, cost: best } : { ok: false };
+    }
+
+    function evaluateRemainingPlanCost(ctx, curR, curC, remainingPicks) {
+      if (remainingPicks === 0) {
+        return bestExitCost(ctx, curR, curC);
+      }
+
+      let foundAny = false;
+      let best = 1e9;
+
+      for (let r = 0; r < MF_ROWS; r++) {
+        for (let c = 0; c < MF_COLS; c++) {
+          if (ctx.cell[r][c] !== MF_CELL_R2KFS) continue;
+          const p = findPathToAdjacent(ctx, curR, curC, r, c, true);
+          if (!p.ok) continue;
+
+          const nextCtx = {
+            mapColor: ctx.mapColor,
+            cell: cloneCells(ctx.cell),
+            height: ctx.height,
+          };
+          applyPathCellEffects(nextCtx, p.path);
+          nextCtx.cell[r][c] = MF_CELL_EMPTY;
+
+          const remain = evaluateRemainingPlanCost(nextCtx, p.adj[0], p.adj[1], remainingPicks - 1);
+          if (!remain.ok) continue;
+
+          const total = p.cost + remain.cost;
+          if (!foundAny || total < best) {
+            foundAny = true;
+            best = total;
           }
         }
       }
 
-      const allowR2CrossForCheck = !pickedIsLast;
-      const ok = aStar(ctx, adjR, adjC, 5, 0, allowR2CrossForCheck).ok
-              || aStar(ctx, adjR, adjC, 5, 2, allowR2CrossForCheck).ok;
-      ctx.cell = backup;
-      return ok;
+      return foundAny ? { ok: true, cost: best } : { ok: false };
     }
 
-    // 依次挑选代价最低的 R2KFS 拾取，拾取完毕后走到出口。
+    // 按“当前路径 + 后续剩余拾取 + 最终出口”的总代价挑选 R2KFS。
     // 对齐 MF_planner.c 中 MFPlanner_BuildPhase2 的核心循环。
     // segments（可选）：传入数组时，会按"每次拾取一段 + 最终出口一段"填充 { key, label, actions }。
     function pickAllR2AndExit(ctx, startRow, startCol, r2Need, actions, segments) {
@@ -462,24 +580,39 @@
       for (let picked = 0; picked < r2Need; picked++) {
         let foundAny = false;
         let bestCost = 1e9;  // 按代价比较
+        let bestPlanCost = 1e9;
         let bestPath = [];
         let bestTarget = null;
         let bestAdj = null;
-        const isLastPick = (picked === r2Need - 1);
 
-        // 单轮扫描：拾取阶段沿途仍允许穿越其他 R2KFS(产生 MOVE_R2)
+        // 单轮扫描：用“当前路径 + 后续剩余拾取 + 出口”的总代价选择候选
         for (let r = 0; r < MF_ROWS; r++) {
           for (let c = 0; c < MF_COLS; c++) {
             if (ctx.cell[r][c] !== MF_CELL_R2KFS) continue;
             const p = findPathToAdjacent(ctx, curR, curC, r, c, true);
             if (!p.ok) continue;
 
-            // 检查拿完这个候选能否走到出口(最后一次拾取按出口阶段的严格规则检查)
-            if (!canReachExitAfterPick(ctx, p.adj[0], p.adj[1], isLastPick, r, c)) continue;
+            const lookaheadCtx = {
+              mapColor: ctx.mapColor,
+              cell: cloneCells(ctx.cell),
+              height: ctx.height,
+            };
+            applyPathCellEffects(lookaheadCtx, p.path);
+            lookaheadCtx.cell[r][c] = MF_CELL_EMPTY;
 
-            if (!foundAny || p.cost < bestCost) {  // 按总代价比较
+            const remaining = evaluateRemainingPlanCost(
+              lookaheadCtx,
+              p.adj[0],
+              p.adj[1],
+              r2Need - picked - 1
+            );
+            if (!remaining.ok) continue;
+
+            const planCost = p.cost + remaining.cost;
+            if (!foundAny || planCost < bestPlanCost || (planCost === bestPlanCost && p.cost < bestCost)) {
               foundAny = true;
               bestCost = p.cost;
+              bestPlanCost = planCost;
               bestPath = p.path;
               bestTarget = [r, c];
               bestAdj = p.adj;
@@ -658,6 +791,7 @@
 
     function renderGrid() {
       gridEl.innerHTML = '';
+      const actionOverlay = buildActionOverlay();
       for (let r = MF_ROWS - 1; r >= 0; r--) {
         for (let c = 0; c < MF_COLS; c++) {
           const t = cellState[r][c];
@@ -665,11 +799,16 @@
           div.className = `cell ${cellClass(t)}`;
           div.dataset.r = String(r);
           div.dataset.c = String(c);
-          div.innerHTML = `<div class="rowLabel">row ${r}, col ${c}</div><div style="font-size:18px">${cellLabel(t)}</div>`;
+          const marks = actionOverlay.get(`${r},${c}`) || [];
+          const markHtml = marks.map(({ index, action }) => (
+            `<span class="actionBadge ${actionClass(action.type)}" title="#${index} ${ACT_NAME[action.type]} ${DIR_NAME[action.dir]}">${index}${DIR_NAME[action.dir]}</span>`
+          )).join('');
+          div.innerHTML = `<div class="rowLabel">row ${r}, col ${c}</div><div style="font-size:18px">${cellLabel(t)}</div><div class="actionMarks">${markHtml}</div>`;
           div.onclick = () => {
             const rr = Number(div.dataset.r);
             const cc = Number(div.dataset.c);
             cellState[rr][cc] = Number(toolSelect.value);
+            visualActions = [];
             renderGrid();
           };
           gridEl.appendChild(div);
@@ -731,6 +870,8 @@
     }
 
     function renderActions(actions, segments) {
+      visualActions = actions || [];
+      renderGrid();
       renderSegments(segments || []);
       document.getElementById('jsonOut').textContent = JSON.stringify({
         mapColor: document.getElementById('mapColorSel').value === '1' ? 'BLUE_MAP' : 'RED_MAP',
@@ -743,23 +884,51 @@
       }, null, 2);
     }
 
+    function shuffleInPlace(arr) {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
     function randomFill() {
+      visualActions = [];
+      cellState = Array.from({ length: MF_ROWS }, () => Array(MF_COLS).fill(MF_CELL_EMPTY));
+
+      const allTreeCells = [];
       for (let r = 1; r <= 4; r++) {
         for (let c = 0; c < MF_COLS; c++) {
-          const p = Math.random();
-          if (p < 0.12) cellState[r][c] = MF_CELL_FAKEKFS;
-          else if (p < 0.38) cellState[r][c] = MF_CELL_R2KFS;
-          else if (p < 0.5) cellState[r][c] = MF_CELL_R1KFS;
-          else cellState[r][c] = MF_CELL_EMPTY;
+          allTreeCells.push([r, c]);
         }
       }
-      [0, 5].forEach((r) => {
-        for (let c = 0; c < MF_COLS; c++) cellState[r][c] = MF_CELL_EMPTY;
+
+      const fakeCandidates = allTreeCells.filter(([r]) => r !== 1);
+      const fake = shuffleInPlace(fakeCandidates.slice())[0];
+      cellState[fake[0]][fake[1]] = MF_CELL_FAKEKFS;
+
+      const r1Candidates = allTreeCells.filter(([r, c]) => {
+        if (cellState[r][c] !== MF_CELL_EMPTY) return false;
+        return !((r === 2 && c === 1) || (r === 3 && c === 1));
       });
+      shuffleInPlace(r1Candidates);
+      for (let i = 0; i < 3; i++) {
+        const [r, c] = r1Candidates[i];
+        cellState[r][c] = MF_CELL_R1KFS;
+      }
+
+      const r2Candidates = allTreeCells.filter(([r, c]) => cellState[r][c] === MF_CELL_EMPTY);
+      shuffleInPlace(r2Candidates);
+      for (let i = 0; i < 4; i++) {
+        const [r, c] = r2Candidates[i];
+        cellState[r][c] = MF_CELL_R2KFS;
+      }
+
       renderGrid();
     }
 
     document.getElementById('eraseBtn').onclick = () => {
+      visualActions = [];
       for (let r = 0; r < MF_ROWS; r++) {
         for (let c = 0; c < MF_COLS; c++) cellState[r][c] = MF_CELL_EMPTY;
       }
@@ -770,11 +939,11 @@
 
     document.getElementById('randomBtn').onclick = () => {
       randomFill();
-      setStatus('已随机生成方块');
+      setStatus('已随机生成合法布局：3个R1KFS、4个R2KFS、1个FAKEKFS');
     };
 
     document.getElementById('rotateBtn').onclick = () => {
-      alert('规则描述（最新版本）：\n1) 将图分 6x3 行列格。row0 入口底层，row5 出口底层。\n2) R2KFS 可相邻拾取(PICK_R2)；在"拾取阶段"沿途也可被"移开"穿越(MOVE_R2，丢弃不存储，代价10)。\n3) 一旦拾取的 R2KFS 数量达到需求(r2kfs_need)，之后的所有路径(即走向出口的路径)禁止再规划 MOVE_R2 动作——剩余 R2KFS 一律视为硬障碍，只能绕路或等待 R1KFS 清理。走向"最后一个"目标 R2KFS 的路上仍允许穿越其他 R2KFS。\n4) R1KFS 恒定可穿越，但穿越代价高(代价 = 步数 + 穿越次数×20)，规划会自动倾向选穿越次数少的路径。\n5) FAKEKFS 永不可接触。\n6) 每步高度差仅允许 ±200/0。\n7) SCAN 动作表示在该位置进行扫描，用于分阶段规划中揭示 UNKNOWN 格。\n8) 分阶段规划：先扫描 row1~2，若 row1 有 R2KFS 需先在 row0 相邻拾取才能登上 row1，再走到(1,1)扫描 row3~4，最后继续拾取剩余 R2KFS 并走到出口。');
+      alert('规则描述（最新版本）：\n1) 将图分 6x3 行列格。row0 入口底层，row5 出口底层。\n2) R2KFS 可相邻拾取(PICK_R2)；在"拾取阶段"沿途也可被"移开"穿越(MOVE_R2，丢弃不存储，代价比正常移动多5)。\n3) 一旦拾取的 R2KFS 数量达到需求(r2kfs_need)，之后的所有路径(即走向出口的路径)禁止再规划 MOVE_R2 动作——剩余 R2KFS 一律视为硬障碍，只能绕路或等待 R1KFS 清理。走向"最后一个"目标 R2KFS 的路上仍允许穿越其他 R2KFS。\n4) R1KFS 恒定可穿越，但穿越代价高(代价 = 步数 + 穿越次数×20)，规划会自动倾向选穿越次数少的路径。\n5) FAKEKFS 永不可接触。\n6) 每步高度差仅允许 ±200/0。\n7) SCAN 动作表示在该位置进行扫描，用于分阶段规划中揭示 UNKNOWN 格。\n8) 分阶段规划：先扫描 row1~2，若 row1 有 R2KFS 需先在 row0 相邻拾取才能登上 row1，再走到(1,1)扫描 row3~4，最后继续拾取剩余 R2KFS 并走到出口。');
     };
 
     document.getElementById('phaseBtn').onclick = () => {

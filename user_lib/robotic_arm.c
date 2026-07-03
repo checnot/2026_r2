@@ -51,9 +51,10 @@ void arm_joint_state_update(robotic_arm_stu *arm)
 //     //joint_parameters[4].theta实际上是前部吸盘自转角度，对着吸盘逆时针为正
 //     arm->joint_parameters[4].theta = -1.0f*(float)(m3508_fdcan1[1].Angle_Sum + m3508_fdcan1[2].Angle_Sum)/2.0f/rate/180.0f*PI;
 //     arm->joint_pitch[2] = arm->joint_pitch[1] + arm->joint_parameters[3].theta;
-
+// arm->joint_parameters[1].theta = -A1_debug_485_2[0].measure.Pos + UPPERARM_OFFSET_DEG/180.0f*PI;
 
 // 根据各关节处电机的测量位置更新机械臂的关节角状态，对二连杆末端位置进行正解算
+    arm->joint_parameters[1].theta = -A1_debug_485_2[0].measure.Pos + UPPERARM_OFFSET_DEG/180.0f*PI;
     arm->joint_parameters[2].theta = m8010_bus_1.motors[2].measure.Pos + FOREARM_OFFSET_DEG/180.0f*PI;  // 小臂与大臂的夹角
     arm->joint_pitch[0] = arm->joint_parameters[1].theta;
     arm->joint_pitch[1] = -PI + arm->joint_pitch[0] + arm->joint_parameters[2].theta;

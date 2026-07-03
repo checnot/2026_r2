@@ -34,8 +34,8 @@ static const int8_t k_dir_dc[4] = { 0, 1, 0, -1 };
 /* 穿越一次 R1KFS 相对于普通一步的额外代价：总代价 = 步数 + MF_WAIT_R1_COST * 穿越次数 */
 #define MF_WAIT_R1_COST 20
 
-/* 移开一次 R2KFS 相对于普通一步的额外代价：比普通移动(1)大，比等待R1(1+20)小 */
-#define MF_MOVE_R2_COST 10
+/* 移开一次 R2KFS 相对于普通一步的额外代价：总代价 = 1 + MF_MOVE_R2_COST */
+#define MF_MOVE_R2_COST 5
 
 MF_Planner mf_planner_ctx;
 
@@ -490,6 +490,122 @@ static bool MF_FindPathToAdjacent(const MF_Planner* ctx,
     *out_adj_c = best_c;
     if (out_cost != NULL) {
         *out_cost = best_cost;
+    }
+    return true;
+}
+
+/**
+ * @brief Apply the same cell side effects that MF_AddPathActions will produce.
+ * @note Used only for planning lookahead: WAIT_R1 and MOVE_R2 both make the
+ *       traversed cell become EMPTY for subsequent path searches.
+ */
+static void MF_ApplyPathCellEffects(MF_Planner* ctx,
+                                    const uint8_t* path,
+                                    uint8_t path_len)
+{
+    for (uint8_t i = 1; i < path_len; i++) {
+        uint8_t r, c;
+        MF_FromIndex(path[i], &r, &c);
+        if (ctx->cell[r][c] == MF_CELL_R1KFS ||
+            ctx->cell[r][c] == MF_CELL_R2KFS) {
+            ctx->cell[r][c] = MF_CELL_EMPTY;
+        }
+    }
+}
+
+/**
+ * @brief Find the cheapest legal exit path cost after all required R2KFS are done.
+ * @note Exit phase keeps the existing rule: remaining R2KFS are hard obstacles.
+ */
+static bool MF_FindBestExitCost(const MF_Planner* ctx,
+                                uint8_t cur_r,
+                                uint8_t cur_c,
+                                int16_t* out_cost)
+{
+    bool found = false;
+    int16_t best_cost = 0x3FFF;
+    uint8_t path[MF_MAX_NODES];
+    uint8_t len = 0;
+    int16_t cost = 0;
+
+    if (MF_AStar(ctx, cur_r, cur_c, 5, 0, false, path, &len, &cost)) {
+        found = true;
+        best_cost = cost;
+    }
+    if (MF_AStar(ctx, cur_r, cur_c, 5, 2, false, path, &len, &cost)) {
+        if (!found || cost < best_cost) {
+            found = true;
+            best_cost = cost;
+        }
+    }
+
+    if (!found) {
+        return false;
+    }
+    if (out_cost != NULL) {
+        *out_cost = best_cost;
+    }
+    return true;
+}
+
+/**
+ * @brief Look ahead over the remaining R2KFS picks and final exit.
+ * @note This does not change any movement rule. It only changes candidate
+ *       scoring from greedy one-step cost to remaining mission cost.
+ */
+static bool MF_EvaluateRemainingPlanCost(const MF_Planner* ctx,
+                                         uint8_t cur_r,
+                                         uint8_t cur_c,
+                                         uint8_t remaining_picks,
+                                         int16_t* out_cost)
+{
+    if (remaining_picks == 0) {
+        return MF_FindBestExitCost(ctx, cur_r, cur_c, out_cost);
+    }
+
+    bool found_any = false;
+    int16_t best_total_cost = 0x3FFF;
+
+    for (uint8_t r = 0; r < MF_ROWS; r++) {
+        for (uint8_t c = 0; c < MF_COLS; c++) {
+            if (ctx->cell[r][c] != MF_CELL_R2KFS) {
+                continue;
+            }
+
+            uint8_t path[MF_MAX_NODES];
+            uint8_t len = 0;
+            uint8_t adj_r = 0;
+            uint8_t adj_c = 0;
+            int16_t path_cost = 0;
+
+            if (!MF_FindPathToAdjacent(ctx, cur_r, cur_c, r, c,
+                                       true, path, &len, &adj_r, &adj_c, &path_cost)) {
+                continue;
+            }
+
+            MF_Planner next_ctx = *ctx;
+            MF_ApplyPathCellEffects(&next_ctx, path, len);
+            next_ctx.cell[r][c] = MF_CELL_EMPTY;
+
+            int16_t remain_cost = 0;
+            if (!MF_EvaluateRemainingPlanCost(&next_ctx, adj_r, adj_c,
+                                              (uint8_t)(remaining_picks - 1), &remain_cost)) {
+                continue;
+            }
+
+            int16_t total_cost = (int16_t)(path_cost + remain_cost);
+            if (!found_any || total_cost < best_total_cost) {
+                found_any = true;
+                best_total_cost = total_cost;
+            }
+        }
+    }
+
+    if (!found_any) {
+        return false;
+    }
+    if (out_cost != NULL) {
+        *out_cost = best_total_cost;
     }
     return true;
 }
@@ -1004,7 +1120,7 @@ bool MFPlanner_BuildPhase2(MF_Planner* ctx, uint8_t r2kfs_need)
     /* ============================================================ */
 
     for (uint8_t picked = 0; picked < r2kfs_need; picked++) {
-        /* 每轮选取一个总代价最低的 R2KFS(R1KFS 恒定可穿越，但穿越代价高) */
+        /* 每轮选取“当前路径 + 后续剩余拾取 + 出口”的总代价最低 R2KFS */
         bool found_any = false;
         /* 拾取阶段沿途仍允许穿越其他 R2KFS(产生 MOVE_R2)，只有最终出口路径禁止 */
         bool allow_r2kfs_cross = true;
@@ -1015,6 +1131,7 @@ bool MFPlanner_BuildPhase2(MF_Planner* ctx, uint8_t r2kfs_need)
         uint8_t best_adj_r = 0;
         uint8_t best_adj_c = 0;
         int16_t best_cost = 0x3FFF;
+        int16_t best_plan_cost = 0x3FFF;
 
         for (uint8_t r = 0; r < MF_ROWS; r++) {
             for (uint8_t c = 0; c < MF_COLS; c++) {
@@ -1028,56 +1145,27 @@ bool MFPlanner_BuildPhase2(MF_Planner* ctx, uint8_t r2kfs_need)
                 int16_t cost = 0;
                 if (MF_FindPathToAdjacent(ctx, cur_r, cur_c, r, c,
                                           allow_r2kfs_cross, path, &len, &adj_r, &adj_c, &cost)) {
-                    /* ============================================================ */
-                    /* 【修改1】检查拿完此 R2KFS 后能否到达出口                     */
-                    /* - 最后一步(picked == r2kfs_need-1)：只清除当前候选，       */
-                    /*   其余未拿 R2KFS 保留为真实障碍，避免选了到不了出口的 KFS   */
-                    /* - 非最后步：乐观清除所有 R2KFS（后续还会再选可打通）        */
-                    /* - 出口可达性按“最后拾取完成后禁止 MOVE_R2”的真实规则检查， */
-                    /*   即此处禁止穿越剩余 R2KFS，与后续真正规划出口路径的约束一致 */
-                    /* ============================================================ */
-                    {
-                        MF_CellType saved_cell[MF_ROWS][MF_COLS];
-                        uint8_t rr, cc;
-                        bool can_reach_exit;
-                        bool is_last_pick = (picked == r2kfs_need - 1);
-                        /* 最后一次拾取完成后不再允许 MOVE_R2，出口可达性检查需与之一致 */
-                        bool allow_r2kfs_cross_for_check = !is_last_pick;
-                        uint8_t ep[MF_MAX_NODES];
-                        uint8_t elen;
-                        int16_t ecost;
+                    MF_Planner lookahead_ctx = *ctx;
+                    MF_ApplyPathCellEffects(&lookahead_ctx, path, len);
+                    lookahead_ctx.cell[r][c] = MF_CELL_EMPTY;
 
-                        memcpy(saved_cell, ctx->cell, sizeof(ctx->cell));
-                        if (is_last_pick) {
-                            /* 最后一步：只清除当前候选这一个 R2KFS */
-                            ctx->cell[r][c] = MF_CELL_EMPTY;
-                        } else {
-                            /* 非最后步：乐观清除所有 R2KFS（后续迭代还会再选） */
-                            for (rr = 0; rr < MF_ROWS; rr++) {
-                                for (cc = 0; cc < MF_COLS; cc++) {
-                                    if (ctx->cell[rr][cc] == MF_CELL_R2KFS) {
-                                        ctx->cell[rr][cc] = MF_CELL_EMPTY;
-                                    }
-                                }
-                            }
-                        }
-                        can_reach_exit = false;
-                        if (MF_AStar(ctx, adj_r, adj_c, 5, 0, allow_r2kfs_cross_for_check, ep, &elen, &ecost)) {
-                            can_reach_exit = true;
-                        }
-                        if (!can_reach_exit && MF_AStar(ctx, adj_r, adj_c, 5, 2, allow_r2kfs_cross_for_check, ep, &elen, &ecost)) {
-                            can_reach_exit = true;
-                        }
-                        memcpy(ctx->cell, saved_cell, sizeof(ctx->cell));
-                        if (!can_reach_exit) {
-                            continue; /* 该候选拿完后无法到出口，跳过 */
-                        }
+                    int16_t remaining_cost = 0;
+                    if (!MF_EvaluateRemainingPlanCost(&lookahead_ctx,
+                                                      adj_r,
+                                                      adj_c,
+                                                      (uint8_t)(r2kfs_need - picked - 1),
+                                                      &remaining_cost)) {
+                        continue;
                     }
 
-                    if (!found_any || cost < best_cost) {
+                    int16_t plan_cost = (int16_t)(cost + remaining_cost);
+                    if (!found_any ||
+                        plan_cost < best_plan_cost ||
+                        (plan_cost == best_plan_cost && cost < best_cost)) {
                         found_any = true;
                         best_len = len;
                         best_cost = cost;
+                        best_plan_cost = plan_cost;
                         memcpy(best_path, path, len);
                         best_target_r = r;
                         best_target_c = c;

@@ -2131,10 +2131,10 @@ static BT_Status Act_CZ_Mission(void)
                 /* 07.01.1013 R2已改为存一拿一，因此共2个块 */
                 if (CZ_bb.scan_count >= 1)
                 {
+                    taskENTER_CRITICAL();
                     /* 单？次放置完成，将机械臂过渡到背向 */
                     arm_mode_switch_to_transition(&arm, &arm_traj, &arm_trans_traj, ARM_TRANS_FRONT_TO_BACK);
                     /* 返回扫描点进行第二次扫描 */
-                    taskENTER_CRITICAL();
                     chassis_route_point_add(&chassis_route_traj, R_CHASSIS_CZ_CENTER_X, R_CHASSIS_CZ_CENTER_Y, R_CHASSIS_CZ_CENTER_W, 0, 0);
                     taskEXIT_CRITICAL();
                     CZ_bb.cz_mission_state = CZ_PICK_STORE_F2B;
@@ -2201,7 +2201,9 @@ static BT_Status Act_CZ_Mission(void)
             if(arm_if_arrived_xy(STORE_X+0.075f, STORE_Y-0.08f))
             {
                 HAL_GPIO_WritePin(GPIOD, GPIO_PIN_5, GPIO_PIN_RESET);  // 关闭存块气泵
+                taskENTER_CRITICAL();
                 arm_mode_switch_to_transition(&arm, &arm_traj, &arm_trans_traj, ARM_TRANS_BACK_TO_FRONT);
+                taskEXIT_CRITICAL();
                 CZ_bb.cz_mission_state = CZ_PICK_STORE_B2F;
                 CZ_bb.cz_timer_ms = 0;
                 return BT_RUNNING;
@@ -2218,7 +2220,9 @@ static BT_Status Act_CZ_Mission(void)
         {
             if(arm.mode == ARM_MODE_FRONT)
             {
+                taskENTER_CRITICAL();
                 arm_queue_add_point(&arm_traj, PICK_REST_X, PICK_REST_Y, 0, ARM_PUMP_SUCK, CZ_ARM_PLACE_PITCH/180.0f*PI);
+                taskEXIT_CRITICAL();
                 CZ_bb.cz_mission_state = CZ_DONE;
                 CZ_bb.cz_timer_ms = 0;
                 CZ_bb.pos_stable_times = 0;
