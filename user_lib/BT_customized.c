@@ -832,6 +832,15 @@ uint8_t arm_store_slot = 0;                  /* 本次存储使用的槽�? 0=A
 ArmStoreState arm_store_state = ARM_STORE_IDLE; /* 机械臂存储服务状态机 */
 uint32_t arm_store_timer_ms = 0;                 /* 机械臂存储服务计时器 */
 
+uint8_t arm_discard_request = 0;  /* 机械臂丢弃服务请求标志 */
+uint8_t arm_discard_busy = 0;     /* 机械臂丢弃服务占用机械臂标志，后台收尾期间仍为 1 */
+uint8_t arm_discard_payload_done = 0; /* 块已经丢弃，MF 可以推进 */
+uint8_t arm_discard_done = 0;     /* 丢弃逻辑完成标志：块已丢弃，上层 MF 可推进 */
+uint8_t arm_discard_failed = 0;   /* 机械臂丢弃服务失败标志 */
+
+ArmDiscardState arm_discard_state = ARM_DISCARD_IDLE; /* 机械臂丢弃服务状态机 */
+uint32_t arm_discard_timer_ms = 0;                     /* 机械臂丢弃服务计时器 */
+
 /**
  * @brief �?MF 方向转对应的底盘朝向角度(yaw)
  */
@@ -1146,6 +1155,132 @@ static void Arm_Store_Service_Tick(void)
     }
 }
 
+/**
+ * @brief 下发后向丢弃路径（不吸附，仅移开放下方块）
+ * @return 1 表示成功下发
+ */
+static uint8_t Arm_Discard_SendPath(void)
+{
+    taskENTER_CRITICAL();
+
+    arm_queue_add_point(&arm_traj, DISCARD_PRE_X, DISCARD_PRE_Y, 0, 0, ARM_PUMP_KEEP, 180.0f/180.0f*PI);
+    arm_queue_add_point(&arm_traj, DISCARD_X, DISCARD_Y, 0, DISCARD_TIME, ARM_PUMP_RELEASE, 180.0f/180.0f*PI);
+    // arm_queue_add_point(&arm_traj, DISCARD_X, DISCARD_Y, 0, DISCARD_TIME/4, ARM_PUMP_RELEASE, 180.0f/180.0f*PI);
+    arm_queue_add_point(&arm_traj, DISCARD_PRE_TRANS_X, DISCARD_PRE_TRANS_Y, 0, 0, ARM_PUMP_RELEASE, 180.0f/180.0f*PI);
+
+    taskEXIT_CRITICAL();
+    return 1;
+}
+
+/**
+ * @brief 机械臂丢弃服务，负责 后向切换 -> 移开丢弃 -> 返回前向
+ * @note 仿照 Arm_Store_Service_Tick，仅通过 arm_discard_request/busy/done/failed 与上层通信
+ */
+static void Arm_Discard_Service_Tick(void)
+{
+    switch (arm_discard_state) {
+    case ARM_DISCARD_IDLE:
+        if (arm_discard_request) {
+            arm_discard_request = 0;
+            arm_discard_busy = 1;
+            arm_discard_payload_done = 0;
+            arm_discard_done = 0;
+            arm_discard_failed = 0;
+            arm_discard_state = ARM_DISCARD_REQ_F2B;
+            arm_discard_timer_ms = 0;
+        }
+        break;
+
+    case ARM_DISCARD_REQ_F2B:
+        taskENTER_CRITICAL();
+        arm_mode_switch_to_transition(&arm, &arm_traj, &arm_trans_traj, ARM_TRANS_FRONT_TO_BACK);
+        taskEXIT_CRITICAL();
+        arm_discard_state = ARM_DISCARD_WAIT_BACK;
+        arm_discard_timer_ms = 0;
+        break;
+
+    case ARM_DISCARD_WAIT_BACK:
+        if (arm.mode == ARM_MODE_BACK) {
+            arm_discard_state = ARM_DISCARD_SEND_PATH;
+            arm_discard_timer_ms = 0;
+        } else if (++arm_discard_timer_ms * 10 >= ARM_DISCARD_TRANS_TIMEOUT_MS) {
+            arm_discard_state = ARM_DISCARD_FAILED;
+        }
+        break;
+
+    case ARM_DISCARD_SEND_PATH:
+        if (Arm_Discard_SendPath()) {
+            arm_discard_state = ARM_DISCARD_WAIT_DONE;
+            arm_discard_timer_ms = 0;
+        } else {
+            arm_discard_state = ARM_DISCARD_FAILED;
+        }
+        break;
+
+    case ARM_DISCARD_WAIT_DONE:
+        if (arm_if_arrived_xy(DISCARD_PRE_TRANS_X, DISCARD_PRE_TRANS_Y)) {
+            arm_discard_payload_done = 1;       /* 块已经丢弃，MF 可以推进 */
+            arm_discard_state = ARM_DISCARD_REQ_B2F;
+            arm_discard_timer_ms = 0;
+        } else if (++arm_discard_timer_ms * 10 >= ARM_DISCARD_PATH_TIMEOUT_MS) {
+            arm_discard_state = ARM_DISCARD_FAILED;
+        }
+        break;
+
+    case ARM_DISCARD_REQ_B2F:
+        taskENTER_CRITICAL();
+        arm_mode_switch_to_transition(&arm, &arm_traj, &arm_trans_traj, ARM_TRANS_BACK_TO_FRONT);
+        taskEXIT_CRITICAL();
+
+        arm_discard_state = ARM_DISCARD_WAIT_FRONT;
+        arm_discard_timer_ms = 0;
+        break;
+
+    case ARM_DISCARD_WAIT_FRONT:
+        taskENTER_CRITICAL();
+        if (arm.mode == ARM_MODE_FRONT) {
+            arm_discard_state = ARM_DISCARD_SEND_REST;
+            arm_discard_timer_ms = 0;
+        } else if (++arm_discard_timer_ms * 10 >= ARM_DISCARD_TRANS_TIMEOUT_MS) {
+            arm_discard_state = ARM_DISCARD_FAILED;
+        }
+        taskEXIT_CRITICAL();
+        break;
+
+    case ARM_DISCARD_SEND_REST:
+        taskENTER_CRITICAL();
+        arm_queue_add_point(&arm_traj, PICK_REST_X, PICK_REST_Y, 0, 0, ARM_PUMP_RELEASE, 0.0f);
+        taskEXIT_CRITICAL();
+
+        arm_discard_state = ARM_DISCARD_WAIT_REST;
+        arm_discard_timer_ms = 0;
+        break;
+
+    case ARM_DISCARD_WAIT_REST:
+        if (arm_if_arrived_xy(PICK_REST_X, PICK_REST_Y)) {
+            arm_discard_busy = 0;
+            arm_discard_done = 1;
+            arm_discard_state = ARM_DISCARD_DONE;
+        } else if (++arm_discard_timer_ms * 10 >= ARM_DISCARD_REST_TIMEOUT_MS) {
+            arm_discard_state = ARM_DISCARD_FAILED;
+        }
+        break;
+
+    case ARM_DISCARD_DONE:
+        if (arm_discard_done) {
+            arm_discard_done = 0;
+            arm_discard_state = ARM_DISCARD_IDLE;
+        }
+        break;
+
+    case ARM_DISCARD_FAILED:
+    default:
+        arm_discard_busy = 0;
+        arm_discard_failed = 1;
+        break;
+    }
+}
+
 /* ================= 2. 条件节点 ================= */
 
 /**
@@ -1368,6 +1503,34 @@ static BT_Status Act_MF_Execute_Action(void)
             taskEXIT_CRITICAL();
 
             mf_exec_state = MF_EXEC_PICK_R2;
+            mf_exec_timer_ms = 0;
+            break;
+        }
+
+        /* ---------- 移开 R2KFS（丢弃，不存储） ---------- */
+        case MF_ACT_MOVE_R2: {
+            /*
+                * 仿照 MF_ACT_PICK_R2：先确认机械臂丢弃服务空闲，
+                * 再让底盘转到位，机械臂路点在 MF_EXEC_MOVE_R2 状态中下发
+                */
+            if(arm_discard_busy || arm_discard_state != ARM_DISCARD_IDLE) {
+                /* 机械臂丢弃服务正在忙，等待其完成 */
+                return BT_RUNNING;
+            }
+
+            /* 计算 R2 应该站立的世界坐标（复用拾取站位逻辑） */
+            float stand_x, stand_y;
+            mf_pick_stand_position(act.row, act.col, act.dir, &stand_x, &stand_y);
+            /* 目标朝向 = 拾取方向对应的 yaw */
+            float move_yaw;
+            move_yaw = mf_dir_to_yaw(act.dir);
+
+            taskENTER_CRITICAL();
+            // 让底盘转到位预期的方向，机械臂的路点在MF_EXEC_MOVE_R2状态中下发
+            chassis_route_point_add(&chassis_route_traj, stand_x, stand_y, move_yaw, 0, 1);
+            taskEXIT_CRITICAL();
+
+            mf_exec_state = MF_EXEC_MOVE_R2;
             mf_exec_timer_ms = 0;
             break;
         }
@@ -1725,6 +1888,81 @@ static BT_Status Act_MF_Execute_Action(void)
         return BT_RUNNING;
     }
     /* ============================================================ */
+    /* MOVE_R2 状态：等待机械臂移开丢弃完成                          */
+    /* ============================================================ */
+    case MF_EXEC_MOVE_R2:
+    {
+        /* 计算 R2 应该站立的世界坐标（复用拾取站位逻辑） */
+        float stand_x, stand_y;
+        mf_pick_stand_position(act.row, act.col, act.dir, &stand_x, &stand_y);
+        /* 目标朝向 = 拾取方向对应的 yaw */
+        float move_yaw;
+        move_yaw = mf_dir_to_yaw(act.dir);
+
+        /* 底盘到位，并且之前没有发过点，再发出机械臂的抓取动作（仿照 PICK_R2） */
+        if(chassis_if_arrived(stand_x, stand_y, move_yaw) && arm_if_send_point == 0)
+        {
+            arm_if_send_point = 1;  // 机械臂轨迹队列允许发送点
+            if(act.height_pick_diff == -200)    // KFS 在 R2 下方 200mm
+            {
+                arm_queue_add_point(&arm_traj, PICK_N200_APR_X_1, PICK_N200_APR_Y_1, 0, 0, ARM_PUMP_RELEASE, -90.0f/180.0f*PI);   // 预抓取点1
+                arm_queue_add_point(&arm_traj, PICK_N200_TARGET_X, PICK_N200_TARGET_Y, 0, PICK_TIME, ARM_PUMP_SUCK, -90/180.0f*PI);  // 最终抓取点
+                arm_queue_add_point(&arm_traj, PICK_PRE_TRANS_X, PICK_PRE_TRANS_Y, 0, 0, ARM_PUMP_SUCK, -90.0f/180.0f*PI);
+            }
+            if(act.height_pick_diff == 200)     // KFS 在 R2 上方 200mm
+            {
+                arm_queue_add_point(&arm_traj, PICK_P200_APR_X_1, PICK_P200_APR_Y_1, 0, 0, ARM_PUMP_RELEASE, 0.0f);   // 预抓取点1
+                arm_queue_add_point(&arm_traj, PICK_P200_TARGET_X, PICK_P200_TARGET_Y, 0, PICK_TIME, ARM_PUMP_SUCK, 0.0f);  // 最终抓取点
+                arm_queue_add_point(&arm_traj, PICK_PRE_TRANS_X, PICK_PRE_TRANS_Y, 0, 0, ARM_PUMP_SUCK, 0.0f);
+            }
+            if(act.height_pick_diff == 400)    // KFS 在 R2 上方 400mm
+            {
+                arm_queue_add_point(&arm_traj, PICK_P400_APR_X_1, PICK_P400_APR_Y_1, 0, 0, ARM_PUMP_RELEASE, 0.0f);   // 预抓取点1
+                arm_queue_add_point(&arm_traj, PICK_P400_TARGET_X, PICK_P400_TARGET_Y, 0, PICK_TIME, ARM_PUMP_SUCK, 0.0f);  // 最终抓取点
+                arm_queue_add_point(&arm_traj, PICK_PRE_TRANS_X, PICK_PRE_TRANS_Y, 0, 0, ARM_PUMP_SUCK, 0.0f);
+            }
+            if(act.height_pick_diff == 0)      // KFS 与 R2 同高
+            {
+                arm_queue_add_point(&arm_traj, PICK_0_APR_X_1, PICK_0_APR_Y_1, 0, 0, ARM_PUMP_RELEASE, 0.0f);   // 预抓取点1
+                arm_queue_add_point(&arm_traj, PICK_0_TARGET_X, PICK_0_TARGET_Y, 0, PICK_TIME, ARM_PUMP_SUCK, 0.0f);  // 最终抓取点
+                arm_queue_add_point(&arm_traj, PICK_PRE_TRANS_X, PICK_PRE_TRANS_Y, 0, 0, ARM_PUMP_SUCK, 0.0f);
+            }
+        }
+
+        if (!arm_discard_busy && !arm_discard_request && !arm_discard_payload_done && !arm_discard_done && !arm_discard_failed)
+        {
+            if (arm_if_arrived_xy(PICK_PRE_TRANS_X, PICK_PRE_TRANS_Y))
+            {
+                /* 拾取完成后请求机械臂丢弃服务接管（仿照 arm_store 请求逻辑） */
+                arm_discard_request = 1;
+                mf_exec_timer_ms = 0;
+            }
+            else if (++mf_exec_timer_ms * 10 >= MF_PICK_TIMEOUT_MS)
+            {
+                mf_exec_state = MF_EXEC_FAILED;
+            }
+        }
+
+        if (arm_discard_payload_done)
+        {
+            /* arm_discard_payload_done 应在机械臂全流程完成之后清零 */
+            arm_discard_payload_done = 0;
+            arm_if_send_point = 0;  // 丢弃完块之后机械臂轨迹队列允许发送点
+            arm_discard_done = 0;
+
+            MFPlanner_AdvanceAction(&mf_planner_ctx);
+            mf_exec_state = MF_EXEC_IDLE;
+            mf_exec_timer_ms = 0;
+        }
+        else if (arm_discard_failed)
+        {
+            arm_discard_failed = 0;
+            mf_exec_state = MF_EXEC_FAILED;
+        }
+
+        return BT_RUNNING;
+    }
+    /* ============================================================ */
     /* WAIT_R1 状态：等待 R1 清除 R1KFS                             */
     /* ============================================================ */
     case MF_EXEC_WAIT_R1:
@@ -1788,6 +2026,14 @@ static BT_Status Act_MF_Finish_Cleanup(void)
     arm_store_slot = 0;
     arm_store_state = ARM_STORE_IDLE;
     arm_store_timer_ms = 0;
+
+    arm_discard_request = 0;
+    arm_discard_busy = 0;
+    arm_discard_payload_done = 0;
+    arm_discard_done = 0;
+    arm_discard_failed = 0;
+    arm_discard_state = ARM_DISCARD_IDLE;
+    arm_discard_timer_ms = 0;
 
     // mf_bb.kfs_stored = 0;
 
@@ -1854,6 +2100,14 @@ void BT_MF_Init_Task(void)
     arm_store_slot = 0;
     arm_store_state = ARM_STORE_IDLE;
     arm_store_timer_ms = 0;
+
+    arm_discard_request = 0;
+    arm_discard_busy = 0;
+    arm_discard_done = 0;
+    arm_discard_payload_done = 0;
+    arm_discard_failed = 0;
+    arm_discard_state = ARM_DISCARD_IDLE;
+    arm_discard_timer_ms = 0;
 
     mf_bb.kfs_stored = 0;
     seq_mem_idx_mf = 0;
@@ -2616,6 +2870,7 @@ static BT_Status Act_MF_Task_Wrapper(void)
     }
     case SUBTASK_RUNNING: {
         Arm_Store_Service_Tick();
+        Arm_Discard_Service_Tick();
 
         /* 运行 MF 行为�?*/
         BT_Status mf_status = BT_MF_Task_Tree_Root();
