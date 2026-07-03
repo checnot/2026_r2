@@ -47,6 +47,7 @@
 #include "MF_planner.h"
 #include "go_m8010.h"
 #include "lift.h"
+#include "H7_F1_spi.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -108,6 +109,7 @@ uint8_t traj_init_flag_lift = 0;    // 抬升轨迹初始化标志位
 uint8_t traj_init_flag_chassis = 0; // 底盘轨迹初始化标志位
 
 extern volatile uint8_t a1_send_request;
+static uint8_t c8_spi_poll_cnt = 0;
 /* USER CODE END Variables */
 osThreadId defaultTaskHandle;
 osThreadId roboticarm_taskHandle;
@@ -291,6 +293,21 @@ void StartDefaultTask(void const * argument)
 
     // vofa显示调试信息
     //=======================================================================
+
+    /*
+     * H7 通过 SPI1 轮询 F103C8T6 的红外接收结果。
+     * 调试时可观察：
+     *   h7_f1_spi_rx_ok_count
+     *   h7_f1_spi_last_ch
+     *   h7_f1_spi_last_frame
+     * 如果 H7_F1_SPI_Task() 返回 1，表示本次收到了新的红外确认帧。
+     */
+    c8_spi_poll_cnt++;
+    if (c8_spi_poll_cnt >= 5U)
+    {
+      c8_spi_poll_cnt = 0;
+      H7_F1_SPI_Task();
+    }
 
     debug_test_time += 0.001f;
     osDelay(1);
