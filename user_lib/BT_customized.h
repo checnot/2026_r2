@@ -1,4 +1,4 @@
-#ifndef __BT_CUSTOMIZED_H
+﻿#ifndef __BT_CUSTOMIZED_H
 #define __BT_CUSTOMIZED_H
 
 #include "main.h"
@@ -58,6 +58,8 @@
 #define R_EXT_STALL_CNT_MAX      50            /* 堵转判定连续计数 */
 #define R_EXT_STALL_CURRENT_MA   3000          /* 堵转电流阈值 */
 #define R_EXT_JAM_MAX_RETRIES    2             /* 同一位置堵转最大重试次数 */
+#define R_EXT_TIMEOUT_MS         2000          /* 伸出超时时间 (ms)，超时视为堵转 */
+#define R_EXT_PUSH_AWAY_CNT_MAX  15            /* 底盘被推开防抖计数（雷达跳变误触发保护） */
 
 /***************************************
  * 🔴 红区路径点 (Y为负)
@@ -79,8 +81,8 @@
 #define R_CHASSIS_RACK_W 0.0f                 /* 红区 取矛头位置 W (deg) */
 
 // 与R1的对接位置（暂定该位置，后续可重设）
-#define R_CHASSIS_DOCKING_X 1200.0f           /* 红区 对接位置 X (mm) */
-#define R_CHASSIS_DOCKING_Y -1400.0f          /* 红区 对接位置 Y (mm) */
+#define R_CHASSIS_DOCKING_X 1315.0f           /* 红区 对接位置 X (mm) */
+#define R_CHASSIS_DOCKING_Y -1520.0f          /* 红区 对接位置 Y (mm) */
 #define R_CHASSIS_DOCKING_W -180.0f           /* 红区 对接位置 W (deg) */
 
 // 使用相机扫描梅林位置（暂定该位置，后续可重设）
@@ -272,13 +274,13 @@ typedef struct
 /* 独立状态机和黑板，不共用原 MC 段。对杆位置固定，与 MC 相同 */
 
 /* 预选赛矛架位置 — 每个位置独立 X/Y/W，方便红蓝区修改 */
-#define PS_RACK_1_X  R_CHASSIS_RACK_1_X
-#define PS_RACK_1_Y  R_CHASSIS_RACK_Y_1   /* 位置1 Y 与其余不同 */
-#define PS_RACK_1_W  R_CHASSIS_RACK_W_1   /* 位置1 W 与其余不同 */
-#define PS_RACK_2_X  R_CHASSIS_RACK_2_X
+#define PS_RACK_1_X  R_CHASSIS_RACK_6_X
+#define PS_RACK_1_Y  R_CHASSIS_RACK_Y   /* 位置1 Y 与其余不同 */
+#define PS_RACK_1_W  R_CHASSIS_RACK_W   /* 位置1 W 与其余不同 */
+#define PS_RACK_2_X  R_CHASSIS_RACK_5_X
 #define PS_RACK_2_Y  R_CHASSIS_RACK_Y
 #define PS_RACK_2_W  R_CHASSIS_RACK_W
-#define PS_RACK_3_X  R_CHASSIS_RACK_3_X
+#define PS_RACK_3_X  R_CHASSIS_RACK_4_X
 #define PS_RACK_3_Y  R_CHASSIS_RACK_Y
 #define PS_RACK_3_W  R_CHASSIS_RACK_W
 /* 🟡 蓝区替换：改为 B_CHASSIS_RACK_4/5/6_X/Y + B_CHASSIS_RACK_W 即可 */
@@ -312,6 +314,8 @@ typedef struct
     uint8_t round_count;
     uint8_t ext_stall_cnt;
     uint8_t ext_jam_retries;
+    uint32_t ext_timer_ms;         /* 伸出计时器 (ms)，超时未到位则重试 */
+    uint8_t ext_push_away_cnt;     /* 底盘被推开连续计数（防雷达跳变） */
     PS_MC_MissionState state;
 } PS_MC_Blackboard;
 
@@ -485,7 +489,7 @@ void BT_Customized_Tick1ms_MF(void);
 
 /* ================================================ CZ 对抗区行为树接口 ================================================ */
 
-#define CZ_POS_STABLE_CONDITION 20  /* 扫描位置稳定次数阈值，类似MC取矛头 */
+#define CZ_POS_STABLE_CONDITION 10  /* 扫描位置稳定次数阈值，类似MC取矛头 */
 
 /* 对抗区机械臂放块坐标 */
 #define CZ_ARM_PLACE_1_X 0.25f       /* 对抗区放块机械臂抬高目标 X */
@@ -495,7 +499,7 @@ void BT_Customized_Tick1ms_MF(void);
 #define CZ_ARM_PLACE_2_Y 0.85f       /* 对抗区放块机械臂前伸放置目标 Y */
 #define CZ_ARM_PLACE_TIME 500    /* 放块停留时间 (ms) */
 #define CZ_ARM_PLACE_TIMEOUT_MS 8000 /* 放块超时时间 (ms) */
-#define CZ_PUMP_WAIT_MS 2000      /* 关气泵后等待时间 (ms) */
+#define CZ_PUMP_WAIT_MS 1000      /* 关气泵后等待时间 (ms) */
 
 /* R1 平台等待 & 九宫格第三层坐标 (🟡需实测填入真实值) */
 #define R_CHASSIS_R1_WAIT_X 11500.0f     /* 🟡 R1平台等待点 X */

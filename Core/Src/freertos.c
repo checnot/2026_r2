@@ -366,11 +366,11 @@ void entry_robotic_arm(void const * argument)
         arm_queue_add_point(&arm_traj, PICK_REST_X, PICK_REST_Y, 0.0f, 500, 0, 0.0f);
         traj_init_flag_arm = 1;
       }
-      //  if(point_add == 1)
-      // {
-      //   arm_queue_add_point(&arm_traj,arm_target_x,arm_target_y,0,0,arm_pump,angle * PI /180.0f);
-      //   point_add=0;
-      // }
+       if(point_add == 1)
+       {
+         arm_queue_add_point(&arm_traj,arm_target_x,arm_target_y,0,0,arm_pump,angle * PI /180.0f);
+         point_add=0;
+       }
       // if(point_add == 2)
       //  {
       //    arm_queue_add_point(&arm_traj,PICK_REST_X,PICK_REST_Y,0,0,1);
@@ -593,7 +593,7 @@ void entry_chassis(void const * argument)
 
 
 
-      // 滤波后的雷达数据更新
+      // // 滤波后的雷达数据更新
       Radar_Pos.radar_x_filtered = Kalman_Update(&Radar_Kalman_X, Radar_Pos.radar_x);
       Radar_Pos.radar_y_filtered = Kalman_Update(&Radar_Kalman_Y, Radar_Pos.radar_y);
       Radar_Pos.radar_z_filtered = Kalman_Update(&Radar_Kalman_Z, Radar_Pos.radar_z);
@@ -667,7 +667,7 @@ void entry_chassis(void const * argument)
         else
           omni_chassis_calculate(&chassis_r2, chassis_r2.vx, chassis_r2.vy, chassis_r2.vw, chassis_r2.chassis_en_flag);
       }
-     }
+      }
 
     /* ========================= 抬升部分 ========================= */
 
@@ -820,7 +820,7 @@ void entry_cmd_task(void const * argument)
   /* Infinite loop */
   for (;;)
   {
-		//  MF_Scan_Command_Send(camera_command);
+		  MF_Scan_Command_Send(camera_command);
 //    if (task_flag == 1)
 //    {
 //      BT_MASTER_Start_Task();
@@ -828,12 +828,12 @@ void entry_cmd_task(void const * argument)
 //    }
     if (MC_task == 1)
     {
-     // BT_Start_R2_MC_Mission();
+      //BT_Start_R2_MC_Mission();
      BT_PS_Start_Task();
       MC_task=0;
     }
     BT_PS_Tick();
-    //BT_Customized_Tick1ms_R2_MC();
+   // BT_Customized_Tick1ms_R2_MC();
     //  if(CZ_task == 1)
     //  {
     //   BT_CZ_Start_Task();
