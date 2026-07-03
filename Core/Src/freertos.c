@@ -363,8 +363,8 @@ void entry_robotic_arm(void const * argument)
       if (traj_init_flag_arm == 0)
       {
         arm_trajectory_init(&arm_traj, &arm);   // 以当前位置初始化轨迹系统
-        arm_queue_add_point(&arm_traj, PICK_PRE_REST_X, PICK_PRE_REST_Y, 0.0f, 200, 0, 0.0f);
-        arm_queue_add_point(&arm_traj, PICK_REST_X, PICK_REST_Y, 0.0f, 500, 0, 0.0f);
+        arm_queue_add_point(&arm_traj, PICK_PRE_REST_X, PICK_PRE_REST_Y, 200, 0, 0.0f);
+        arm_queue_add_point(&arm_traj, PICK_REST_X, PICK_REST_Y, 500, 0, 0.0f);
         traj_init_flag_arm = 1;
       }
       //  if(point_add == 1)

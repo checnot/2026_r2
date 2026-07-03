@@ -1,4 +1,4 @@
-#ifndef __ROBOTIC_ARM_H
+﻿#ifndef __ROBOTIC_ARM_H
 #define __ROBOTIC_ARM_H
 
 #include "main.h"
@@ -76,17 +76,15 @@ typedef enum {
 } ArmTransDir_enum;
 
 /**
- * @brief 机械臂路径点结构体类型，包含三轴的单轨迹和轨迹队列
+ * @brief 机械臂路径点结构体类型，包含 X/Y 位置轨迹、延时/气泵队列和末端 pitch 轨迹
 */
 typedef struct
 {
     Traj_Single_struct traj_x; //末端执行器x方向单轨迹
     Traj_Single_struct traj_y; //末端执行器y方向单轨迹
-    Traj_Single_struct traj_w; //云台旋转角单轨迹
 
     Traj_Queue_struct traj_queue_x; //末端执行器x方向路径队列
     Traj_Queue_struct traj_queue_y; //末端执行器y方向路径队列
-    Traj_Queue_struct traj_queue_w; //云台旋转角路径队列
 
     // ---- 延时控制属性 ----
     uint16_t delay_queue[TRAJ_MAX_WAYPOINTS];  // 与位置队列下标同步，存储每个点到达后的延时时间(ms)
@@ -116,7 +114,7 @@ typedef struct
     float x0_target, y0_target; //目标二连杆末端位置
     float effector_pitch_target;           //目标末端执行器pitch角，平行地面为0，抬起为正
     uint8_t pump_state;                 // 气泵控制标志，0为保持当前状态，1为吸取，2为释放
-    float theta_target[5];      //目标关节角，[0]为“云台”，[1]为”肩部“，[2]为“手肘”，[3]为”腕部“，[4]为“手腕自转”
+    float theta_target[5];      //目标关节角，[0]已弃用，[1]为肩部，[2]为手肘，[3]为腕部，[4]为手腕自转
 
 
 /* ============== 机械臂工作区域过渡相关 ============== */
@@ -177,14 +175,9 @@ void arm_actuator_stable_control(robotic_arm_stu *arm, float target_pitch, float
 uint8_t arm_effector_pitch_reachable_check(robotic_arm_stu *arm, float target_pitch);
 
 void arm_trajectory_init(robotic_arm_traj_stu *arm_traj, robotic_arm_stu *arm);
-void arm_queue_add_point(robotic_arm_traj_stu *arm_traj, float target_x, float target_y, float target_w, uint16_t delay_ms, uint8_t air_pump_flag, float target_pitch);
-void arm_queue_add_point_cartesian(robotic_arm_traj_stu *arm_traj, float target_x, float target_y, float target_z, uint16_t delay_ms, uint8_t air_pump_flag);
+void arm_queue_add_point(robotic_arm_traj_stu *arm_traj, float target_x, float target_y, uint16_t delay_ms, uint8_t air_pump_flag, float target_pitch);
 void arm_linear_interpolation_update(robotic_arm_stu *arm, robotic_arm_traj_stu *arm_traj, float blend_radius);
 
-void arm_load_test_waypoints_clockwise(void);
-void arm_load_test_waypoints_counterclockwise(void);
-void arm_load_test_waypoints_rotate(void);
-void arm_load_test_waypoints_custom(void);
 
 void arm_gravity_comp(void);
 

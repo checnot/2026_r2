@@ -370,53 +370,48 @@ typedef struct
 /* ============================== 🟡（待定）机械臂预设拾取路径点 ============================== */
 
 /**
- * @brief 机械臂存储服务状态
+ * @brief 机械臂后向服务状态（统一存储/丢弃）
 */
 typedef enum {
-    ARM_STORE_IDLE = 0,
+    ARM_BACK_IDLE = 0,
 
-    ARM_STORE_REQ_F2B,
-    ARM_STORE_WAIT_BACK,
+    ARM_BACK_REQ_F2B,
+    ARM_BACK_WAIT_BACK,
 
-    ARM_STORE_SEND_PATH,
-    ARM_STORE_WAIT_DONE,
+    ARM_BACK_SEND_PATH,
+    ARM_BACK_WAIT_DONE,
 
-    ARM_STORE_REQ_B2F,
-    ARM_STORE_WAIT_FRONT,
+    ARM_BACK_REQ_B2F,
+    ARM_BACK_WAIT_FRONT,
 
-    ARM_STORE_SEND_REST,
-    ARM_STORE_WAIT_REST,
+    ARM_BACK_SEND_REST,
+    ARM_BACK_WAIT_REST,
 
-    ARM_STORE_DONE,
-    ARM_STORE_FAILED
-} ArmStoreState;
-
-extern ArmStoreState arm_store_state;
-extern uint8_t arm_store_slot;
+    ARM_BACK_FAILED
+} ArmBackState;
 
 /**
- * @brief 机械臂丢弃服务状态（仿照 ArmStoreState）
+ * @brief 后向服务模式：存储 / 丢弃
 */
 typedef enum {
-    ARM_DISCARD_IDLE = 0,
+    ARM_BACK_MODE_STORE = 0,
+    ARM_BACK_MODE_DISCARD = 1
+} ArmBackMode;
 
-    ARM_DISCARD_REQ_F2B,
-    ARM_DISCARD_WAIT_BACK,
+/**
+ * @brief 后向服务目标配置（统一存储/丢弃的背部工作区路径参数）
+*/
+typedef struct {
+    float pre_x, pre_y, pre_theta;               /* 预到位点 */
+    float target_x, target_y, target_theta;       /* 目标点 */
+    float pre_trans_x, pre_trans_y, pre_trans_theta; /* 过渡准备点 */
+    uint16_t target_time;                         /* 目标点停留时间 */
+} ArmBackTarget;
 
-    ARM_DISCARD_SEND_PATH,
-    ARM_DISCARD_WAIT_DONE,
-
-    ARM_DISCARD_REQ_B2F,
-    ARM_DISCARD_WAIT_FRONT,
-
-    ARM_DISCARD_SEND_REST,
-    ARM_DISCARD_WAIT_REST,
-
-    ARM_DISCARD_DONE,
-    ARM_DISCARD_FAILED
-} ArmDiscardState;
-
-extern ArmDiscardState arm_discard_state;
+extern ArmBackState arm_back_state;
+extern uint8_t arm_back_slot;
+extern const ArmBackTarget* arm_back_target;
+extern ArmBackMode arm_back_mode;
 
 #define PICK_PRE_REST_X 0.2f             /* 机械臂预待机位置 X */
 #define PICK_PRE_REST_Y 0.4f             /* 机械臂预待机位置 Y */
@@ -500,7 +495,6 @@ typedef enum {
     MF_EXEC_STEP_UP,
     MF_EXEC_STEP_DOWN,
     MF_EXEC_PICK_R2,
-    MF_EXEC_MOVE_R2,
     MF_EXEC_WAIT_R1,
     MF_EXEC_DONE,
     MF_EXEC_FAILED
