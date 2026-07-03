@@ -148,7 +148,7 @@ void H7_F1_SPI_Init(SPI_HandleTypeDef *hspi)
     s_last_reported_seq = 0;
 
     /* 空闲时 CS 必须为高；F1 硬件 NSS 看到低电平才会被选中。 */
-    HAL_GPIO_WritePin(  , C8_SPI_CS_Pin, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(C8_SPI_CS_GPIO_Port, C8_SPI_CS_Pin, GPIO_PIN_SET);
 }
 
 uint8_t H7_F1_SPI_ReadStatus(H7_F1_SPI_StatusTypeDef *status)
