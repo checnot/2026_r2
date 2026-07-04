@@ -11,7 +11,7 @@ uint8_t grid[ROWS][COLS];
 uint8_t MEILIN_STATE[4][3]; // 四行三列
 uint8_t tx_buffer1 = 0x01;
 uint8_t tx_buffer2 = 0x02;
-uint8_t tx_buffer3 = 0x06;
+uint8_t tx_buffer3 = 0x03;
 uint8_t tx_buffer4 = 0x04;
 
 

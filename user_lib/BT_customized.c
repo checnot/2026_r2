@@ -1,4 +1,4 @@
-﻿#include "BT_customized.h"
+#include "BT_customized.h"
 
 /* ================= 万能小变�?================= */
 uint8_t debug_if_reach_MF_phase2_scan = 0; // 用于调试是否达到 MF 区第二次扫描的条件，实际比赛时请删除或替换为 BuildPhase2 调用
@@ -3012,7 +3012,7 @@ static BT_Status Act_PS_Mission(void)
                             /* 伸到位 → 抓取 */
                             PS_bb.ext_jam_retries = 0;
                             clamp.catch_flag = 1;
-                            osDelay(400);
+                            osDelay(500);
                             if (PS_bb.pick_success == 1)
                             {
                                 clamp.rotate_flag = 0;
@@ -3094,12 +3094,13 @@ static BT_Status Act_PS_Mission(void)
             if (PS_bb.dock_success == 1)
             {
                 clamp.catch_flag = 0;
-                osDelay(500);
+                osDelay(600);
                 clamp.rotate_flag = 1;
                 clamp.retractable_flag = 0;
                 osDelay(1000);
                 chassis_set_lock(0);
                 PS_bb.state = PS_MC_ROUND_CHECK;
+                PS_bb.dock_success = 0;
                 PS_bb.timer_ms = 0;
             }
             else if (++PS_bb.timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS * 3)

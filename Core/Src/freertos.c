@@ -98,6 +98,7 @@ uint8_t task_flag = 0;           // 测试用：总开关，控制是否执行BT
 float debug_speed;               // 用于测试的速度变量
 int16_t leidai_speed_1 = 300;    //由于雷达建图的低速
 int16_t leidai_speed_2 = 1000;    //由于雷达建图的高速
+uint8_t camera_send = 0;         //测试用：相机发送请求
 float arm_target_x = 0.0f;        //测试用：机械臂轨迹点
 float arm_target_y = 0.0f;
 uint8_t arm_pump = 0;
@@ -366,11 +367,11 @@ void entry_robotic_arm(void const * argument)
         arm_queue_add_point(&arm_traj, PICK_REST_X, PICK_REST_Y, 0.0f, 500, 0, 0.0f);
         traj_init_flag_arm = 1;
       }
-       if(point_add == 1)
-       {
-         arm_queue_add_point(&arm_traj,arm_target_x,arm_target_y,0,0,arm_pump,angle * PI /180.0f);
-         point_add=0;
-       }
+//       if(point_add == 1)
+//       {
+//         arm_queue_add_point(&arm_traj,arm_target_x,arm_target_y,0,0,arm_pump,angle * PI /180.0f);
+//         point_add=0;
+//       }
       // if(point_add == 2)
       //  {
       //    arm_queue_add_point(&arm_traj,PICK_REST_X,PICK_REST_Y,0,0,1);
@@ -590,7 +591,11 @@ void entry_chassis(void const * argument)
 //	chassis_route_point_add(&chassis_route_traj, 11400.0f,-1500.0f, -90.0f, 0,0);
 //  point_add = 0;
 //}
-
+       if (point_add == 1)
+      {
+        chassis_route_point_add(&chassis_route_traj,arm_target_x,arm_target_y, angle, 0,0);
+        point_add = 0;
+      }
 
 
       // // 滤波后的雷达数据更新
@@ -820,7 +825,12 @@ void entry_cmd_task(void const * argument)
   /* Infinite loop */
   for (;;)
   {
-		  MF_Scan_Command_Send(camera_command);
+    if(camera_send == 1)
+    {
+      camera_send = 0;
+      MF_Scan_Command_Send(camera_command);
+//			MF_Scan_Command_Send(camera_command);
+    }
 //    if (task_flag == 1)
 //    {
 //      BT_MASTER_Start_Task();

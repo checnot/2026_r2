@@ -59,7 +59,7 @@
 #define R_EXT_STALL_CURRENT_MA   3000          /* 堵转电流阈值 */
 #define R_EXT_JAM_MAX_RETRIES    2             /* 同一位置堵转最大重试次数 */
 #define R_EXT_TIMEOUT_MS         2000          /* 伸出超时时间 (ms)，超时视为堵转 */
-#define R_EXT_PUSH_AWAY_CNT_MAX  15            /* 底盘被推开防抖计数（雷达跳变误触发保护） */
+#define R_EXT_PUSH_AWAY_CNT_MAX  200           /* 底盘被推开防抖计数（雷达跳变误触发保护） */
 
 /***************************************
  * 🔴 红区路径点 (Y为负)
