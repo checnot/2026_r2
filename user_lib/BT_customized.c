@@ -511,36 +511,36 @@ static BT_Status Act_R2_MC_Mission(void)
             if(chassis_if_arrived(R_CHASSIS_RACK_4_X, R_CHASSIS_RACK_Y, R_CHASSIS_RACK_W))    
             {
                 MC_bb.RACK_POS_STABLE_TIMES++; // 增加位置稳定计数
-               if(MC_bb.RACK_POS_STABLE_TIMES > R_RACK_STABLE_TIMES_CONDITION)
+                if(MC_bb.RACK_POS_STABLE_TIMES > R_RACK_STABLE_TIMES_CONDITION)
                 { 
-                clamp.retractable_flag = 1; // 同时发出夹爪伸出指令
-                if(abs_int32(m3508_fdcan2[1].Angle_Sum-CLAMP_EXTEND_MAX_POSITION)<6000 ) //保证夹爪伸出到位且位置稳定后才发出抓取指令，避免提前触发后续动作
-                {
-                    clamp.catch_flag = 1; // 同时发出夹爪抓取指令
-                    osDelay(800);
-
-                    if(MC_bb.RACK_PICK_SUCCESS == 1) //通过微动开关的触发来判断是否成功夹取矛头，成功则进入下一个阶�?
+                    clamp.retractable_flag = 1; // 同时发出夹爪伸出指令
+                    if(abs_int32(m3508_fdcan2[1].Angle_Sum-CLAMP_EXTEND_MAX_POSITION)<6000 ) //保证夹爪伸出到位且位置稳定后才发出抓取指令，避免提前触发后续动作
                     {
-                        clamp.rotate_flag = 1; 
-    
-                        MC_bb.mc_mission_state = DOCKING;
-                        MC_bb.R2_MC_timer_ms = 0;
-                    }
-                    else //如果第四次没有然没有成功夹取矛头，则换第五个位置
-                    {
-                            
-                        clamp.catch_flag = 0; // 先放开夹爪，准备下一个位置的夹取 
-                         clamp.retractable_flag = 0; // 先收回夹爪，准备下一个位置的夹取  
-                        taskENTER_CRITICAL();
-                        chassis_route_point_add(&chassis_route_traj, R_CHASSIS_RACK_5_X, R_CHASSIS_RACK_Y, R_CHASSIS_RACK_W, 0, 0);
-                        taskEXIT_CRITICAL();
+                        clamp.catch_flag = 1; // 同时发出夹爪抓取指令
+                        osDelay(800);
 
-                        MC_bb.mc_mission_state = RACK_FAILED_4 ;
-                        MC_bb.R2_MC_timer_ms = 0;
-                        MC_bb.RACK_POS_STABLE_TIMES = 0; // 重置位置稳定计数
+                        if(MC_bb.RACK_PICK_SUCCESS == 1) //通过微动开关的触发来判断是否成功夹取矛头，成功则进入下一个阶�?
+                        {
+                            clamp.rotate_flag = 1; 
+        
+                            MC_bb.mc_mission_state = DOCKING;
+                            MC_bb.R2_MC_timer_ms = 0;
+                        }
+                        else //如果第四次没有然没有成功夹取矛头，则换第五个位置
+                        {
+                                
+                            clamp.catch_flag = 0; // 先放开夹爪，准备下一个位置的夹取 
+                            clamp.retractable_flag = 0; // 先收回夹爪，准备下一个位置的夹取  
+                            taskENTER_CRITICAL();
+                            chassis_route_point_add(&chassis_route_traj, R_CHASSIS_RACK_5_X, R_CHASSIS_RACK_Y, R_CHASSIS_RACK_W, 0, 0);
+                            taskEXIT_CRITICAL();
+
+                            MC_bb.mc_mission_state = RACK_FAILED_4 ;
+                            MC_bb.R2_MC_timer_ms = 0;
+                            MC_bb.RACK_POS_STABLE_TIMES = 0; // 重置位置稳定计数
+                        }
                     }
                 }
-            }
             }
             else if(++MC_bb.R2_MC_timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS) {
                 return BT_FAILURE; 
@@ -864,6 +864,26 @@ static void mf_cell_to_world(uint8_t row, uint8_t col, float* out_x, float* out_
         *out_x = MF_ORIGIN_WORLD_X_RED + (float)row * MF_CELL_SIZE_MM;
         *out_y = MF_ORIGIN_WORLD_Y_RED - (float)col * MF_CELL_SIZE_MM;
     }
+}
+
+static void mf_scan_stand_position(const MF_Action* act, float* out_x, float* out_y, float* out_yaw)
+{
+    if (act->height_pick_diff == MF_SCAN_STAGE_ROW1) {
+        mf_cell_to_world(0, 1, out_x, out_y, mf_planner_ctx.map_color);
+        *out_x -= MF_SCAN_ROW1_X_OFFSET_MM;
+        *out_yaw = MF_YAW_NORTH;
+        return;
+    }
+
+    if (act->height_pick_diff == MF_SCAN_STAGE_ROW2) {
+        mf_cell_to_world(0, 1, out_x, out_y, mf_planner_ctx.map_color);
+        *out_x += MF_SCAN_ROW2_X_OFFSET_MM;
+        *out_yaw = MF_YAW_NORTH;
+        return;
+    }
+
+    mf_cell_to_world(act->row, act->col, out_x, out_y, mf_planner_ctx.map_color);
+    *out_yaw = mf_dir_to_yaw(act->dir);
 }
 
 // /*
@@ -1213,9 +1233,11 @@ static BT_Status Act_MF_Init_And_Plan(void)
     // MFPlanner_BuildPhase2(&mf_planner_ctx, r2kfs_all_need - mf_picked_phase1);
     // mf_phase_flag = 2;
 
-    /* 由于 BT+状态机 的特性，需要在初始化时即向动作序列中添加一个扫描动�?*/
-    /* 第一次扫描：�?row0,col1 面朝北，揭示 row1~row3 */
-    MF_PushAction(&mf_planner_ctx, MF_ACT_SCAN, MF_DIR_NORTH, 0, 1);
+    /* 由于 BT+状态机 的特性，需要在初始化时即向动作序列中添加第一个扫描动作 */
+    /* 扫描1：站在 row0,col1 向 X 负方向偏移的位置，揭示 row1 */
+    if (MF_PushAction(&mf_planner_ctx, MF_ACT_SCAN, MF_DIR_NORTH, 0, 1)) {
+        mf_planner_ctx.actions[mf_planner_ctx.action_count - 1].height_pick_diff = MF_SCAN_STAGE_ROW1;
+    }
 
     /* 初始化执行状�?*/
     mf_exec_state = MF_EXEC_IDLE;
@@ -1403,36 +1425,15 @@ static BT_Status Act_MF_Execute_Action(void)
 
         /* ---------- 扫描 ---------- */
         case MF_ACT_SCAN: {
-            /*
-                * 🟡【需替换】触发相机扫�?
-                * 调试阶段：直接调�?ScanRows 用硬编码地图填充
-                * 实际比赛�?
-                *   1. 触发相机拍照
-                *   2. 等待视觉模块返回识别结果
-                *   3. 调用 MFPlanner_ScanRows 或逐个 cell 更新
-            */
-            /* 根据执行位置判断是第一次扫描规划还是第二次扫描规划 */
-            if (act.row == 0 && act.col == 1) {
-                /* 此处没有第一次扫描动作的push，该动作的push应在初始化时添加 */
-                /* 第一次扫描：�?row0,col1 面朝北，揭示 row1~row2 */
-                /* 🟡【需替换�?*/
-                MFPlanner_BuildPhase1(&mf_planner_ctx, 0, 1, &mf_picked_phase1);
-            } else if (act.row == 1 && act.col == 1) {
-                /* 第二次扫描：�?row1,col1 面朝北，揭示 row3~row4 */
-                MFPlanner_BuildPhase2(&mf_planner_ctx, R2_KFS_ALL_NEED - mf_picked_phase1);
-                debug_if_reach_MF_phase2_scan = 1; // 用于调试，实际比赛时请替换为 BuildPhase2 调用
-            }
+            float scan_x, scan_y, scan_yaw;
+            mf_scan_stand_position(&act, &scan_x, &scan_y, &scan_yaw);
 
-            /* 
-                * 🟡 如果视觉模块是异步的（需要等待），这里需要改为：
-                *   1. 触发扫描 �?进入 MF_EXEC_SCAN 状�?
-                *   2. 轮询视觉完成标志
-                *   3. 完成后读取数�?�?更新 cell
-                * 当前为调试简化：扫描瞬间完成
-            */
-            /* 扫描完成，推进到下一个动�?*/
-            MFPlanner_AdvanceAction(&mf_planner_ctx);
-            mf_exec_state = MF_EXEC_IDLE;
+            taskENTER_CRITICAL();
+            chassis_route_point_add(&chassis_route_traj, scan_x, scan_y, scan_yaw, 0, 1);
+            taskEXIT_CRITICAL();
+
+            mf_exec_state = MF_EXEC_SCAN;
+            mf_exec_timer_ms = 0;
             break;
         }
 
@@ -1440,6 +1441,50 @@ static BT_Status Act_MF_Execute_Action(void)
             return BT_FAILURE;
         }
         return BT_RUNNING;
+
+    /* ============================================================ */
+    /* SCAN 状态：等待底盘到扫描站位后触发对应扫描/规划              */
+    /* ============================================================ */
+    case MF_EXEC_SCAN:
+    {
+        float scan_x, scan_y, scan_yaw;
+        mf_scan_stand_position(&act, &scan_x, &scan_y, &scan_yaw);
+
+        if (chassis_if_arrived(scan_x, scan_y, scan_yaw)) {
+            if (act.height_pick_diff == MF_SCAN_STAGE_ROW1) {
+                MFPlanner_ScanRows(&mf_planner_ctx, 1, 1);
+                if (MF_PushAction(&mf_planner_ctx, MF_ACT_SCAN, MF_DIR_NORTH, 0, 1)) {
+                    mf_planner_ctx.actions[mf_planner_ctx.action_count - 1].height_pick_diff = MF_SCAN_STAGE_ROW2;
+                } else {
+                    mf_exec_state = MF_EXEC_FAILED;
+                    return BT_RUNNING;
+                }
+            } else if (act.height_pick_diff == MF_SCAN_STAGE_ROW2) {
+                MFPlanner_ScanRows(&mf_planner_ctx, 2, 2);
+                if (!MFPlanner_BuildPhase1(&mf_planner_ctx, 0, 0, &mf_picked_phase1)) {
+                    mf_exec_state = MF_EXEC_FAILED;
+                    return BT_RUNNING;
+                }
+            } else if (act.height_pick_diff == MF_SCAN_STAGE_ROW3_4) {
+                MFPlanner_ScanRows(&mf_planner_ctx, 3, 4);
+                if (!MFPlanner_BuildPhase2(&mf_planner_ctx, R2_KFS_ALL_NEED - mf_picked_phase1)) {
+                    mf_exec_state = MF_EXEC_FAILED;
+                    return BT_RUNNING;
+                }
+                debug_if_reach_MF_phase2_scan = 1;
+            } else {
+                mf_exec_state = MF_EXEC_FAILED;
+                return BT_RUNNING;
+            }
+
+            MFPlanner_AdvanceAction(&mf_planner_ctx);
+            mf_exec_state = MF_EXEC_IDLE;
+            mf_exec_timer_ms = 0;
+        } else if (++mf_exec_timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS) {
+            mf_exec_state = MF_EXEC_FAILED;
+        }
+        return BT_RUNNING;
+    }
 
     /* ============================================================ */
     /* MOVE_FLAT 状态：等待底盘平移到位                              */

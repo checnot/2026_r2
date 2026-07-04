@@ -342,6 +342,9 @@ typedef struct
 /* 每个树林方块的边长 (mm) */
 #define MF_CELL_SIZE_MM     1200.0f  /* 每个栅格的实际大小 */
 
+#define MF_SCAN_ROW1_X_OFFSET_MM (1000.0f) /* 扫row1的扫描点离row0col1中心的距离（该偏移应为向着x负方向） */
+#define MF_SCAN_ROW2_X_OFFSET_MM (200.0f)  /* 扫row2的扫描点离row0col1中心的距离（该偏移应为向着x正方向） */
+
 /* 🟡【需实测】各方向对应的底盘朝向角 (度) */
 #define MF_YAW_NORTH        0.0f     /* 北向的底盘 yaw 角 */
 #define MF_YAW_EAST         -90.0f   /* 东向的底盘 yaw 角 */
@@ -489,6 +492,7 @@ typedef enum {
     MF_EXEC_STEP_DOWN,
     MF_EXEC_PICK_R2,
     MF_EXEC_WAIT_R1,
+    MF_EXEC_SCAN,
     MF_EXEC_DONE,
     MF_EXEC_FAILED
 } MF_ExecState;

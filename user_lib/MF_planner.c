@@ -951,8 +951,8 @@ void MFPlanner_ScanRows(MF_Planner* ctx, uint8_t start_row, uint8_t end_row)
 
 /**
  * @brief 分阶段规划：阶段1 先确保 R2 能登上 row1，拾取至少一个 row1 上的 R2KFS
- * @note 该函数内部包含了 1 个 MF_PushAction 用于添加扫描动作
- * @note 该函数内部同时有 2 个 MFPlanner_ScanRows 用于模拟从视觉模块获取数据并更新地图状态
+ * @note row1/row2 should already be revealed by the preceding scan actions.
+ * @note This function appends the row3/row4 scan action; rows are revealed when that action executes.
  * @note 实际使用时需要替换为真正的视觉扫描，并添加对应逻辑
 */
 bool MFPlanner_BuildPhase1(MF_Planner* ctx,
@@ -981,16 +981,7 @@ bool MFPlanner_BuildPhase1(MF_Planner* ctx,
     /* R2 必须先站在 (0,1) 拾取该 R2KFS 才能登上 (1,1)             */
     /* ============================================================ */
 
-    /* 在 row0,col1 面朝北扫描前三行(row1/row2/row3) */
-    // if (MF_PushAction(ctx, MF_ACT_SCAN, MF_DIR_NORTH, 0, 1)) 
-    // {
-        /* === 一次扫描：在 row0,col1 面朝北，揭示 row1~row2 === */
-        // MFPlanner_ScanRows(&mf_planner_ctx, 1, 2);
-        /* 此时：row1/row2变为真实 KFS 分布，row3/row4 仍为 UNKNOWN */
-    // }
-
-    /* 此处应修改为实际的相机扫描 */
-    MFPlanner_ScanRows(ctx, 1, 2);
+    /* row1/row2 are revealed by two independent MF_ACT_SCAN actions before this planner runs. */
 
     /* 【规则】只要 row1(col0/col1/col2 任意一列)上存在 R2KFS，
      * 阶段1就必须先拾取其中一个才能进入阶段2；若 (1,1) 本身是
@@ -1098,9 +1089,7 @@ bool MFPlanner_BuildPhase1(MF_Planner* ctx,
     /* 在 row1,col1 面朝北扫描后二行(row3/row4) */
     if (MF_PushAction(ctx, MF_ACT_SCAN, MF_DIR_NORTH, 1, 1)) 
     {
-        /* === 第二次扫描(在 SCAN 动作执行后触发)：揭示 row3~row4 === */
-        MFPlanner_ScanRows(ctx, 3, 4);
-        /* 此时：row3/row4 全部已知(如已揭示则保持不变) */
+        ctx->actions[ctx->action_count - 1].height_pick_diff = MF_SCAN_STAGE_ROW3_4;
     }
 
     return true;

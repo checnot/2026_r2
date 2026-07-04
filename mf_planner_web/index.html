@@ -213,7 +213,7 @@
         <button class="primary" id="phaseBtn">生成分阶段规划（Phase1→Phase2）</button>
       </div>
       <div class="status" id="status"></div>
-      <div class="hint">说明：本页已把你当前 MF_planner 的核心逻辑（A* + 动作构造）在 JS 中重现，便于调试方块布局与动作序列。规划流程对齐 MFPlanner_BuildPhase1→MFPlanner_BuildPhase2（先扫描 row1~2、若 row1 有 R2KFS 则先在 row0 相邻拾取后再登上、走到 (1,1) 后 SCAN 揭示 row3~4，再继续拾取剩余 R2KFS 并走到出口）。格子编辑器中的布局视为”真实地图”，规划开始时 row1~row4 先当作 UNKNOWN，随扫描逐步揭示。规则：完成最后一个所需 R2KFS 拾取后，剩余路径(到出口)不再允许 MOVE_R2，剩余 R2KFS 视为硬障碍。</div>
+      <div class="hint">说明：本页按新版 MF 扫描流程模拟。SCAN1 在 row0,col1 做 X 负方向偏移并揭示 row1；SCAN2 在 row0,col1 做 X 正方向偏移并揭示 row2；随后按 Phase1 规划，走到 row1,col1 后 SCAN3 揭示 row3~row4，再进入 Phase2 拾取剩余 R2KFS 并走向出口。</div>
     </section>
 
     <section class="panel">
@@ -255,6 +255,10 @@
     const MF_ACT_MOVE_R2 = 4;
     const MF_ACT_WAIT_R1 = 5;
     const MF_ACT_SCAN = 6;
+
+    const MF_SCAN_STAGE_ROW1 = 1;
+    const MF_SCAN_STAGE_ROW2 = 2;
+    const MF_SCAN_STAGE_ROW3_4 = 3;
 
     const DIR_NAME = ['N', 'E', 'S', 'W'];
     const ACT_NAME = {
@@ -321,6 +325,14 @@
       if (type === MF_ACT_WAIT_R1) return 'W';
       if (type === MF_ACT_SCAN) return 'S';
       return 'M';
+    }
+
+    function actionExtra(a) {
+      if (a.type !== MF_ACT_SCAN) return String(a.height_pick_diff);
+      if (a.height_pick_diff === MF_SCAN_STAGE_ROW1) return 'scan row1';
+      if (a.height_pick_diff === MF_SCAN_STAGE_ROW2) return 'scan row2';
+      if (a.height_pick_diff === MF_SCAN_STAGE_ROW3_4) return 'scan row3~4';
+      return String(a.height_pick_diff);
     }
 
     function buildActionOverlay() {
@@ -685,15 +697,16 @@
       }
     }
 
-    // 阶段1：扫描 row1~2，若 row1 有 R2KFS 则先在 row0 相邻格拾取，
-    // 再走到 (1,1) 扫描 row3~4。对齐 MFPlanner_BuildPhase1。
-    // 返回 { ok, pickedCount, curR, curC, segments } ——segments 按时间顺序记录该阶段的每个子步骤。
-    function buildPhase1(ctx, realCell, startRow, startCol, actions) {
+    // 阶段2：从 (1,1) 开始继续拾取剩余 R2KFS 并走到出口，对齐 MFPlanner_BuildPhase2
+    // 返回 { ok, segments }
+    // New scan flow aligned with current C planner:
+    // 1) scan row1 at row0,col1 with negative-X offset, 2) scan row2 at row0,col1 with positive-X offset,
+    // 3) after Phase1 movement, scan row3~row4 at row1,col1.
+    function buildPhase1V2(ctx, realCell, startRow, startCol, actions) {
       const segments = [];
       let pickedCount = 0;
-      const allowR2Cross = false; // 阶段1不允许穿越 R2KFS(保守策略，路径规划应避开而非移开)
+      const allowR2Cross = false;
 
-      // 起始时 row1~row4 全部未知
       for (let r = 1; r <= 4; r++) {
         for (let c = 0; c < MF_COLS; c++) ctx.cell[r][c] = MF_CELL_UNKNOWN;
       }
@@ -702,13 +715,24 @@
       let curR = startRow;
       let curC = startCol;
 
-      // 第一次扫描：揭示 row1~row2
-      scanRows(realCell, ctx, 1, 2);
-      segments.push({ key: 'phase1-scan1', label: '扫描 row1~row2 → 揭示实际 KFS 分布', actions: [], note: true });
+      const row1ScanActions = [{ type: MF_ACT_SCAN, dir: MF_DIR_NORTH, row: 0, col: 1, height_pick_diff: MF_SCAN_STAGE_ROW1 }];
+      actions.push(...row1ScanActions);
+      scanRows(realCell, ctx, 1, 1);
+      segments.push({
+        key: 'phase1-scan-row1',
+        label: 'SCAN1: row0,col1 with negative-X offset, reveal row1',
+        actions: row1ScanActions
+      });
 
-      // 只要 row1(col0/col1/col2 任意一列)上存在 R2KFS，阶段1就必须先拾取其中一个；
-      // 若 (1,1) 本身是 R2KFS 则优先选它(直接挡住登顶点)，否则在 col0/col2 中选
-      // 可达且代价最低的一个，其余留给阶段2处理
+      const row2ScanActions = [{ type: MF_ACT_SCAN, dir: MF_DIR_NORTH, row: 0, col: 1, height_pick_diff: MF_SCAN_STAGE_ROW2 }];
+      actions.push(...row2ScanActions);
+      scanRows(realCell, ctx, 2, 2);
+      segments.push({
+        key: 'phase1-scan-row2',
+        label: 'SCAN2: row0,col1 with positive-X offset, reveal row2',
+        actions: row2ScanActions
+      });
+
       let row1HasR2 = (ctx.cell[1][1] === MF_CELL_R2KFS);
       let kfsC = 1;
 
@@ -757,7 +781,6 @@
         segments.push({ key: 'phase1-no-pick', label: 'row1 上没有 R2KFS，跳过阶段1拾取', actions: [], note: true });
       }
 
-      // 走到 (1,1)
       if (!(curR === 1 && curC === 1)) {
         const p = aStar(ctx, curR, curC, 1, 1, allowR2Cross);
         if (!p.ok) return { ok: false, msg: '阶段1：无法走到 (1,1)' };
@@ -768,17 +791,14 @@
         segments.push({ key: 'phase1-toScan', label: '阶段1：走到 (1,1)', actions: toScanActions });
       }
 
-      // 第二次扫描：在 (1,1) 面朝北，揭示 row3~row4
-      const scanActions = [{ type: MF_ACT_SCAN, dir: MF_DIR_NORTH, row: 1, col: 1, height_pick_diff: 0 }];
+      const scanActions = [{ type: MF_ACT_SCAN, dir: MF_DIR_NORTH, row: 1, col: 1, height_pick_diff: MF_SCAN_STAGE_ROW3_4 }];
       actions.push(...scanActions);
       scanRows(realCell, ctx, 3, 4);
-      segments.push({ key: 'phase1-scan2', label: '阶段1：在 (1,1) 执行 SCAN，揭示 row3~row4', actions: scanActions });
+      segments.push({ key: 'phase1-scan-row34', label: '扫描3：在 row1,col1 执行 SCAN，揭示 row3~row4', actions: scanActions });
 
       return { ok: true, pickedCount, curR: 1, curC: 1, segments };
     }
 
-    // 阶段2：从 (1,1) 开始继续拾取剩余 R2KFS 并走到出口，对齐 MFPlanner_BuildPhase2
-    // 返回 { ok, segments }
     function buildPhase2(ctx, r2Need, actions) {
       const segments = [];
       if (r2Need === 0) {
@@ -855,7 +875,7 @@
             <td>${DIR_NAME[a.dir] || '-'}</td>
             <td>${a.row}</td>
             <td>${a.col}</td>
-            <td>${a.height_pick_diff}</td>
+            <td>${actionExtra(a)}</td>
           </tr>`;
         }).join('');
         return `
@@ -946,6 +966,7 @@
       alert('规则描述（最新版本）：\n1) 将图分 6x3 行列格。row0 入口底层，row5 出口底层。\n2) R2KFS 可相邻拾取(PICK_R2)；在"拾取阶段"沿途也可被"移开"穿越(MOVE_R2，丢弃不存储，代价比正常移动多5)。\n3) 一旦拾取的 R2KFS 数量达到需求(r2kfs_need)，之后的所有路径(即走向出口的路径)禁止再规划 MOVE_R2 动作——剩余 R2KFS 一律视为硬障碍，只能绕路或等待 R1KFS 清理。走向"最后一个"目标 R2KFS 的路上仍允许穿越其他 R2KFS。\n4) R1KFS 恒定可穿越，但穿越代价高(代价 = 步数 + 穿越次数×20)，规划会自动倾向选穿越次数少的路径。\n5) FAKEKFS 永不可接触。\n6) 每步高度差仅允许 ±200/0。\n7) SCAN 动作表示在该位置进行扫描，用于分阶段规划中揭示 UNKNOWN 格。\n8) 分阶段规划：先扫描 row1~2，若 row1 有 R2KFS 需先在 row0 相邻拾取才能登上 row1，再走到(1,1)扫描 row3~4，最后继续拾取剩余 R2KFS 并走到出口。');
     };
 
+    /*
     document.getElementById('phaseBtn').onclick = () => {
       const startRow = Number(document.getElementById('startRow').value);
       const startCol = Number(document.getElementById('startCol').value);
@@ -978,7 +999,7 @@
       };
 
       const actions = [];
-      const phase1 = buildPhase1(ctx, realCell, startRow, startCol, actions);
+      const phase1 = buildPhase1V2(ctx, realCell, startRow, startCol, actions);
       if (!phase1.ok) {
         setStatus(`阶段1生成失败：${phase1.msg}`, false);
         renderActions([], []);
@@ -1002,6 +1023,135 @@
       const segments = [...phase1.segments, ...phase2.segments];
       setStatus(`分阶段生成完成：阶段1拾取 ${phase1.pickedCount} 个，阶段2拾取 ${remainNeed} 个，共 ${actions.length} 条动作`, true);
       renderActions(actions, segments);
+    };
+
+    */
+
+    /*
+    document.getElementById('phaseBtn').onclick = () => {
+      const startRow = Number(document.getElementById('startRow').value);
+      const startCol = Number(document.getElementById('startCol').value);
+      const r2Need = Number(document.getElementById('needInput').value);
+      const mapColor = Number(document.getElementById('mapColorSel').value);
+      if (!inBounds(startRow, startCol)) {
+        setStatus('起点越界', false);
+        return;
+      }
+
+      const realCell = cloneCells(cellState);
+      realCell[0][0] = MF_CELL_EMPTY; realCell[0][1] = MF_CELL_EMPTY; realCell[0][2] = MF_CELL_EMPTY;
+      realCell[5][0] = MF_CELL_EMPTY; realCell[5][1] = MF_CELL_EMPTY; realCell[5][2] = MF_CELL_EMPTY;
+
+      const totalR2 = realCell.flat().filter(v => v === MF_CELL_R2KFS).length;
+      if (totalR2 === 0) {
+        setStatus('当前布局里没有 R2KFS，先放一些 R2KFS 再生成', false);
+        renderActions([], []);
+        return;
+      }
+
+      const ctx = {
+        mapColor,
+        cell: cloneCells(realCell),
+        height: mapColor === 1 ? HEIGHT_BLUE : HEIGHT_RED,
+      };
+
+      const actions = [];
+      const phase1 = buildPhase1V2(ctx, realCell, startRow, startCol, actions);
+      if (!phase1.ok) {
+        setStatus(`阶段1生成失败：${phase1.msg}`, false);
+        renderActions([], []);
+        return;
+      }
+
+      const remainNeed = r2Need - phase1.pickedCount;
+      if (remainNeed < 0) {
+        setStatus('阶段1已拾取数量超过需求，请检查 R2 需求数', false);
+        renderActions(actions, phase1.segments);
+        return;
+      }
+
+      const phase2 = buildPhase2(ctx, remainNeed, actions);
+      if (!phase2.ok) {
+        setStatus(`阶段2生成失败：${phase2.msg}（阶段1已拾取 ${phase1.pickedCount} 个）`, false);
+        renderActions(actions, phase1.segments);
+        return;
+      }
+
+      const segments = [...phase1.segments, ...phase2.segments];
+      setStatus(`分阶段生成完成：阶段1拾取 ${phase1.pickedCount} 个，阶段2拾取 ${remainNeed} 个，共 ${actions.length} 条动作`, true);
+      renderActions(actions, segments);
+    };
+
+    const hints = Array.from(document.querySelectorAll('.panel .hint'));
+    const flowHint = hints.find(el => el.textContent.includes('MF_planner') || el.textContent.includes('row1~2'));
+    if (flowHint) {
+      flowHint.textContent = '说明：本页按新版 MF 扫描流程模拟。扫描1站在 row0,col0 向 X 负方向偏移半格揭示 row1；扫描2站在 row0,col0 中心揭示 row2；随后按 Phase1 规划，走到 row1,col1 后扫描3揭示 row3~row4，再进入 Phase2 拾取剩余 R2KFS 并走向出口。';
+    }
+
+    */
+
+    document.getElementById('phaseBtn').onclick = () => {
+      const startRow = Number(document.getElementById('startRow').value);
+      const startCol = Number(document.getElementById('startCol').value);
+      const r2Need = Number(document.getElementById('needInput').value);
+      const mapColor = Number(document.getElementById('mapColorSel').value);
+      if (!inBounds(startRow, startCol)) {
+        setStatus('Start cell is out of bounds', false);
+        return;
+      }
+
+      const realCell = cloneCells(cellState);
+      realCell[0][0] = MF_CELL_EMPTY; realCell[0][1] = MF_CELL_EMPTY; realCell[0][2] = MF_CELL_EMPTY;
+      realCell[5][0] = MF_CELL_EMPTY; realCell[5][1] = MF_CELL_EMPTY; realCell[5][2] = MF_CELL_EMPTY;
+
+      const totalR2 = realCell.flat().filter(v => v === MF_CELL_R2KFS).length;
+      if (totalR2 === 0) {
+        setStatus('No R2KFS in the current map', false);
+        renderActions([], []);
+        return;
+      }
+
+      const ctx = {
+        mapColor,
+        cell: cloneCells(realCell),
+        height: mapColor === 1 ? HEIGHT_BLUE : HEIGHT_RED,
+      };
+
+      const actions = [];
+      const phase1 = buildPhase1V2(ctx, realCell, startRow, startCol, actions);
+      if (!phase1.ok) {
+        setStatus(`Phase1 failed: ${phase1.msg}`, false);
+        renderActions([], []);
+        return;
+      }
+
+      const remainNeed = r2Need - phase1.pickedCount;
+      if (remainNeed < 0) {
+        setStatus('Phase1 picked more R2KFS than requested', false);
+        renderActions(actions, phase1.segments);
+        return;
+      }
+
+      const phase2 = buildPhase2(ctx, remainNeed, actions);
+      if (!phase2.ok) {
+        setStatus(`Phase2 failed: ${phase2.msg}; phase1 picked ${phase1.pickedCount}`, false);
+        renderActions(actions, phase1.segments);
+        return;
+      }
+
+      const segments = [...phase1.segments, ...phase2.segments];
+      setStatus(`Plan generated: phase1 picked ${phase1.pickedCount}, phase2 target ${remainNeed}, ${actions.length} actions`, true);
+      renderActions(actions, segments);
+    };
+
+    const hintsV2 = Array.from(document.querySelectorAll('.panel .hint'));
+    const flowHintV2 = hintsV2.find(el => el.textContent.includes('MF_planner') || el.textContent.includes('row1~2'));
+    if (flowHintV2) {
+      flowHintV2.textContent = 'Current MF scan flow: scan1 at row0,col1 with negative-X offset reveals row1; scan2 at row0,col1 with positive-X offset reveals row2; scan3 at row1,col1 reveals row3~row4 before Phase2.';
+    }
+
+    document.getElementById('rotateBtn').onclick = () => {
+      alert('Rules: SCAN uses three stages now. Stage 1 scans row1 from row0,col1 with a negative-X offset. Stage 2 scans row2 from row0,col1 with a positive-X offset. Stage 3 scans row3~row4 from row1,col1. Other MF path, PICK_R2, MOVE_R2, WAIT_R1, and Phase2 planning rules are unchanged.');
     };
 
     fillTools();

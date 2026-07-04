@@ -49,6 +49,11 @@ typedef enum {
 	MF_ACT_SCAN        /* 第一次扫描 */
 } MF_ActionType;
 
+/* MF_ACT_SCAN stages encoded in MF_Action.height_pick_diff. */
+#define MF_SCAN_STAGE_ROW1      1
+#define MF_SCAN_STAGE_ROW2      2
+#define MF_SCAN_STAGE_ROW3_4    3
+
 typedef enum {
 	BLUE_MAP = 1,
 	RED_MAP = 2
@@ -119,4 +124,4 @@ bool MFPlanner_BuildPhase2(MF_Planner* ctx, uint8_t r2kfs_need);
 /*---------------------- 多步/动态规划暂存 ----------------------*/
 
 
-#endif // __MF_PLANNER_H
+#endif
