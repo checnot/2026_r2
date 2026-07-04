@@ -1,10 +1,7 @@
-<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+﻿<?xml version="1.0" encoding="utf-8" standalone="no"?>
 <Project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="project_projx.xsd">
-
   <SchemaVersion>2.1</SchemaVersion>
-
   <Header>### uVision Project, (C) Keil Software</Header>
-
   <Targets>
     <Target>
       <TargetName>2026_r2_v1</TargetName>
@@ -449,6 +446,11 @@
               <FileType>1</FileType>
               <FilePath>../Core/Src/spi.c</FilePath>
             </File>
+            <File>
+              <FileName>adc.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>../Core/Src/adc.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -564,6 +566,16 @@
               <FileType>1</FileType>
               <FilePath>../Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_spi.c</FilePath>
             </File>
+            <File>
+              <FileName>stm32h7xx_hal_adc.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>../Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_adc.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32h7xx_hal_adc_ex.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>../Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_adc_ex.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -673,6 +685,11 @@
               <FileName>micro_switch.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\user_lib\micro_switch.c</FilePath>
+            </File>
+            <File>
+              <FileName>Ana_keyboard.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\user_lib\Ana_keyboard.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -802,20 +819,18 @@
       </Groups>
     </Target>
   </Targets>
-
   <RTE>
-    <apis/>
+    <apis />
     <components>
       <component Cclass="CMSIS" Cgroup="CORE" Cvendor="ARM" Cversion="5.6.0" condition="ARMv6_7_8-M Device">
-        <package name="CMSIS" schemaVersion="1.7.7" url="http://www.keil.com/pack/" vendor="ARM" version="5.9.0"/>
+        <package name="CMSIS" schemaVersion="1.7.7" url="http://www.keil.com/pack/" vendor="ARM" version="5.9.0" />
         <targetInfos>
-          <targetInfo name="2026_r2_v1"/>
+          <targetInfo name="2026_r2_v1" />
         </targetInfos>
       </component>
     </components>
-    <files/>
+    <files />
   </RTE>
-
   <LayerInfo>
     <Layers>
       <Layer>
@@ -824,5 +839,4 @@
       </Layer>
     </Layers>
   </LayerInfo>
-
 </Project>
