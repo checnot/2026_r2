@@ -704,6 +704,11 @@
               <FileType>1</FileType>
               <FilePath>..\user_lib\H7_F1_spi.c</FilePath>
             </File>
+            <File>
+              <FileName>ir_action.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\user_lib\ir_action.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
