@@ -740,14 +740,14 @@
               <FilePath>..\user_lib\BT_core.c</FilePath>
             </File>
             <File>
-              <FileName>BT_customized.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\user_lib\BT_customized.c</FilePath>
-            </File>
-            <File>
               <FileName>MF_planner.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\user_lib\MF_planner.c</FilePath>
+            </File>
+            <File>
+              <FileName>BT_customized.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\user_lib\BT_customized.c</FilePath>
             </File>
             <File>
               <FileName>lift.c</FileName>

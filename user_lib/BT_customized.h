@@ -358,14 +358,14 @@ typedef struct
 #define MF_WAIT_R1_TIMEOUT_MS 10000 /* 🟡 等待 R1 清理的超时，超时后强行跳过 */
 
 /* 🟡【需实测】机械臂存储服务超时时间 */
-#define ARM_STORE_TRANS_TIMEOUT_MS 10000 /* 工作区切换超时时间 */
-#define ARM_STORE_PATH_TIMEOUT_MS 10000  /* 后向存储路径超时时间 */
-#define ARM_STORE_REST_TIMEOUT_MS 10000  /* 返回前向待机点超时时间 */
+#define ARM_STORE_TRANS_TIMEOUT_MS 30000 /* 工作区切换超时时间 */
+#define ARM_STORE_PATH_TIMEOUT_MS 30000  /* 后向存储路径超时时间 */
+#define ARM_STORE_REST_TIMEOUT_MS 30000  /* 返回前向待机点超时时间 */
 
 /* 🟡【需实测】机械臂丢弃服务超时时间（仿照 ARM_STORE_* 超时） */
-#define ARM_DISCARD_TRANS_TIMEOUT_MS 10000 /* 工作区切换超时时间 */
-#define ARM_DISCARD_PATH_TIMEOUT_MS 10000  /* 后向丢弃路径超时时间 */
-#define ARM_DISCARD_REST_TIMEOUT_MS 10000  /* 返回前向待机点超时时间 */
+#define ARM_DISCARD_TRANS_TIMEOUT_MS 30000 /* 工作区切换超时时间 */
+#define ARM_DISCARD_PATH_TIMEOUT_MS 30000  /* 后向丢弃路径超时时间 */
+#define ARM_DISCARD_REST_TIMEOUT_MS 30000  /* 返回前向待机点超时时间 */
 
 /* ============================== 🟡（待定）机械臂预设拾取路径点 ============================== */
 
@@ -398,19 +398,8 @@ typedef enum {
     ARM_BACK_MODE_DISCARD = 1
 } ArmBackMode;
 
-/**
- * @brief 后向服务目标配置（统一存储/丢弃的背部工作区路径参数）
-*/
-typedef struct {
-    float pre_x, pre_y, pre_theta;               /* 预到位点 */
-    float target_x, target_y, target_theta;       /* 目标点 */
-    float pre_trans_x, pre_trans_y, pre_trans_theta; /* 过渡准备点 */
-    uint16_t target_time;                         /* 目标点停留时间 */
-} ArmBackTarget;
-
 extern ArmBackState arm_back_state;
 extern uint8_t arm_back_slot;
-extern const ArmBackTarget* arm_back_target;
 extern ArmBackMode arm_back_mode;
 
 #define PICK_PRE_REST_X 0.2f             /* 机械臂预待机位置 X */
@@ -471,6 +460,8 @@ extern ArmBackMode arm_back_mode;
 
 #define STORE_PRE_TRANS_X 0.1f         /* 存储完毕之后的过渡准备点 X */
 #define STORE_PRE_TRANS_Y 0.7f         /* 存储完毕之后的过渡准备点 Y */
+#define STORE_THETA (270.0f/180.0f*PI) /* 存储路径末端角度 */
+#define STORE_PRE_TRANS_THETA (180.0f/180.0f*PI) /* 存储过渡准备点末端角度 */
 #define STORE_TIME 1000       /* 存储点停留时间 (ms) */
 
 /* 机械臂丢弃预设路径点（仿照 STORE_* 预设，🟡 待实测调整） */
@@ -481,6 +472,8 @@ extern ArmBackMode arm_back_mode;
 
 #define DISCARD_PRE_TRANS_X 0.1f   /* 丢弃完毕之后的过渡准备点 X */
 #define DISCARD_PRE_TRANS_Y 0.7f   /* 丢弃完毕之后的过渡准备点 Y */
+#define DISCARD_THETA (180.0f/180.0f*PI) /* 丢弃路径末端角度 */
+#define DISCARD_PRE_TRANS_THETA (180.0f/180.0f*PI) /* 丢弃过渡准备点末端角度 */
 #define DISCARD_TIME 100          /* 丢弃点停留时间 (ms) */
 
 /* ============================== 🟡（待定）机械臂预设拾取路径点 ============================== */

@@ -329,6 +329,7 @@ bool MF_PushAction(MF_Planner* ctx, MF_ActionType type, MF_Dir dir, uint8_t row,
     ctx->actions[ctx->action_count].dir = dir;
     ctx->actions[ctx->action_count].row = row;
     ctx->actions[ctx->action_count].col = col;
+    ctx->actions[ctx->action_count].height_pick_diff = 0;
     /* 递增动作数量 */
     ctx->action_count++;
     return true;
@@ -386,6 +387,8 @@ static bool MF_AddPathActions(MF_Planner* ctx,
             if (!MF_PushAction(ctx, MF_ACT_MOVE_R2, dir, r2, c2)) {
                 return false;
             }
+            ctx->actions[ctx->action_count - 1].height_pick_diff =
+                (int16_t)ctx->height[r2][c2] - (int16_t)ctx->height[r1][c1];
             /* 移开后该格变通路 */
             ctx->cell[r2][c2] = MF_CELL_EMPTY;
         }
@@ -913,7 +916,7 @@ void MFPlanner_ScanRows(MF_Planner* ctx, uint8_t start_row, uint8_t end_row)
     static const MF_CellType real_cell_debug_blue[MF_ROWS][MF_COLS] = {
         { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_EMPTY },
         { MF_CELL_R2KFS,  MF_CELL_R1KFS,  MF_CELL_EMPTY },
-        { MF_CELL_R1KFS,  MF_CELL_EMPTY,  MF_CELL_R2KFS },
+        { MF_CELL_R2KFS,  MF_CELL_EMPTY,  MF_CELL_R1KFS },
         { MF_CELL_EMPTY,  MF_CELL_FAKEKFS, MF_CELL_EMPTY },
         { MF_CELL_R2KFS,  MF_CELL_R1KFS,  MF_CELL_R2KFS },
         { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_EMPTY }
@@ -921,7 +924,7 @@ void MFPlanner_ScanRows(MF_Planner* ctx, uint8_t start_row, uint8_t end_row)
     static const MF_CellType real_cell_debug_red[MF_ROWS][MF_COLS] = {
         { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_EMPTY },
         { MF_CELL_R2KFS,  MF_CELL_R1KFS,  MF_CELL_EMPTY },
-        { MF_CELL_R1KFS,  MF_CELL_EMPTY,  MF_CELL_R2KFS },
+        { MF_CELL_R2KFS,  MF_CELL_EMPTY,  MF_CELL_R1KFS },
         { MF_CELL_EMPTY,  MF_CELL_FAKEKFS, MF_CELL_EMPTY },
         { MF_CELL_R2KFS,  MF_CELL_R1KFS,  MF_CELL_R2KFS },
         { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_EMPTY }

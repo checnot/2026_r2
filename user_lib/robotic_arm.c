@@ -1,4 +1,4 @@
-﻿#include "robotic_arm.h"
+#include "robotic_arm.h"
 
 robotic_arm_stu arm;    //机械臂实例
 robotic_arm_traj_stu arm_traj; //机械臂轨迹实例

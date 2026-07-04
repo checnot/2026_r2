@@ -828,14 +828,13 @@ uint8_t arm_if_send_point = 0; /* 机械臂是否已经下发轨迹点标志位�
 
 uint8_t arm_back_request = 0;     /* 机械臂后向服务请求标志 */
 uint8_t arm_back_busy = 0;        /* 机械臂后向服务占用机械臂标志，后台收尾期间仍为 1 */
-uint8_t arm_back_payload_done = 0;/* 块已经处理完成，MF 可以推进 */
+uint8_t arm_back_payload_done = 0;/* 后向服务完整结束，MF 可以推进 */
 uint8_t arm_back_failed = 0;      /* 机械臂后向服务失败标志 */
 uint8_t arm_back_slot = 0;        /* 本次存储使用的槽位: 0=A, 1=B, 2=C */
 
 ArmBackState arm_back_state = ARM_BACK_IDLE;   /* 机械臂后向服务状态机 */
 uint32_t arm_back_timer_ms = 0;                 /* 机械臂后向服务计时器 */
 ArmBackMode arm_back_mode = ARM_BACK_MODE_STORE;/* 后向服务模式: 存储/丢弃 */
-const ArmBackTarget* arm_back_target = NULL;     /* 当前后向服务目标配置指针 */
 
 /**
  * @brief �?MF 方向转对应的底盘朝向角度(yaw)
@@ -1010,48 +1009,28 @@ static void arm_send_pick_trajectory(int16_t height_pick_diff)
     taskEXIT_CRITICAL();
 }
 
-/* ================= 后向服务目标预设 ================= */
-
-/** @brief 存储模式背部路径（槽位 A，面朝后） */
-static const ArmBackTarget back_target_store = {
-    .pre_x = STORE_PRE_X,       .pre_y = STORE_PRE_Y,       .pre_theta = 270.0f/180.0f*PI,
-    .target_x = STORE_X,        .target_y = STORE_Y,        .target_theta = 270.0f/180.0f*PI,
-    .pre_trans_x = STORE_PRE_TRANS_X, .pre_trans_y = STORE_PRE_TRANS_Y, .pre_trans_theta = 180.0f/180.0f*PI,
-    .target_time = STORE_TIME
-};
-
-/** @brief 丢弃模式背部路径（面朝后，直接释放） */
-static const ArmBackTarget back_target_discard = {
-    .pre_x = DISCARD_PRE_X,     .pre_y = DISCARD_PRE_Y,     .pre_theta = 180.0f/180.0f*PI,
-    .target_x = DISCARD_X,      .target_y = DISCARD_Y,      .target_theta = 180.0f/180.0f*PI,
-    .pre_trans_x = DISCARD_PRE_TRANS_X, .pre_trans_y = DISCARD_PRE_TRANS_Y, .pre_trans_theta = 180.0f/180.0f*PI,
-    .target_time = DISCARD_TIME
-};
-
 /* ================= 统一后向服务 ================= */
 
 /**
  * @brief 统一下发后向路径（存储/丢弃共用）
- * @param cfg 后向目标配置
  * @return 1 表示成功下发
  */
-static uint8_t Arm_Back_SendPath(const ArmBackTarget* cfg)
+static uint8_t Arm_Back_SendPath(void)
 {
-    if (!cfg) return 0;
     taskENTER_CRITICAL();
 
     if (arm_back_mode == ARM_BACK_MODE_STORE) {
         /* 存储模式：保持吸附 → 到达目标 → 释放 → 过渡 */
         HAL_GPIO_WritePin(GPIOD, GPIO_PIN_5, GPIO_PIN_SET);
-        arm_queue_add_point(&arm_traj, cfg->pre_x, cfg->pre_y, 0, ARM_PUMP_KEEP, cfg->pre_theta);
-        arm_queue_add_point(&arm_traj, cfg->target_x, cfg->target_y, cfg->target_time, ARM_PUMP_KEEP, cfg->target_theta);
-        arm_queue_add_point(&arm_traj, cfg->target_x, cfg->target_y, cfg->target_time/4, ARM_PUMP_RELEASE, cfg->target_theta);
-        arm_queue_add_point(&arm_traj, cfg->pre_trans_x, cfg->pre_trans_y, 0, ARM_PUMP_RELEASE, cfg->pre_trans_theta);
+        arm_queue_add_point(&arm_traj, STORE_PRE_X, STORE_PRE_Y, 0, ARM_PUMP_KEEP, STORE_THETA);
+        arm_queue_add_point(&arm_traj, STORE_X, STORE_Y, STORE_TIME, ARM_PUMP_KEEP, STORE_THETA);
+        arm_queue_add_point(&arm_traj, STORE_X, STORE_Y, STORE_TIME/4, ARM_PUMP_RELEASE, STORE_THETA);
+        arm_queue_add_point(&arm_traj, STORE_PRE_TRANS_X, STORE_PRE_TRANS_Y, 0, ARM_PUMP_RELEASE, STORE_PRE_TRANS_THETA);
     } else {
         /* 丢弃模式：移动到位 → 直接释放 → 过渡 */
-        arm_queue_add_point(&arm_traj, cfg->pre_x, cfg->pre_y, 0, ARM_PUMP_KEEP, cfg->pre_theta);
-        arm_queue_add_point(&arm_traj, cfg->target_x, cfg->target_y, cfg->target_time, ARM_PUMP_RELEASE, cfg->target_theta);
-        arm_queue_add_point(&arm_traj, cfg->pre_trans_x, cfg->pre_trans_y, 0, ARM_PUMP_RELEASE, cfg->pre_trans_theta);
+        arm_queue_add_point(&arm_traj, DISCARD_PRE_X, DISCARD_PRE_Y, 0, ARM_PUMP_KEEP, DISCARD_THETA);
+        arm_queue_add_point(&arm_traj, DISCARD_X, DISCARD_Y, DISCARD_TIME, ARM_PUMP_RELEASE, DISCARD_THETA);
+        arm_queue_add_point(&arm_traj, DISCARD_PRE_TRANS_X, DISCARD_PRE_TRANS_Y, 0, ARM_PUMP_RELEASE, DISCARD_PRE_TRANS_THETA);
     }
 
     taskEXIT_CRITICAL();
@@ -1061,7 +1040,7 @@ static uint8_t Arm_Back_SendPath(const ArmBackTarget* cfg)
 /**
  * @brief 机械臂后向服务（统一存储/丢弃），负责 后向切换 → 操作 → 返回前向
  * @note 上层通过 arm_back_request/busy/payload_done/done/failed 与本服务通信
- * @note 调用前需设置 arm_back_target（目标配置）和 arm_back_mode（模式）
+ * @note 调用前需设置 arm_back_mode（模式）
  */
 static void Arm_Back_Service_Tick(void)
 {
@@ -1096,17 +1075,39 @@ static void Arm_Back_Service_Tick(void)
         break;
 
     case ARM_BACK_SEND_PATH:
-        if (Arm_Back_SendPath(arm_back_target)) {
+            Arm_Back_SendPath();
             arm_back_state = ARM_BACK_WAIT_DONE;
             arm_back_timer_ms = 0;
-        } else {
-            arm_back_state = ARM_BACK_FAILED;
-        }
+
         break;
 
     case ARM_BACK_WAIT_DONE:
-        if (arm_back_target && arm_if_arrived_xy(arm_back_target->pre_trans_x, arm_back_target->pre_trans_y)) {
-            arm_back_payload_done = 1;
+        if ((arm_back_mode == ARM_BACK_MODE_DISCARD &&
+             arm_if_arrived_xy(DISCARD_PRE_TRANS_X, DISCARD_PRE_TRANS_Y)) ||
+            (arm_back_mode == ARM_BACK_MODE_STORE &&
+             arm_if_arrived_xy(STORE_PRE_TRANS_X, STORE_PRE_TRANS_Y))) {
+
+            // if (arm_back_payload_done)
+            // {
+                // arm_back_payload_done = 0;
+            //     arm_if_send_point = 0;
+
+                if (arm_back_mode == ARM_BACK_MODE_STORE)
+                {
+                    mf_bb.kfs_stored++;
+                    mf_picked_kfs_count++;
+                }
+                mf_exec_timer_ms = 0;
+                MFPlanner_AdvanceAction(&mf_planner_ctx);
+                mf_exec_state = MF_EXEC_IDLE;
+            //     mf_exec_timer_ms = 0;
+            // }
+            // else if (arm_back_failed)
+            // {
+            //     arm_back_failed = 0;
+            //     mf_exec_state = MF_EXEC_FAILED;
+            // }
+
             arm_back_state = ARM_BACK_REQ_B2F;
             arm_back_timer_ms = 0;
         } else if (++arm_back_timer_ms * 10 >=
@@ -1144,6 +1145,8 @@ static void Arm_Back_Service_Tick(void)
     case ARM_BACK_WAIT_REST:
         if (arm_if_arrived_xy(PICK_REST_X, PICK_REST_Y)) {
             arm_back_busy = 0;
+            arm_back_payload_done = 0;
+            arm_if_send_point = 0;
             arm_back_state = ARM_BACK_IDLE;
         } else if (++arm_back_timer_ms * 10 >=
                    ((arm_back_mode == ARM_BACK_MODE_DISCARD) ? ARM_DISCARD_REST_TIMEOUT_MS : ARM_STORE_REST_TIMEOUT_MS)) {
@@ -1236,6 +1239,13 @@ static BT_Status Act_MF_Execute_Action(void)
     MF_Action act;
     if (!MFPlanner_PeekAction(&mf_planner_ctx, &act)) {
         /* 没有更多动作�?*/
+        if (arm_back_failed) {
+            arm_back_failed = 0;
+            return BT_FAILURE;
+        }
+        if (arm_back_busy || arm_back_request || arm_back_state != ARM_BACK_IDLE) {
+            return BT_RUNNING;
+        }
         return BT_SUCCESS;
     }
 
@@ -1253,9 +1263,6 @@ static BT_Status Act_MF_Execute_Action(void)
             return BT_RUNNING;  /* mf_exec_state 保持 IDLE */
         }
 
-        if (arm_back_busy || arm_back_request || arm_back_state != ARM_BACK_IDLE) {
-            return BT_RUNNING;
-        }
 
         /* ======================== 根据动作类型下发指令 ======================== */
         switch (act.type) {
@@ -1647,7 +1654,6 @@ static BT_Status Act_MF_Execute_Action(void)
                     /* 第一次 PICK：存到车身后向存储位 */
                     arm_back_mode = ARM_BACK_MODE_STORE;
                     arm_back_slot = mf_bb.kfs_stored;
-                    arm_back_target = &back_target_store;
                     arm_back_request = 1;
                     mf_exec_timer_ms = 0;
                 }
@@ -1656,6 +1662,9 @@ static BT_Status Act_MF_Execute_Action(void)
                     /* 第二次 PICK：保持吸附，带着 KFS 进入 CZ */
                     arm_if_send_point = 0;
                     mf_picked_kfs_count++;
+                    taskENTER_CRITICAL();
+                    arm_queue_add_point(&arm_traj, PICK_REST_X, PICK_REST_Y, 0, ARM_PUMP_SUCK, 0.0f);
+                    taskEXIT_CRITICAL();
                     MFPlanner_AdvanceAction(&mf_planner_ctx);
                     mf_exec_state = MF_EXEC_IDLE;
                     mf_exec_timer_ms = 0;
@@ -1664,7 +1673,6 @@ static BT_Status Act_MF_Execute_Action(void)
                 {
                     /* MOVE_R2：抓起后到后向丢弃位释放 */
                     arm_back_mode = ARM_BACK_MODE_DISCARD;
-                    arm_back_target = &back_target_discard;
                     arm_back_request = 1;
                     mf_exec_timer_ms = 0;
                 }
@@ -1675,25 +1683,6 @@ static BT_Status Act_MF_Execute_Action(void)
             }
         }
 
-        if (arm_back_payload_done)
-        {
-            arm_back_payload_done = 0;
-            arm_if_send_point = 0;
-
-            if (arm_back_mode == ARM_BACK_MODE_STORE)
-            {
-                mf_bb.kfs_stored++;
-                mf_picked_kfs_count++;
-            }
-            MFPlanner_AdvanceAction(&mf_planner_ctx);
-            mf_exec_state = MF_EXEC_IDLE;
-            mf_exec_timer_ms = 0;
-        }
-        else if (arm_back_failed)
-        {
-            arm_back_failed = 0;
-            mf_exec_state = MF_EXEC_FAILED;
-        }
 
         return BT_RUNNING;
     }
@@ -1762,7 +1751,6 @@ static BT_Status Act_MF_Finish_Cleanup(void)
     arm_back_state = ARM_BACK_IDLE;
     arm_back_timer_ms = 0;
     arm_back_mode = ARM_BACK_MODE_STORE;
-    arm_back_target = NULL;
 
     // mf_bb.kfs_stored = 0;
 
@@ -1831,7 +1819,6 @@ void BT_MF_Init_Task(void)
     arm_back_state = ARM_BACK_IDLE;
     arm_back_timer_ms = 0;
     arm_back_mode = ARM_BACK_MODE_STORE;
-    arm_back_target = NULL;
 
     mf_bb.kfs_stored = 0;
     seq_mem_idx_mf = 0;
@@ -2132,7 +2119,7 @@ static BT_Status Act_CZ_Mission(void)
                 if (CZ_bb.scan_count >= 1)
                 {
                     taskENTER_CRITICAL();
-                    /* 单？次放置完成，将机械臂过渡到背向 */
+                    /* 单次放置完成，将机械臂过渡到背向 */
                     arm_mode_switch_to_transition(&arm, &arm_traj, &arm_trans_traj, ARM_TRANS_FRONT_TO_BACK);
                     /* 返回扫描点进行第二次扫描 */
                     chassis_route_point_add(&chassis_route_traj, R_CHASSIS_CZ_CENTER_X, R_CHASSIS_CZ_CENTER_Y, R_CHASSIS_CZ_CENTER_W, 0, 0);
@@ -2149,7 +2136,7 @@ static BT_Status Act_CZ_Mission(void)
             /* 返回中央扫描位置 */
             if (chassis_if_arrived(R_CHASSIS_CZ_CENTER_X, R_CHASSIS_CZ_CENTER_Y, R_CHASSIS_CZ_CENTER_W))
             {
-                /* 到扫描点后先取存块（仅机械臂），再做第二次扫�?*/
+                /* 到扫描点后先取存块（仅机械臂），再做第二次扫描 */
                  taskENTER_CRITICAL();
                     arm_queue_add_point(&arm_traj, PICK_REST_X, PICK_REST_Y, 0, 1, 0.0f);
                     taskEXIT_CRITICAL();
@@ -2182,7 +2169,7 @@ static BT_Status Act_CZ_Mission(void)
             {
                 taskENTER_CRITICAL();
                 arm_queue_add_point(&arm_traj, STORE_PRE_X, STORE_PRE_Y, 0, ARM_PUMP_SUCK, 270.0f/180.0f*PI);
-                arm_queue_add_point(&arm_traj, STORE_X+0.075f, STORE_Y-0.08f, STORE_TIME, ARM_PUMP_SUCK, 270.0f/180.0f*PI);
+                arm_queue_add_point(&arm_traj, STORE_X+0.065f, STORE_Y-0.08f, STORE_TIME, ARM_PUMP_SUCK, 270.0f/180.0f*PI);
                 taskEXIT_CRITICAL();
                 CZ_bb.cz_mission_state = CZ_PICK_STORE_PICK;
                 CZ_bb.cz_timer_ms = 0;
@@ -2198,7 +2185,7 @@ static BT_Status Act_CZ_Mission(void)
 
         case CZ_PICK_STORE_PICK:
         {
-            if(arm_if_arrived_xy(STORE_X+0.075f, STORE_Y-0.08f))
+            if(arm_if_arrived_xy(STORE_X+0.065f, STORE_Y-0.03f))
             {
                 HAL_GPIO_WritePin(GPIOD, GPIO_PIN_5, GPIO_PIN_RESET);  // 关闭存块气泵
                 taskENTER_CRITICAL();
@@ -2532,6 +2519,7 @@ Subtask_State cz_subtask_state = SUBTASK_IDLE;   /* ARENA 任务 wrapper 状态 
  */
 static BT_Status Cond_Has_MASTER_Request(void)
 {
+    
     return master_task_request_flag ? BT_SUCCESS : BT_FAILURE;
 }
 

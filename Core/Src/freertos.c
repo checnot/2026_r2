@@ -818,6 +818,8 @@ void entry_cmd_task(void const * argument)
   BT_Init_R2_MC_Mission();
   mf_planner_ctx.map_color = RED_MAP;
 
+  // task_flag = 1;
+
   /* Infinite loop */
   for (;;)
   {
@@ -879,7 +881,7 @@ void entry_m8010_task(void const * argument)
     // m8010_bus_poll(&m8010_bus_2);
     m8010_bus_poll(&m8010_bus_3);
 
-    osDelay(1);
+    // osDelay(1);
   }
   /* USER CODE END entry_m8010_task */
 }
