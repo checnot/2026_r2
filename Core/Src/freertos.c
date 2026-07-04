@@ -48,6 +48,7 @@
 #include "go_m8010.h"
 #include "lift.h"
 #include "H7_F1_spi.h"
+#include "ir_action.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -295,18 +296,20 @@ void StartDefaultTask(void const * argument)
     //=======================================================================
 
     /*
-     * H7 通过 SPI1 轮询 F103C8T6 的红外接收结果。
+     * H7 通过 SPI1 轮询 F103C8T6 的红外接收结果，并交给 ir_action 处理。
+     * IR_Action_Poll() 内部会调用 H7_F1_SPI_Task()：
+     *   1. 有新红外帧时，更新 h7_f1_spi_last_frame 和 ir_action_rx_frame；
+     *   2. 如果红外帧匹配指定数据包，则置位 MC_bb.DOCKING_SUCCESS = 1；
+     *   3. 没有新红外帧时，显示用的数据包会清零，方便 Watch 观察。
      * 调试时可观察：
-     *   h7_f1_spi_rx_ok_count
-     *   h7_f1_spi_last_ch
-     *   h7_f1_spi_last_frame
-     * 如果 H7_F1_SPI_Task() 返回 1，表示本次收到了新的红外确认帧。
+     *   h7_f1_spi_rx_ok_count / h7_f1_spi_last_ch / h7_f1_spi_last_frame
+     *   ir_action_rx_count / ir_action_rx_frame / ir_action_docking_success_set_count
      */
     c8_spi_poll_cnt++;
     if (c8_spi_poll_cnt >= 5U)
     {
       c8_spi_poll_cnt = 0;
-      H7_F1_SPI_Task();
+      IR_Action_Poll();
     }
 
     debug_test_time += 0.001f;

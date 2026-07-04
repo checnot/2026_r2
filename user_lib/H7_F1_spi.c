@@ -124,6 +124,19 @@ static uint8_t H7_F1_SPI_TransmitReceive(const uint8_t *tx_buf, uint8_t *rx_buf)
     return 1;
 }
 
+static void H7_F1_SPI_ClearLastIrFrame(void)
+{
+    s_last_status.data = 0U;
+    s_last_status.frame[0] = 0U;
+    s_last_status.frame[1] = 0U;
+    s_last_status.frame[2] = 0U;
+
+    h7_f1_spi_last_data = 0U;
+    h7_f1_spi_last_frame[0] = 0U;
+    h7_f1_spi_last_frame[1] = 0U;
+    h7_f1_spi_last_frame[2] = 0U;
+}
+
 static void H7_F1_SPI_SaveStatus(const H7_F1_SPI_StatusTypeDef *status)
 {
     s_last_status = *status;
@@ -131,10 +144,18 @@ static void H7_F1_SPI_SaveStatus(const H7_F1_SPI_StatusTypeDef *status)
     h7_f1_spi_last_flags = status->flags;
     h7_f1_spi_last_seq = status->seq;
     h7_f1_spi_last_ch = status->ch;
-    h7_f1_spi_last_data = status->data;
-    h7_f1_spi_last_frame[0] = status->frame[0];
-    h7_f1_spi_last_frame[1] = status->frame[1];
-    h7_f1_spi_last_frame[2] = status->frame[2];
+
+    if ((status->flags & H7_F1_SPI_FLAG_NEW) != 0U)
+    {
+        h7_f1_spi_last_data = status->data;
+        h7_f1_spi_last_frame[0] = status->frame[0];
+        h7_f1_spi_last_frame[1] = status->frame[1];
+        h7_f1_spi_last_frame[2] = status->frame[2];
+    }
+    else
+    {
+        H7_F1_SPI_ClearLastIrFrame();
+    }
 
     s_link_alive = ((status->flags & H7_F1_SPI_FLAG_ALIVE) != 0U) ? 1U : 0U;
 }
@@ -148,7 +169,7 @@ void H7_F1_SPI_Init(SPI_HandleTypeDef *hspi)
     s_last_reported_seq = 0;
 
     /* 空闲时 CS 必须为高；F1 硬件 NSS 看到低电平才会被选中。 */
-    HAL_GPIO_WritePin(  , C8_SPI_CS_Pin, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(C8_SPI_CS_GPIO_Port, C8_SPI_CS_Pin, GPIO_PIN_SET);
 }
 
 uint8_t H7_F1_SPI_ReadStatus(H7_F1_SPI_StatusTypeDef *status)
@@ -218,6 +239,7 @@ uint8_t H7_F1_SPI_Task(void)
     if (!H7_F1_SPI_ReadStatus(&status))
     {
         s_link_alive = 0;
+        H7_F1_SPI_ClearLastIrFrame();
         return 0;
     }
 
