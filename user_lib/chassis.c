@@ -520,7 +520,7 @@ void chassis_single_route_scheduler(RADAR_POSITION * chassis_real_position, chas
     }
     if (chassis_route_traj->traj_vw.is_finished == 0) // 角度纯靠PID调节
     {
-            float vw_max_output = chassis_route_traj->rotate_slow_mode ? CHASSIS_ROTATE_SLOW_V_MAX : CHASSIS_V_MAX/2.0f;
+            float vw_max_output = chassis_route_traj->rotate_slow_mode ? CHASSIS_ROTATE_SLOW_V_MAX : CHASSIS_V_MAX/3.0f;
             chassis_angle_pid_calculate(&chassis_route_traj->pid_final_vw, chassis_real_position->reliable_yaw, chassis_route_traj->traj_vw.target_pos, vw_max_output); // 计算PID输出，限制在较小范围内   
          //chassis_route_traj->traj_vw.out_vel = chassis_route_traj->pid_final_vw.Output; 
         //  使用一阶低通滤波平滑PID输出

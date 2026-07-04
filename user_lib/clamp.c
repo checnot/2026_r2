@@ -11,7 +11,7 @@ void clamp_lift_control(uint8_t lift_flag, M3508_Motor_Struct *motor)
     if (lift_flag == 0)
         target_position = CLAMP_LIFT_SPECIAL_POSITION1;
     else if (lift_flag == 1)
-        target_position = CLAMP_LIFT_SPECIAL_POSITION2;
+        target_position =  CLAMP_LIFT_SPECIAL_POSITION2;
 
     int32_t position_error = target_position - motor->Angle_Sum;
     int32_t abs_err = abs_int32(position_error);
@@ -40,13 +40,13 @@ void clamp_extend_control(int32_t target_length, M3508_Motor_Struct *motor)
     int32_t position_error = target_length - motor->Angle_Sum;
     int32_t abs_err = abs_int32(position_error);
     int16_t max_speed = 8000;
-    int32_t decel_zone = 50000;
+    int32_t decel_zone = 60000;
 
     if (abs_err < decel_zone)
     {
         int16_t speed = (int16_t)((int32_t)max_speed * abs_err / decel_zone);
         if (position_error < 0) speed = -speed;
-        m3508_speed_control(motor, speed, 8000);
+        m3508_speed_control(motor, speed, 3000);
     }
     else
     {
@@ -69,7 +69,7 @@ void clamp_rotate_control(int32_t target_angle, M3508_Motor_Struct *motor)
     {
         int16_t speed = (int16_t)((int32_t)max_speed * abs_err / decel_zone);
         if (position_error < 0) speed = -speed;
-        m3508_speed_control(motor, speed, 8000);
+        m3508_speed_control(motor, speed, 3000);
     }
     else
     {

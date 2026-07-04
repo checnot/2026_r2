@@ -8,15 +8,15 @@
 #include "m3508.h"
 
 #define CLAMP_LIFT_SPECIAL_POSITION1 0 // 暂定对杆位置
-#define CLAMP_LIFT_SPECIAL_POSITION2 -433500 //  抓取矛头位置
+#define CLAMP_LIFT_SPECIAL_POSITION2 -431000 //  抓取矛头位置
 
-#define CLAMP_ROTATE_MAX_POSITION -103000    // 旋转最大角度位置，水平放置为0
-#define CLAMP_EXTEND_MAX_POSITION -323000    // 伸缩最大位置
+#define CLAMP_ROTATE_MAX_POSITION 103000    // 旋转最大角度位置，竖直放置为0
+#define CLAMP_EXTEND_MAX_POSITION -327000    // 伸缩最大位置
 
 typedef struct
 {
     int8_t catch_flag; //抓取状态标志，0为松手，1为抓取
-    int8_t rotate_flag; //旋转状态标志，0为复位状态，1为倒立完毕
+    int8_t rotate_flag; //旋转状态标志，0为竖直状态，1为水平位置
     int8_t retractable_flag; //伸缩状态标志，0为复位状态，1为伸出状态
     int8_t lift_flag; //升降状态标志，0为复位状态，1为抓矛头位置，2为抓矛头后抬起位置，3为暂定对杆位置
 } clamp_struct;
