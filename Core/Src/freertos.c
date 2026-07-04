@@ -49,6 +49,7 @@
 #include "lift.h"
 #include "H7_F1_spi.h"
 #include "ir_action.h"
+#include "Ana_keyboard.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -313,6 +314,7 @@ void StartDefaultTask(void const * argument)
     }
 
     debug_test_time += 0.001f;
+		AnaKeyboard_Update();
     osDelay(1);
   }
   /* USER CODE END StartDefaultTask */
