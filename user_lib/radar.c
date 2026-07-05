@@ -12,6 +12,7 @@ KalmanFilter_stu Radar_Kalman_Y;
 KalmanFilter_stu Radar_Kalman_Z;
 KalmanFilter_stu Radar_Kalman_Yaw;
 float x, y, z, yaw;
+
 uint8_t Rec_Data[65];
 
 void Data_process_String(char *str)
@@ -21,9 +22,18 @@ void Data_process_String(char *str)
     
     if (header_ptr != NULL)
     {
-        float temp_a, temp_b, temp_c, temp_d,temp_e,temp_f  ;
+         float temp_a, temp_b, temp_c, temp_d,temp_e,temp_f  ;
         
-        // 2. 尝试解析四个浮点数
+        // 2. 跳过 "heu" 后的非数字分隔符（如逗号、冒号等），定位到第一个数字
+        // // float temp_a, temp_b, temp_c, temp_d ;
+        // char *data_ptr = strpbrk(header_ptr + 3, "0123456789+-");
+        // if (data_ptr && sscanf(data_ptr, "%f,%f,%f,%f", &temp_a, &temp_b, &temp_c, &temp_d) >= 4)
+        // {
+        //     Radar_Pos.radar_x = 1000.0f * temp_a;
+        //     Radar_Pos.radar_y = 1000.0f * temp_b;
+        //     Radar_Pos.radar_z = 1000.0f * temp_c;
+        //     Radar_Pos.radar_yaw = temp_d;
+        //     Radar_Pos.hi14_yaw = hipnuc_raw.hi91.yaw;
         if (sscanf(header_ptr + 3, "%f,%f,%f,%f,%f,%f", &temp_a, &temp_b, &temp_c, &temp_d, &temp_e, &temp_f) >= 6)
         {
             Radar_Pos.radar_x = 1000.0f * temp_a;
@@ -63,7 +73,7 @@ void Calculate_Chassis_Position(void)
     // 底盘中心相对于雷达的偏移（单位：mm）
     //镜像时记得改Y
     const float OFFSET_X = -290.15f;  // 车体坐标系下，底盘中心相对雷达的x偏移
-    const float OFFSET_Y = -142.15f;   // 车体坐标系下，底盘中心相对雷达的y偏移
+    const float OFFSET_Y = -152.15f;   // 车体坐标系下，底盘中心相对雷达的y偏移
 
     // 角度转弧度
     float yaw_rad = Radar_Pos.hi14_yaw * 3.1415926f / 180.0f;

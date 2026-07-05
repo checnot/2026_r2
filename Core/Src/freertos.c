@@ -838,12 +838,12 @@ void entry_cmd_task(void const * argument)
 //    }
     if (MC_task == 1)
     {
-      //BT_Start_R2_MC_Mission();
-     BT_PS_Start_Task();
+      BT_Start_R2_MC_Mission();
+     //BT_PS_Start_Task();
       MC_task=0;
     }
-    BT_PS_Tick();
-   // BT_Customized_Tick1ms_R2_MC();
+    //BT_PS_Tick();
+    BT_Customized_Tick1ms_R2_MC();
     //  if(CZ_task == 1)
     //  {
     //   BT_CZ_Start_Task();

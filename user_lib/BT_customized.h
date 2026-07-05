@@ -49,7 +49,7 @@
 /***************************************
  * 通用参数（红蓝区共用数值）
 **************************************** */
-#define R_CLAMP_TO_CHASSIS_CENTER_DIST 132.0f /* 夹爪中心到底盘中心的X方向距离 (mm) */
+#define R_CLAMP_TO_CHASSIS_CENTER_DIST 111.25f /* 夹爪中心到底盘中心的X方向距离 (mm) */
 #define B_CLAMP_TO_CHASSIS_CENTER_DIST 132.0f /* 夹爪中心到底盘中心的X方向距离 (mm) */
 #define R_RACK_STABLE_TIMES_CONDITION 50      /* 取矛头时到达目标位置次数，保证稳定抓取（降低以加速） */
 #define B_RACK_STABLE_TIMES_CONDITION 50      /* 取矛头时到达目标位置次数，保证稳定抓取 */
@@ -75,7 +75,7 @@
 #define R_CHASSIS_RACK_4_X 1050.0f - R_CLAMP_TO_CHASSIS_CENTER_DIST /* 红区 第四个矛头位置 X (mm) */
 #define R_CHASSIS_RACK_5_X 1250.0f - R_CLAMP_TO_CHASSIS_CENTER_DIST /* 红区 第五个矛头位置 X (mm) */
 #define R_CHASSIS_RACK_6_X 1450.0f - R_CLAMP_TO_CHASSIS_CENTER_DIST /* 红区 第六个矛头位置 X (mm) */
-#define R_CHASSIS_RACK_Y -590.0f              /* 红区 取矛头位置 Y (mm) */
+#define R_CHASSIS_RACK_Y -594.82f              /* 红区 取矛头位置 Y (mm) */
 #define R_CHASSIS_RACK_Y_1 -605.0f            /* 红区 取第一个矛头位置 Y (mm) */
 #define R_CHASSIS_RACK_W_1 10.0f              /* 红区 取第一个矛头位置 W (deg) */
 #define R_CHASSIS_RACK_W 0.0f                 /* 红区 取矛头位置 W (deg) */
@@ -239,12 +239,7 @@ typedef enum
     MC_IDLE,
     CLAMP_INIT,      //夹爪位置初始化
     NIVEGATE_TO_RACK,// 从起点导航到第3个矛架位置
-    RACK_PICK,       // 在第3个矛架位置执行拾取动作
-    RACK_FAILED_1,   // 第3个矛架位置拾取失败的第一次重试   
-    RACK_FAILED_2,   // 第3个矛架位置拾取失败的第二次重试   
-    RACK_FAILED_3,   // 第3个矛架位置拾取失败的第三次重试   
-    RACK_FAILED_4,   // 第3个矛架位置拾取失败的第四次重试   
-    RACK_FAILED_5,   // 第3个矛架位置拾取失败的第五次重试   
+    RACK_PICK,       // 取矛头（配合 rack_retry_count 表驱动）
     DOCKING,
     WAIT_DOCKING_COMPLETE, // 等待对接完成
     WAIT_MF_INSTRUCTION,   // 等待进入梅林指令
@@ -266,6 +261,7 @@ typedef struct
     uint8_t MF_MISSION_Req ; //MF任务执行标志，收到进入MF指令后置1
     uint8_t ext_stall_cnt;      /* 伸缩堵转连续计数 */
     uint8_t ext_jam_retries;    /* 当前位置堵转重试次数 */
+    uint8_t rack_retry_count;   /* 当前取矛架索引，失败后递增换下一个 */
     R2_MC_MISSION_STATE mc_mission_state; /* 武馆任务状态机当前状态 */
 }MC_Blackboard; 
 
