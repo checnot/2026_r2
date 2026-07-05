@@ -4,6 +4,11 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+/* =========== 客制化头文件 =========== */
+#include "camera.h"
+/* =========== 客制化头文件 =========== */
+
+
 /*
  * ================================================================
  * MF 区 R2 规划器接口说明
@@ -46,13 +51,13 @@ typedef enum {
 	MF_ACT_PICK_R2,       /* 面对相邻 R2KFS 拾取 */
 	MF_ACT_MOVE_R2,       /* 面对相邻 R2KFS 移开(丢弃，不存储) */
 	MF_ACT_WAIT_R1,       /* 等待 R1 清除 R1KFS */
-	MF_ACT_SCAN        /* 第一次扫描 */
+	MF_ACT_SCAN        	  /* 第一次扫描 */
 } MF_ActionType;
 
 /* MF_ACT_SCAN stages encoded in MF_Action.height_pick_diff. */
 #define MF_SCAN_STAGE_ROW1      1
 #define MF_SCAN_STAGE_ROW2      2
-#define MF_SCAN_STAGE_ROW3_4    3
+#define MF_SCAN_STAGE_ROW34    3
 
 typedef enum {
 	BLUE_MAP = 1,
@@ -114,6 +119,11 @@ void MFPlanner_NotifyR1KfsRemoved(MF_Planner* ctx, uint8_t row, uint8_t col);
 bool MF_PushAction(MF_Planner* ctx, MF_ActionType type, MF_Dir dir, uint8_t row, uint8_t col);
 
 /*---------------------- 多步/动态规划暂存 ----------------------*/
+
+void MFPlanner_camera_to_ctx(MF_Planner* ctx, uint8_t row, uint8_t col);
+void MFPlanner_ScanRow_1(MF_Planner* ctx);
+void MFPlanner_ScanRow_2(MF_Planner* ctx);
+void MFPlanner_ScanRow_34(MF_Planner* ctx);
 
 void MFPlanner_ScanRows(MF_Planner* ctx, uint8_t start_row, uint8_t end_row);
 

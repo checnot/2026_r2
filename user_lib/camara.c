@@ -7,8 +7,8 @@ CZ_PUT_POS CZ_put_pos = POS_IDLE;
 float CZ_SUDUKU_X = 0.0f;
 float CZ_SUDUKU_Y = 0.0f;
 float CZ_SUDUKU_W = 0.0f;
-uint8_t grid[ROWS][COLS];
-uint8_t MEILIN_STATE[4][3]; // 四行三列
+// uint8_t grid[ROWS][COLS];   /* R为R1KFS，T为R2KFS，F为假KFS，?为空 */
+uint8_t MEILIN_STATE[4][3]; /* R为R1KFS，T为R2KFS，F为假KFS，?为空 */
 uint8_t tx_buffer1 = 0x01;
 uint8_t tx_buffer2 = 0x02;
 uint8_t tx_buffer3 = 0x03;
@@ -43,7 +43,6 @@ void MF_Scan_Command_Send(uint8_t Command_Number)
 // void parse_full_table(const char *data) {
 //     char buf[256];
 //     strcpy(buf, data);   // 输入保证足够小且规范，直接复制
-
 //     int row = 0;
 //     char *line = strtok(buf, "\r\n");
 //     while (line && row < ROWS) {
@@ -68,6 +67,10 @@ void Camera_Scan_Data_Progress(uint8_t buf[])
         for (int c = 0; c < COLS; c++)
             MEILIN_STATE[r][c] = buf[r * COLS + c];
 }
+
+
+/* ================================== 以下为 CZ 区相机相关部分 ================================== */
+
 
 static void Store_CZCmd(uint8_t action, uint8_t  target)
 {

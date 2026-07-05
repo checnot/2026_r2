@@ -37,6 +37,9 @@ static const int8_t k_dir_dc[4] = { 0, 1, 0, -1 };
 /* 移开一次 R2KFS 相对于普通一步的额外代价：总代价 = 1 + MF_MOVE_R2_COST */
 #define MF_MOVE_R2_COST 5
 
+/**
+ * @brief MF 规划器上下文，包含地图状态和规划动作输出
+*/
 MF_Planner mf_planner_ctx;
 
 /**
@@ -899,7 +902,7 @@ void MFPlanner_LoadFixedDemoMap(MF_Planner* ctx)
 /* ========================================== 多步/动态规划 ========================================== */
 
 /**
- * @brief 对指定行范围进行扫描，将 UNKNOWN 格更新为真实地图数据
+ * @brief 将规划器中的指定行范围扫描为！！！预设地图！！！数据
  * @param ctx        规划器上下文
  * @param start_row  扫描起始行(含)
  * @param end_row    扫描结束行(含)
@@ -948,6 +951,110 @@ void MFPlanner_ScanRows(MF_Planner* ctx, uint8_t start_row, uint8_t end_row)
         }
     }
 }
+
+
+/**
+ * @brief 检查指定行是否全部为 UNKNOWN
+ * @retval true 该行全部为 UNKNOWN
+ * @retval false 该行至少有一个格子已知
+*/
+static bool MFPlanner_RowAllUnknown(const MF_Planner* ctx, uint8_t row)
+{
+    for (uint8_t col = 0; col < MF_COLS; col++) {
+        if (ctx->cell[row][col] != MF_CELL_UNKNOWN) {
+            return false;
+        }
+    }
+    return true;
+}
+/**
+ * @brief 将相机扫描结果更新到规划器上下文
+ * @param ctx 规划器上下文
+ * @param row 扫描行（！！！此处row用的是MF全图的行索引，和MEILIN_STATE的索引 不！一！致！）
+ * @param col 扫描列
+ * @note 一次扫描只更新一个格子，原始数据(MEILIN_STATE)中，R表示 R1KFS，T 表示 R2KFS，F 表示 FAKEKFS，? 表示空
+*/
+void MFPlanner_camera_to_ctx(MF_Planner* ctx, uint8_t row, uint8_t col)
+{
+    MF_CellType type;
+    if(MEILIN_STATE[row-1][col] == 'R'){
+        type = MF_CELL_R1KFS;
+    } else if(MEILIN_STATE[row-1][col] == 'T'){
+        type = MF_CELL_R2KFS;
+    } else if(MEILIN_STATE[row-1][col] == 'F'){
+        type = MF_CELL_FAKEKFS;
+    } else if(MEILIN_STATE[row-1][col] == '?'){
+        type = MF_CELL_EMPTY;
+    } else{
+        type = MF_CELL_UNKNOWN;
+    }    
+    ctx->cell[row][col] = type;
+}
+/**
+ * @brief 向相机发送扫描 row1 的指令，更新row1未知格为真实地图数据
+ * @note !!!!!!!!!!内部用osdelay等待视觉扫描完成，待调整
+ */
+void MFPlanner_ScanRow_1(MF_Planner* ctx)
+{
+    MF_Scan_Command_Send(1);    /* 向相机发送扫描 row1 的指令 */
+    osDelay(100); /* 等待视觉扫描完成 */
+    for(uint8_t col=0; col<MF_COLS; col++){
+        MFPlanner_camera_to_ctx(ctx, 1, col);
+    }
+    
+    if (MFPlanner_RowAllUnknown(ctx, 1)) {
+        MF_Scan_Command_Send(1);
+        osDelay(100);
+        for(uint8_t col=0; col<MF_COLS; col++){
+            MFPlanner_camera_to_ctx(ctx, 1, col);
+        }
+    }
+}
+/**
+ * @brief 向相机发送扫描 row2 的指令，更新row2未知格为真实地图数据
+ * @note !!!!!!!!!!内部用osdelay等待视觉扫描完成，待调整
+*/
+void MFPlanner_ScanRow_2(MF_Planner* ctx)
+{
+    MF_Scan_Command_Send(2);    /* 向相机发送扫描 row2 的指令 */
+    osDelay(100); /* 等待视觉扫描完成 */
+    for(uint8_t col=0; col<MF_COLS; col++){
+        MFPlanner_camera_to_ctx(ctx, 2, col);
+    }
+
+    if (MFPlanner_RowAllUnknown(ctx, 2)) {
+        MF_Scan_Command_Send(2);
+        osDelay(100);
+        for(uint8_t col=0; col<MF_COLS; col++){
+            MFPlanner_camera_to_ctx(ctx, 2, col);
+        }
+    }
+}
+/**
+ * @brief 向相机发送扫描 row3 和 row4 的指令，更新其未知格为真实地图数据
+ * @note !!!!!!!!!!内部用osdelay等待视觉扫描完成，待调整
+*/
+void MFPlanner_ScanRow_34(MF_Planner* ctx)
+{
+    MF_Scan_Command_Send(3);    /* 向相机发送扫描 row3和row4 的指令 */
+    osDelay(100); /* 等待视觉扫描完成 */
+    for(uint8_t col=0; col<MF_COLS; col++){
+        MFPlanner_camera_to_ctx(ctx, 3, col);
+        MFPlanner_camera_to_ctx(ctx, 4, col);
+    }
+
+    if (MFPlanner_RowAllUnknown(ctx, 3) || MFPlanner_RowAllUnknown(ctx, 4)) {
+        MF_Scan_Command_Send(3);
+        osDelay(100);
+        for(uint8_t col=0; col<MF_COLS; col++){
+            MFPlanner_camera_to_ctx(ctx, 3, col);
+            MFPlanner_camera_to_ctx(ctx, 4, col);
+        }
+    }
+}
+
+
+
 
 /**
  * @brief 分阶段规划：阶段1 先确保 R2 能登上 row1，拾取至少一个 row1 上的 R2KFS
@@ -1089,7 +1196,7 @@ bool MFPlanner_BuildPhase1(MF_Planner* ctx,
     /* 在 row1,col1 面朝北扫描后二行(row3/row4) */
     if (MF_PushAction(ctx, MF_ACT_SCAN, MF_DIR_NORTH, 1, 1)) 
     {
-        ctx->actions[ctx->action_count - 1].height_pick_diff = MF_SCAN_STAGE_ROW3_4;
+        ctx->actions[ctx->action_count - 1].height_pick_diff = MF_SCAN_STAGE_ROW34;
     }
 
     return true;

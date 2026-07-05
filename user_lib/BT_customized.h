@@ -13,6 +13,7 @@
 #include "clamp.h"
 #include "MF_planner.h"
 #include "lift.h"
+#include "camera.h"
 //================== 客制化头文件 ==================
 
 /* ------------ 机械臂预设可配置参数（按需微调） ------------ */
@@ -363,6 +364,7 @@ typedef struct
 
 #define MF_SCAN_ROW1_X_OFFSET_MM (1000.0f) /* 扫row1的扫描点离row0col1中心的距离（该偏移应为向着x负方向） */
 #define MF_SCAN_ROW2_X_OFFSET_MM (200.0f)  /* 扫row2的扫描点离row0col1中心的距离（该偏移应为向着x正方向） */
+#define MF_SCAN_ROW34_X_OFFSET_MM (225.0f) /* 扫row3的扫描点离row0col1中心的距离（该偏移应为向着x正方向） */
 
 /* 🟡【需实测】各方向对应的底盘朝向角 (度) */
 #define MF_YAW_NORTH        0.0f     /* 北向的底盘 yaw 角 */

@@ -834,25 +834,25 @@ void entry_cmd_task(void const * argument)
       MF_Scan_Command_Send(camera_command);
 //			MF_Scan_Command_Send(camera_command);
     }
-//    if (task_flag == 1)
-//    {
-//      BT_MASTER_Start_Task();
-//      task_flag = 0;
-//    }
-    if (MC_task == 1)
-    {
-      //BT_Start_R2_MC_Mission();
-     BT_PS_Start_Task();
-      MC_task=0;
-    }
-    BT_PS_Tick();
+   if (task_flag == 1)
+   {
+     BT_MASTER_Start_Task();
+     task_flag = 0;
+   }
+    // if (MC_task == 1)
+    // {
+    //   //BT_Start_R2_MC_Mission();
+    //  BT_PS_Start_Task();
+    //   MC_task=0;
+    // }
+    // BT_PS_Tick();
    // BT_Customized_Tick1ms_R2_MC();
     //  if(CZ_task == 1)
     //  {
     //   BT_CZ_Start_Task();
     //   CZ_task = 0;
     //  };
-    //BT_MASTER_Tick(); // 每1ms调用，内部降频10ms，行为树主控任务周期调用
+    BT_MASTER_Tick(); // 每1ms调用，内部降频10ms，行为树主控任务周期调用
      //BT_Customized_Tick1ms_CZ();
     osDelay(1);
   }

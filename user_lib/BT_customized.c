@@ -1042,8 +1042,14 @@ static void mf_scan_stand_position(const MF_Action* act, float* out_x, float* ou
         return;
     }
 
-    mf_cell_to_world(act->row, act->col, out_x, out_y, mf_planner_ctx.map_color);
-    *out_yaw = mf_dir_to_yaw(act->dir);
+    if (act->height_pick_diff == MF_SCAN_STAGE_ROW34) {
+        mf_cell_to_world(1, 1, out_x, out_y, mf_planner_ctx.map_color);
+        *out_x += MF_SCAN_ROW34_X_OFFSET_MM;
+        *out_yaw = MF_YAW_NORTH;
+        return;
+    }
+    // mf_cell_to_world(act->row, act->col, out_x, out_y, mf_planner_ctx.map_color);
+    // *out_yaw = mf_dir_to_yaw(act->dir);
 }
 
 // /*
@@ -1590,6 +1596,7 @@ static BT_Status Act_MF_Execute_Action(void)
 
             taskENTER_CRITICAL();
             chassis_route_point_add(&chassis_route_traj, scan_x, scan_y, scan_yaw, 0, 1);
+            clamp.lift_flag = 1;  // 扫描时将摄像机升起，避免干扰
             taskEXIT_CRITICAL();
 
             mf_exec_state = MF_EXEC_SCAN;
@@ -1612,7 +1619,8 @@ static BT_Status Act_MF_Execute_Action(void)
 
         if (chassis_if_arrived(scan_x, scan_y, scan_yaw)) {
             if (act.height_pick_diff == MF_SCAN_STAGE_ROW1) {
-                MFPlanner_ScanRows(&mf_planner_ctx, 1, 1);
+                // MFPlanner_ScanRows(&mf_planner_ctx, 1, 1);
+                MFPlanner_ScanRow_1(&mf_planner_ctx);
                 if (MF_PushAction(&mf_planner_ctx, MF_ACT_SCAN, MF_DIR_NORTH, 0, 1)) {
                     mf_planner_ctx.actions[mf_planner_ctx.action_count - 1].height_pick_diff = MF_SCAN_STAGE_ROW2;
                 } else {
@@ -1620,13 +1628,15 @@ static BT_Status Act_MF_Execute_Action(void)
                     return BT_RUNNING;
                 }
             } else if (act.height_pick_diff == MF_SCAN_STAGE_ROW2) {
-                MFPlanner_ScanRows(&mf_planner_ctx, 2, 2);
+                // MFPlanner_ScanRows(&mf_planner_ctx, 2, 2);
+                MFPlanner_ScanRow_2(&mf_planner_ctx);
                 if (!MFPlanner_BuildPhase1(&mf_planner_ctx, 0, 0, &mf_picked_phase1)) {
                     mf_exec_state = MF_EXEC_FAILED;
                     return BT_RUNNING;
                 }
-            } else if (act.height_pick_diff == MF_SCAN_STAGE_ROW3_4) {
-                MFPlanner_ScanRows(&mf_planner_ctx, 3, 4);
+            } else if (act.height_pick_diff == MF_SCAN_STAGE_ROW34) {
+                // MFPlanner_ScanRows(&mf_planner_ctx, 3, 4);
+                MFPlanner_ScanRow_34(&mf_planner_ctx);
                 if (!MFPlanner_BuildPhase2(&mf_planner_ctx, R2_KFS_ALL_NEED - mf_picked_phase1)) {
                     mf_exec_state = MF_EXEC_FAILED;
                     return BT_RUNNING;

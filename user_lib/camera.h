@@ -34,6 +34,9 @@ extern CZ_PUT_POS CZ_put_pos;
 extern float CZ_SUDUKU_X ;
 extern float CZ_SUDUKU_Y ;
 extern float CZ_SUDUKU_W ;
+
+extern uint8_t MEILIN_STATE[4][3]; /* R为R1KFS，T为R2KFS，F为假KFS，?为空 */
+
 void MF_Scan_Command_Send(uint8_t Command_Number);
 void Camera_Scan_Data_Progress(uint8_t buf[]);
 void Camera_CZ_Data_Progress(char * str);
