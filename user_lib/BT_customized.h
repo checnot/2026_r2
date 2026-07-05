@@ -1,4 +1,4 @@
-﻿#ifndef __BT_CUSTOMIZED_H
+#ifndef __BT_CUSTOMIZED_H
 #define __BT_CUSTOMIZED_H
 
 #include "main.h"
@@ -50,7 +50,7 @@
  * 通用参数（红蓝区共用数值）
 **************************************** */
 #define R_CLAMP_TO_CHASSIS_CENTER_DIST 132.0f /* 夹爪中心到底盘中心的X方向距离 (mm) */
-#define B_CLAMP_TO_CHASSIS_CENTER_DIST 132.0f /* 夹爪中心到底盘中心的X方向距离 (mm) */
+#define B_CLAMP_TO_CHASSIS_CENTER_DIST 111.25f /* 夹爪中心到底盘中心的X方向距离 (mm) */
 #define R_RACK_STABLE_TIMES_CONDITION 50      /* 取矛头时到达目标位置次数，保证稳定抓取（降低以加速） */
 #define B_RACK_STABLE_TIMES_CONDITION 50      /* 取矛头时到达目标位置次数，保证稳定抓取 */
 
@@ -149,12 +149,12 @@
 #define B_CHASSIS_RACK_4_X 1050.0f + B_CLAMP_TO_CHASSIS_CENTER_DIST /* 蓝区 第四个矛头位置 X (mm) */
 #define B_CHASSIS_RACK_5_X 1250.0f + B_CLAMP_TO_CHASSIS_CENTER_DIST /* 蓝区 第五个矛头位置 X (mm) */
 #define B_CHASSIS_RACK_6_X 1450.0f + B_CLAMP_TO_CHASSIS_CENTER_DIST /* 蓝区 第六个矛头位置 X (mm) */
-#define B_CHASSIS_RACK_Y 607.0f               /* 蓝区 取矛头位置 Y (mm) */
+#define B_CHASSIS_RACK_Y 589.82f               /* 蓝区 取矛头位置 Y (mm) */
 #define B_CHASSIS_RACK_W -180.0f                 /* 蓝区 取矛头位置 W (deg) */
 
 // 与R1的对接位置（暂定该位置，后续可重设）
-#define B_CHASSIS_DOCKING_X 1200.0f           /* 蓝区 对接位置 X (mm) */
-#define B_CHASSIS_DOCKING_Y 1400.0f           /* 蓝区 对接位置 Y (mm) */
+#define B_CHASSIS_DOCKING_X 1315.0f           /* 蓝区 对接位置 X (mm) */
+#define B_CHASSIS_DOCKING_Y 1520.0f           /* 蓝区 对接位置 Y (mm) */
 #define B_CHASSIS_DOCKING_W 0.0f           /* 蓝区 对接位置 W (deg) */
 
 // 使用相机扫描梅林位置（暂定该位置，后续可重设）
@@ -274,21 +274,21 @@ typedef struct
 /* 独立状态机和黑板，不共用原 MC 段。对杆位置固定，与 MC 相同 */
 
 /* 预选赛矛架位置 — 每个位置独立 X/Y/W，方便红蓝区修改 */
-#define PS_RACK_1_X  R_CHASSIS_RACK_6_X
-#define PS_RACK_1_Y  R_CHASSIS_RACK_Y   /* 位置1 Y 与其余不同 */
-#define PS_RACK_1_W  R_CHASSIS_RACK_W   /* 位置1 W 与其余不同 */
-#define PS_RACK_2_X  R_CHASSIS_RACK_5_X
-#define PS_RACK_2_Y  R_CHASSIS_RACK_Y
-#define PS_RACK_2_W  R_CHASSIS_RACK_W
-#define PS_RACK_3_X  R_CHASSIS_RACK_4_X
-#define PS_RACK_3_Y  R_CHASSIS_RACK_Y
-#define PS_RACK_3_W  R_CHASSIS_RACK_W
+#define PS_RACK_1_X  B_CHASSIS_RACK_6_X
+#define PS_RACK_1_Y  B_CHASSIS_RACK_Y   /* 位置1 Y 与其余不同 */
+#define PS_RACK_1_W  B_CHASSIS_RACK_W   /* 位置1 W 与其余不同 */
+#define PS_RACK_2_X  B_CHASSIS_RACK_5_X
+#define PS_RACK_2_Y  B_CHASSIS_RACK_Y
+#define PS_RACK_2_W  B_CHASSIS_RACK_W
+#define PS_RACK_3_X  B_CHASSIS_RACK_4_X
+#define PS_RACK_3_Y  B_CHASSIS_RACK_Y
+#define PS_RACK_3_W  B_CHASSIS_RACK_W
 /* 🟡 蓝区替换：改为 B_CHASSIS_RACK_4/5/6_X/Y + B_CHASSIS_RACK_W 即可 */
 
 /* 对杆位置固定，与 MC 共用 */
-#define PS_DOCK_X  R_CHASSIS_DOCKING_X
-#define PS_DOCK_Y  R_CHASSIS_DOCKING_Y
-#define PS_DOCK_W  R_CHASSIS_DOCKING_W
+#define PS_DOCK_X  B_CHASSIS_DOCKING_X
+#define PS_DOCK_Y  B_CHASSIS_DOCKING_Y
+#define PS_DOCK_W  B_CHASSIS_DOCKING_W
 
 typedef enum
 {

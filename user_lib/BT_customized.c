@@ -31,9 +31,9 @@ struct {
 
 
 
-// /*=========================================================== 机械�?/ 底盘 行为树测试用 ===============================================================*/
-// /*=========================================================== 机械�?/ 底盘 行为树测试用 ===============================================================*/
-// /*=========================================================== 机械�?/ 底盘 行为树测试用 ===============================================================*/
+// /*=========================================================== 机械�*/ 底盘 行为树测试用 ===============================================================*/
+// /*=========================================================== 机械�*/ 底盘 行为树测试用 ===============================================================*/
+// /*=========================================================== 机械�*/ 底盘 行为树测试用 ===============================================================*/
 
 
 
@@ -362,7 +362,7 @@ static BT_Status Act_R2_MC_Mission(void)
             // {
             /* 进入这个状态后,执行寻路到达RACK点的动作 */
             taskENTER_CRITICAL(); 
-            chassis_route_point_add(&chassis_route_traj, R_CHASSIS_RACK_3_X, R_CHASSIS_RACK_Y, R_CHASSIS_RACK_W, 0, 1);
+            chassis_route_point_add(&chassis_route_traj, B_CHASSIS_RACK_3_X, B_CHASSIS_RACK_Y, B_CHASSIS_RACK_W, 0, 1);
             taskEXIT_CRITICAL();
 
             MC_bb.mc_mission_state = RACK_PICK; 
@@ -376,7 +376,7 @@ static BT_Status Act_R2_MC_Mission(void)
         case RACK_PICK:
         {
             /* 进入这个状态后,执行夹爪抓取矛头的动�?*/
-            if(chassis_if_arrived(R_CHASSIS_RACK_3_X, R_CHASSIS_RACK_Y, R_CHASSIS_RACK_W))
+            if(chassis_if_arrived(B_CHASSIS_RACK_3_X, B_CHASSIS_RACK_Y, B_CHASSIS_RACK_W))
             {
                 MC_bb.RACK_POS_STABLE_TIMES++; // 增加位置稳定计数
                 if(  MC_bb.RACK_POS_STABLE_TIMES > R_RACK_STABLE_TIMES_CONDITION)
@@ -401,41 +401,15 @@ static BT_Status Act_R2_MC_Mission(void)
                                 clamp.catch_flag = 0;
                                 clamp.retractable_flag = 0;
                                 taskENTER_CRITICAL();
-                                chassis_route_point_add(&chassis_route_traj, R_CHASSIS_RACK_2_X, R_CHASSIS_RACK_Y, R_CHASSIS_RACK_W, 0, 0);
+                                chassis_route_point_add(&chassis_route_traj, B_CHASSIS_RACK_2_X, B_CHASSIS_RACK_Y, B_CHASSIS_RACK_W, 0, 0);
                                 taskEXIT_CRITICAL();
                                 MC_bb.mc_mission_state = RACK_FAILED_1;
                                 MC_bb.RACK_POS_STABLE_TIMES = 0;
                                 MC_bb.R2_MC_timer_ms = 0;
                             }
                         }
-                        else if (abs_int32(m3508_fdcan2[1].Now_Current) > R_EXT_STALL_CURRENT_MA)
-                        {
-                            if (++MC_bb.ext_stall_cnt > R_EXT_STALL_CNT_MAX)
-                            {
-                                MC_bb.ext_stall_cnt = 0;
-                                if (++MC_bb.ext_jam_retries > R_EXT_JAM_MAX_RETRIES)
-                                {
-                                    /* 堵转重试耗尽 → 换下一个矛架 */
-                                    MC_bb.ext_jam_retries = 0;
-                                    clamp.retractable_flag = 0;
-                                    osDelay(300);
-                                    taskENTER_CRITICAL();
-                                    chassis_route_point_add(&chassis_route_traj, R_CHASSIS_RACK_2_X, R_CHASSIS_RACK_Y, R_CHASSIS_RACK_W, 0, 0);
-                                    taskEXIT_CRITICAL();
-                                    MC_bb.mc_mission_state = RACK_FAILED_1;
-                                    MC_bb.RACK_POS_STABLE_TIMES = 0;
-                                    MC_bb.R2_MC_timer_ms = 0;
-                                }
-                                else
-                                {
-                                    clamp.retractable_flag = 0; /* 堵转！缩回重试 */
-                                }
-                            }
-                        }
-                        else
-                        {
-                            MC_bb.ext_stall_cnt = 0;
-                        }
+                        
+                       
                     }
                 }
             }
@@ -447,7 +421,7 @@ static BT_Status Act_R2_MC_Mission(void)
         case RACK_FAILED_1:
         {
             /* 如果第一次夹取失败，换第二个位置继续夹取 */
-            if(chassis_if_arrived(R_CHASSIS_RACK_2_X, R_CHASSIS_RACK_Y, R_CHASSIS_RACK_W))
+            if(chassis_if_arrived(B_CHASSIS_RACK_2_X, B_CHASSIS_RACK_Y, B_CHASSIS_RACK_W))
             {
                 MC_bb.RACK_POS_STABLE_TIMES++; // 增加位置稳定计数 
                 if( MC_bb.RACK_POS_STABLE_TIMES > R_RACK_STABLE_TIMES_CONDITION)
@@ -472,40 +446,14 @@ static BT_Status Act_R2_MC_Mission(void)
                             clamp.retractable_flag = 0;
                             osDelay(300);
                             taskENTER_CRITICAL();
-                            chassis_route_point_add(&chassis_route_traj, R_CHASSIS_RACK_1_X, R_CHASSIS_RACK_Y_1, R_CHASSIS_RACK_W_1, 0, 0);
+                            chassis_route_point_add(&chassis_route_traj, B_CHASSIS_RACK_1_X, B_CHASSIS_RACK_Y, B_CHASSIS_RACK_W, 0, 0);
                             taskEXIT_CRITICAL();
                             MC_bb.mc_mission_state = RACK_FAILED_2;
                             MC_bb.R2_MC_timer_ms = 0;
                             MC_bb.RACK_POS_STABLE_TIMES = 0;
                         }
                     }
-                    else if (abs_int32(m3508_fdcan2[1].Now_Current) > R_EXT_STALL_CURRENT_MA)
-                    {
-                        if (++MC_bb.ext_stall_cnt > R_EXT_STALL_CNT_MAX)
-                        {
-                            MC_bb.ext_stall_cnt = 0;
-                            if (++MC_bb.ext_jam_retries > R_EXT_JAM_MAX_RETRIES)
-                            {
-                                MC_bb.ext_jam_retries = 0;
-                                clamp.retractable_flag = 0;
-                                osDelay(300);
-                                taskENTER_CRITICAL();
-                                chassis_route_point_add(&chassis_route_traj, R_CHASSIS_RACK_1_X, R_CHASSIS_RACK_Y_1, R_CHASSIS_RACK_W_1, 0, 0);
-                                taskEXIT_CRITICAL();
-                                MC_bb.mc_mission_state = RACK_FAILED_2;
-                                MC_bb.R2_MC_timer_ms = 0;
-                                MC_bb.RACK_POS_STABLE_TIMES = 0;
-                            }
-                            else
-                            {
-                                clamp.retractable_flag = 0;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        MC_bb.ext_stall_cnt = 0;
-                    }
+                    
                 }
                 }  
             }
@@ -517,7 +465,7 @@ static BT_Status Act_R2_MC_Mission(void)
         case RACK_FAILED_2:
         {
              /* 如果第二次夹取失败，换第三个位置继续夹取 */
-            if(chassis_if_arrived(R_CHASSIS_RACK_1_X, R_CHASSIS_RACK_Y_1, R_CHASSIS_RACK_W_1))    
+            if(chassis_if_arrived(B_CHASSIS_RACK_1_X, B_CHASSIS_RACK_Y, B_CHASSIS_RACK_W))    
             {
                 MC_bb.RACK_POS_STABLE_TIMES++; // 增加位置稳定计数 
                 if(MC_bb.RACK_POS_STABLE_TIMES > R_RACK_STABLE_TIMES_CONDITION)
@@ -541,39 +489,14 @@ static BT_Status Act_R2_MC_Mission(void)
                             clamp.catch_flag = 0;
                             clamp.retractable_flag = 0;
                             taskENTER_CRITICAL();
-                            chassis_route_point_add(&chassis_route_traj, R_CHASSIS_RACK_4_X, R_CHASSIS_RACK_Y, R_CHASSIS_RACK_W, 0, 0);
+                            chassis_route_point_add(&chassis_route_traj, B_CHASSIS_RACK_4_X, B_CHASSIS_RACK_Y, B_CHASSIS_RACK_W, 0, 0);
                             taskEXIT_CRITICAL();
                             MC_bb.mc_mission_state = RACK_FAILED_3;
                             MC_bb.R2_MC_timer_ms = 0;
                             MC_bb.RACK_POS_STABLE_TIMES = 0;
                         }
                     }
-                    else if (abs_int32(m3508_fdcan2[1].Now_Current) > R_EXT_STALL_CURRENT_MA)
-                    {
-                        if (++MC_bb.ext_stall_cnt > R_EXT_STALL_CNT_MAX)
-                        {
-                            MC_bb.ext_stall_cnt = 0;
-                            if (++MC_bb.ext_jam_retries > R_EXT_JAM_MAX_RETRIES)
-                            {
-                                MC_bb.ext_jam_retries = 0;
-                                clamp.retractable_flag = 0;
-                                taskENTER_CRITICAL();
-                                chassis_route_point_add(&chassis_route_traj, R_CHASSIS_RACK_4_X, R_CHASSIS_RACK_Y, R_CHASSIS_RACK_W, 0, 0);
-                                taskEXIT_CRITICAL();
-                                MC_bb.mc_mission_state = RACK_FAILED_3;
-                                MC_bb.R2_MC_timer_ms = 0;
-                                MC_bb.RACK_POS_STABLE_TIMES = 0;
-                            }
-                            else
-                            {
-                                clamp.retractable_flag = 0;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        MC_bb.ext_stall_cnt = 0;
-                    }
+                    
                 }
             }
             }
@@ -585,7 +508,7 @@ static BT_Status Act_R2_MC_Mission(void)
         case RACK_FAILED_3:
         {
             /* 如果第三次夹取失败，换第四个位置继续夹取 */
-            if(chassis_if_arrived(R_CHASSIS_RACK_4_X, R_CHASSIS_RACK_Y, R_CHASSIS_RACK_W))    
+            if(chassis_if_arrived(B_CHASSIS_RACK_4_X, B_CHASSIS_RACK_Y, B_CHASSIS_RACK_W))    
             {
                 MC_bb.RACK_POS_STABLE_TIMES++; // 增加位置稳定计数
                if(MC_bb.RACK_POS_STABLE_TIMES > R_RACK_STABLE_TIMES_CONDITION)
@@ -609,39 +532,14 @@ static BT_Status Act_R2_MC_Mission(void)
                             clamp.catch_flag = 0;
                             clamp.retractable_flag = 0;
                             taskENTER_CRITICAL();
-                            chassis_route_point_add(&chassis_route_traj, R_CHASSIS_RACK_5_X, R_CHASSIS_RACK_Y, R_CHASSIS_RACK_W, 0, 0);
+                            chassis_route_point_add(&chassis_route_traj, B_CHASSIS_RACK_5_X, B_CHASSIS_RACK_Y, B_CHASSIS_RACK_W, 0, 0);
                             taskEXIT_CRITICAL();
                             MC_bb.mc_mission_state = RACK_FAILED_4;
                             MC_bb.R2_MC_timer_ms = 0;
                             MC_bb.RACK_POS_STABLE_TIMES = 0;
                         }
                     }
-                    else if (abs_int32(m3508_fdcan2[1].Now_Current) > R_EXT_STALL_CURRENT_MA)
-                    {
-                        if (++MC_bb.ext_stall_cnt > R_EXT_STALL_CNT_MAX)
-                        {
-                            MC_bb.ext_stall_cnt = 0;
-                            if (++MC_bb.ext_jam_retries > R_EXT_JAM_MAX_RETRIES)
-                            {
-                                MC_bb.ext_jam_retries = 0;
-                                clamp.retractable_flag = 0;
-                                taskENTER_CRITICAL();
-                                chassis_route_point_add(&chassis_route_traj, R_CHASSIS_RACK_5_X, R_CHASSIS_RACK_Y, R_CHASSIS_RACK_W, 0, 0);
-                                taskEXIT_CRITICAL();
-                                MC_bb.mc_mission_state = RACK_FAILED_4;
-                                MC_bb.R2_MC_timer_ms = 0;
-                                MC_bb.RACK_POS_STABLE_TIMES = 0;
-                            }
-                            else
-                            {
-                                clamp.retractable_flag = 0;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        MC_bb.ext_stall_cnt = 0;
-                    }
+                   
                 }
             }
             }
@@ -653,7 +551,7 @@ static BT_Status Act_R2_MC_Mission(void)
         case RACK_FAILED_4:
         {
              /* 如果第四次夹取失败，换第五个位置继续夹取 */ 
-            if(chassis_if_arrived(R_CHASSIS_RACK_5_X, R_CHASSIS_RACK_Y, R_CHASSIS_RACK_W))                                                                    
+            if(chassis_if_arrived(B_CHASSIS_RACK_5_X, B_CHASSIS_RACK_Y, B_CHASSIS_RACK_W))                                                                    
             {
                 MC_bb.RACK_POS_STABLE_TIMES++; // 增加位置稳定计数
                if(MC_bb.RACK_POS_STABLE_TIMES > R_RACK_STABLE_TIMES_CONDITION)
@@ -677,39 +575,14 @@ static BT_Status Act_R2_MC_Mission(void)
                             clamp.catch_flag = 0;
                             clamp.retractable_flag = 0;
                             taskENTER_CRITICAL();
-                            chassis_route_point_add(&chassis_route_traj, R_CHASSIS_RACK_6_X, R_CHASSIS_RACK_Y, R_CHASSIS_RACK_W, 0, 0);
+                            chassis_route_point_add(&chassis_route_traj, B_CHASSIS_RACK_6_X, B_CHASSIS_RACK_Y, B_CHASSIS_RACK_W, 0, 0);
                             taskEXIT_CRITICAL();
                             MC_bb.mc_mission_state = RACK_FAILED_5;
                             MC_bb.R2_MC_timer_ms = 0;
                             MC_bb.RACK_POS_STABLE_TIMES = 0;
                         }
                     }
-                    else if (abs_int32(m3508_fdcan2[1].Now_Current) > R_EXT_STALL_CURRENT_MA)
-                    {
-                        if (++MC_bb.ext_stall_cnt > R_EXT_STALL_CNT_MAX)
-                        {
-                            MC_bb.ext_stall_cnt = 0;
-                            if (++MC_bb.ext_jam_retries > R_EXT_JAM_MAX_RETRIES)
-                            {
-                                MC_bb.ext_jam_retries = 0;
-                                clamp.retractable_flag = 0;
-                                taskENTER_CRITICAL();
-                                chassis_route_point_add(&chassis_route_traj, R_CHASSIS_RACK_6_X, R_CHASSIS_RACK_Y, R_CHASSIS_RACK_W, 0, 0);
-                                taskEXIT_CRITICAL();
-                                MC_bb.mc_mission_state = RACK_FAILED_5;
-                                MC_bb.R2_MC_timer_ms = 0;
-                                MC_bb.RACK_POS_STABLE_TIMES = 0;
-                            }
-                            else
-                            {
-                                clamp.retractable_flag = 0;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        MC_bb.ext_stall_cnt = 0;
-                    }
+                    
                 }
             }
             }
@@ -721,7 +594,7 @@ static BT_Status Act_R2_MC_Mission(void)
         case RACK_FAILED_5:
         {
             /* 如果第五次夹取失败，换第六个位置继续夹取 */ 
-            if(chassis_if_arrived(R_CHASSIS_RACK_6_X, R_CHASSIS_RACK_Y, R_CHASSIS_RACK_W))                                                                    
+            if(chassis_if_arrived(B_CHASSIS_RACK_6_X, B_CHASSIS_RACK_Y, B_CHASSIS_RACK_W))                                                                    
             {
                 MC_bb.RACK_POS_STABLE_TIMES++; // 增加位置稳定计数
                 if( MC_bb.RACK_POS_STABLE_TIMES > R_RACK_STABLE_TIMES_CONDITION)
@@ -745,39 +618,14 @@ static BT_Status Act_R2_MC_Mission(void)
                             clamp.catch_flag = 0;
                             clamp.retractable_flag = 0;
                             taskENTER_CRITICAL();
-                            chassis_route_point_add(&chassis_route_traj, R_CHASSIS_RACK_3_X, R_CHASSIS_RACK_Y, R_CHASSIS_RACK_W, 0, 0);
+                            chassis_route_point_add(&chassis_route_traj, B_CHASSIS_RACK_3_X, B_CHASSIS_RACK_Y, B_CHASSIS_RACK_W, 0, 0);
                             taskEXIT_CRITICAL();
                             MC_bb.mc_mission_state = RACK_PICK;
                             MC_bb.R2_MC_timer_ms = 0;
                             MC_bb.RACK_POS_STABLE_TIMES = 0;
                         }
                     }
-                    else if (abs_int32(m3508_fdcan2[1].Now_Current) > R_EXT_STALL_CURRENT_MA)
-                    {
-                        if (++MC_bb.ext_stall_cnt > R_EXT_STALL_CNT_MAX)
-                        {
-                            MC_bb.ext_stall_cnt = 0;
-                            if (++MC_bb.ext_jam_retries > R_EXT_JAM_MAX_RETRIES)
-                            {
-                                MC_bb.ext_jam_retries = 0;
-                                clamp.retractable_flag = 0;
-                                taskENTER_CRITICAL();
-                                chassis_route_point_add(&chassis_route_traj, R_CHASSIS_RACK_3_X, R_CHASSIS_RACK_Y, R_CHASSIS_RACK_W, 0, 0);
-                                taskEXIT_CRITICAL();
-                                MC_bb.mc_mission_state = RACK_PICK;
-                                MC_bb.R2_MC_timer_ms = 0;
-                                MC_bb.RACK_POS_STABLE_TIMES = 0;
-                            }
-                            else
-                            {
-                                clamp.retractable_flag = 0;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        MC_bb.ext_stall_cnt = 0;
-                    }
+                    
                 }
             }
             }
@@ -790,7 +638,7 @@ static BT_Status Act_R2_MC_Mission(void)
         {
             /* 进入这个状态后,执行寻路到达对接点的动作*/
             taskENTER_CRITICAL();
-            chassis_route_point_add(&chassis_route_traj, R_CHASSIS_DOCKING_X, R_CHASSIS_DOCKING_Y, R_CHASSIS_DOCKING_W, 0, 0);
+            chassis_route_point_add(&chassis_route_traj, B_CHASSIS_DOCKING_X, B_CHASSIS_DOCKING_Y, B_CHASSIS_DOCKING_W, 0, 0);
             taskEXIT_CRITICAL();
            
 
@@ -800,7 +648,7 @@ static BT_Status Act_R2_MC_Mission(void)
         }
         case WAIT_DOCKING_COMPLETE:
         {
-            if(chassis_if_arrived(R_CHASSIS_DOCKING_X,R_CHASSIS_DOCKING_Y,R_CHASSIS_DOCKING_W))
+            if(chassis_if_arrived(B_CHASSIS_DOCKING_X,B_CHASSIS_DOCKING_Y,B_CHASSIS_DOCKING_W))
             {
                 clamp.lift_flag = 0;
                 chassis_set_lock(1);  /* 到达对接点，四轮锁止 */
@@ -829,7 +677,7 @@ static BT_Status Act_R2_MC_Mission(void)
             {
                 //发送去扫描点的任务
               taskENTER_CRITICAL();
-              chassis_route_point_add(&chassis_route_traj, R_CHASSIS_SCANNING_X, R_CHASSIS_SCANNING_Y, R_CHASSIS_SCANNING_W, 0, 0);
+              chassis_route_point_add(&chassis_route_traj, B_CHASSIS_SCANNING_X, B_CHASSIS_SCANNING_Y, B_CHASSIS_SCANNING_W, 0, 0);
               taskEXIT_CRITICAL();
               clamp.retractable_flag = 0;
               clamp.rotate_flag = 0; //旋转夹爪，避免干涉
@@ -844,7 +692,7 @@ static BT_Status Act_R2_MC_Mission(void)
         }
         case CAMERA_SCAN:
         {
-            if (chassis_if_arrived(R_CHASSIS_SCANNING_X, R_CHASSIS_SCANNING_Y, R_CHASSIS_SCANNING_W))
+            if (chassis_if_arrived(B_CHASSIS_SCANNING_X, B_CHASSIS_SCANNING_Y, B_CHASSIS_SCANNING_W))
             {
                 /* 暂定立马完成扫描*/
                 MC_bb.mc_mission_state = MF_TASK_FLAG;
