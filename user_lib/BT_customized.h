@@ -391,6 +391,9 @@ typedef struct
 #define ARM_DISCARD_PATH_TIMEOUT_MS 30000  /* 后向丢弃路径超时时间 */
 #define ARM_DISCARD_REST_TIMEOUT_MS 30000  /* 返回前向待机点超时时间 */
 
+/* 🟡【需实测】前向工作区丢弃动作超时时间 */
+#define MF_FRONT_DISCARD_TIMEOUT_MS 15000  /* 前向抓取、释放、回待机总超时时间 */
+
 /* ============================== 🟡（待定）机械臂预设拾取路径点 ============================== */
 
 /**
@@ -482,8 +485,8 @@ extern ArmBackMode arm_back_mode;
 #define STORE_X (-0.45f)          /* 存储点 X */
 #define STORE_Y 0.58f             /* 存储点 */
 
-#define STORE_PRE_TRANS_X 0.1f         /* 存储完毕之后的过渡准备点 X */
-#define STORE_PRE_TRANS_Y 0.7f         /* 存储完毕之后的过渡准备点 Y */
+#define STORE_PRE_TRANS_X (-0.1f)         /* 存储完毕之后的过渡准备点 X */
+#define STORE_PRE_TRANS_Y 0.8f         /* 存储完毕之后的过渡准备点 Y */
 #define STORE_THETA (270.0f/180.0f*PI) /* 存储路径末端角度 */
 #define STORE_PRE_TRANS_THETA (180.0f/180.0f*PI) /* 存储过渡准备点末端角度 */
 #define STORE_TIME 1000       /* 存储点停留时间 (ms) */
@@ -494,11 +497,16 @@ extern ArmBackMode arm_back_mode;
 #define DISCARD_X (-0.50f)         /* 丢弃点 X */
 #define DISCARD_Y 0.8f            /* 丢弃点 Y */
 
-#define DISCARD_PRE_TRANS_X 0.1f   /* 丢弃完毕之后的过渡准备点 X */
-#define DISCARD_PRE_TRANS_Y 0.7f   /* 丢弃完毕之后的过渡准备点 Y */
+#define DISCARD_PRE_TRANS_X (-0.1f)   /* 丢弃完毕之后的过渡准备点 X */
+#define DISCARD_PRE_TRANS_Y 0.8f   /* 丢弃完毕之后的过渡准备点 Y */
 #define DISCARD_THETA (180.0f/180.0f*PI) /* 丢弃路径末端角度 */
 #define DISCARD_PRE_TRANS_THETA (180.0f/180.0f*PI) /* 丢弃过渡准备点末端角度 */
-#define DISCARD_TIME 100          /* 丢弃点停留时间 (ms) */
+#define DISCARD_TIME 750          /* 丢弃点停留时间 (ms) */
+
+/* 前向工作区丢弃点（MOVE_R2 专用，避免切到背向工作区） */
+#define FRONT_DISCARD_X 0.05f
+#define FRONT_DISCARD_Y 0.95f
+#define FRONT_DISCARD_THETA (135.0f/180.0f*PI)
 
 /* ============================== 🟡（待定）机械臂预设拾取路径点 ============================== */
 
@@ -512,6 +520,7 @@ typedef enum {
     MF_EXEC_STEP_UP,
     MF_EXEC_STEP_DOWN,
     MF_EXEC_PICK_R2,
+    MF_EXEC_DISCARD_R2,
     MF_EXEC_WAIT_R1,
     MF_EXEC_SCAN,
     MF_EXEC_DONE,

@@ -162,18 +162,18 @@ static void step_set_force_rear_only_mode(float rear_torque)
  * 公共 API 实现
  * ================================================================ */
 
-/**
- * @brief 初始化台阶 FSM 到空闲状态
- */
-void chassis_step_fsm_init(ChassisStepFSM *fsm)
-{
-    fsm->step_type   = STEP_NONE;
-    fsm->state       = STEP_FSM_IDLE;
-    fsm->timer_ms    = 0;
-    fsm->target_stroke = STEP_STROKE_200;
-    fsm->front_leave_snapshot = 0.0f;
-    fsm->rear_leave_snapshot  = 0.0f;
-}
+// /**
+//  * @brief 初始化台阶 FSM 到空闲状态
+//  */
+// void chassis_step_fsm_init(ChassisStepFSM *fsm)
+// {
+//     fsm->step_type   = STEP_NONE;
+//     fsm->state       = STEP_FSM_IDLE;
+//     fsm->timer_ms    = 0;
+//     fsm->target_stroke = STEP_STROKE_200;
+//     fsm->front_leave_snapshot = 0.0f;
+//     fsm->rear_leave_snapshot  = 0.0f;
+// }
 
 /**
  * @brief 启动一次台阶跨越动作

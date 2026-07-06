@@ -45,7 +45,7 @@ typedef struct {
     int16_t wheel_speed[4]; // 四轮速度，直接对应轮部3508电机的目标速度
 
     uint8_t chassis_en_flag; // 底盘使能标志，1=使能，0=禁用（自由滑行）
-    uint8_t chassis_lock_flag; // 底盘锁止标志，1=位置环锁止（仅对杆用）
+    uint8_t chassis_lock_flag; // 底盘锁止标志，1=位置环锁止（仅对杆/上R1用）
     int32_t lock_angle_target[4]; // 锁止时四轮目标角度
 
 // 以下为底盘升降相关属性

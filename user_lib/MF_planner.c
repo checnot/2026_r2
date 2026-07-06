@@ -918,18 +918,18 @@ void MFPlanner_ScanRows(MF_Planner* ctx, uint8_t start_row, uint8_t end_row)
     /* 真实 KFS 分布(与 LoadFixedDemoMap 中的 demo_cellx 一致) */
     static const MF_CellType real_cell_debug_blue[MF_ROWS][MF_COLS] = {
         { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_EMPTY },
-        { MF_CELL_R2KFS,  MF_CELL_R1KFS,  MF_CELL_EMPTY },
-        { MF_CELL_R2KFS,  MF_CELL_EMPTY,  MF_CELL_R1KFS },
-        { MF_CELL_EMPTY,  MF_CELL_FAKEKFS, MF_CELL_EMPTY },
-        { MF_CELL_R2KFS,  MF_CELL_R1KFS,  MF_CELL_R2KFS },
+        { MF_CELL_EMPTY,  MF_CELL_R2KFS,  MF_CELL_R1KFS },
+        { MF_CELL_R1KFS,  MF_CELL_R2KFS,  MF_CELL_EMPTY },
+        { MF_CELL_R1KFS,  MF_CELL_R2KFS,  MF_CELL_FAKEKFS },
+        { MF_CELL_EMPTY,  MF_CELL_R2KFS,  MF_CELL_EMPTY },
         { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_EMPTY }
     };
     static const MF_CellType real_cell_debug_red[MF_ROWS][MF_COLS] = {
         { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_EMPTY },
-        { MF_CELL_R2KFS,  MF_CELL_R1KFS,  MF_CELL_EMPTY },
-        { MF_CELL_R2KFS,  MF_CELL_EMPTY,  MF_CELL_R1KFS },
-        { MF_CELL_EMPTY,  MF_CELL_FAKEKFS, MF_CELL_EMPTY },
-        { MF_CELL_R2KFS,  MF_CELL_R1KFS,  MF_CELL_R2KFS },
+        { MF_CELL_EMPTY,  MF_CELL_R2KFS,  MF_CELL_R1KFS },
+        { MF_CELL_R1KFS,  MF_CELL_R2KFS,  MF_CELL_EMPTY },
+        { MF_CELL_R1KFS,  MF_CELL_R2KFS,  MF_CELL_FAKEKFS },
+        { MF_CELL_EMPTY,  MF_CELL_R2KFS,  MF_CELL_EMPTY },
         { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_EMPTY }
     };
 

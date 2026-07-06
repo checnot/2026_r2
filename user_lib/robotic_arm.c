@@ -611,6 +611,9 @@ void arm_mode_update_execute(robotic_arm_stu *arm, robotic_arm_traj_stu *arm_tra
             arm_trans_traj->traj_theta2.is_finished &&
             arm_trans_traj->traj_pitch.is_finished) 
         {
+            
+            // 过渡完成后以当前位置重新初始化笛卡尔轨迹规划器
+            arm_trajectory_init(arm_traj, arm);
             arm->effector_pitch_target = arm->trans_target_pitch; // 更新末端执行器目标 pitch（过渡结束后保持这个值不变）
             if (arm->trans_dir == ARM_TRANS_FRONT_TO_BACK) {
                 arm->mode = ARM_MODE_BACK;
@@ -618,8 +621,6 @@ void arm_mode_update_execute(robotic_arm_stu *arm, robotic_arm_traj_stu *arm_tra
                 arm->mode = ARM_MODE_FRONT;
             }
 
-            // 过渡完成后以当前位置重新初始化笛卡尔轨迹规划器
-            arm_trajectory_init(arm_traj, arm);
         }
 
         break;

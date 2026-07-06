@@ -15,8 +15,8 @@
 #include "go_m8010.h"
 
 // 人为设定的“机械臂末端合成上限”
-#define GLOBAL_V_MAX 5.0f  // 合成最大速度(m/s)
-#define GLOBAL_A_MAX 3.0f  // 合成最大加速度(m/s^2)
+#define GLOBAL_V_MAX 6.0f  // 合成最大速度(m/s)
+#define GLOBAL_A_MAX 5.0f  // 合成最大加速度(m/s^2)
 
 #define PITCH_V_MAX (2.5f*PI)  // pitch 最大速度(rad/s)
 #define PITCH_A_MAX (1.25f*PI)  // pitch 最大加速度(rad/s^2)

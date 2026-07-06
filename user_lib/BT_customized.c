@@ -986,6 +986,14 @@ uint8_t mf_picked_kfs_count = 0;            /* 已执行的 PICK_R2 数量：0=�
 
 uint8_t arm_if_send_point = 0; /* 机械臂是否已经下发轨迹点标志位，避免重复下发 */
 
+typedef enum {
+    ARM_FRONT_DISCARD_IDLE = 0,
+    ARM_FRONT_DISCARD_PICK_SENT,
+    ARM_FRONT_DISCARD_RELEASE_SENT
+} ArmFrontDiscardState;
+
+static ArmFrontDiscardState arm_front_discard_state = ARM_FRONT_DISCARD_IDLE;
+
 uint8_t arm_back_request = 0;     /* 机械臂后向服务请求标志 */
 uint8_t arm_back_busy = 0;        /* 机械臂后向服务占用机械臂标志，后台收尾期间仍为 1 */
 uint8_t arm_back_payload_done = 0;/* 后向服务完整结束，MF 可以推进 */
@@ -1195,15 +1203,44 @@ static void arm_send_pick_trajectory(int16_t height_pick_diff)
     taskEXIT_CRITICAL();
 }
 
+static void arm_send_front_discard_trajectory(void)
+{
+    taskENTER_CRITICAL();
+    arm_queue_add_point(&arm_traj, FRONT_DISCARD_X, FRONT_DISCARD_Y, 0, ARM_PUMP_KEEP, FRONT_DISCARD_THETA);
+    arm_queue_add_point(&arm_traj, FRONT_DISCARD_X, FRONT_DISCARD_Y, DISCARD_TIME, ARM_PUMP_RELEASE, FRONT_DISCARD_THETA);
+    arm_queue_add_point(&arm_traj, PICK_REST_X, PICK_REST_Y, 0, ARM_PUMP_RELEASE, 0.0f);
+    taskEXIT_CRITICAL();
+}
+
 /* ================= 统一后向服务 ================= */
+
+static void Arm_Path_Queue_Clear(robotic_arm_traj_stu *traj)
+{
+    uint16_t i;
+
+    Traj_Path_Queue_Init(&traj->traj_queue_x, 0.025f);
+    Traj_Path_Queue_Init(&traj->traj_queue_y, 0.025f);
+    traj->target_delay_ms = 0;
+    traj->wait_counter = 0;
+
+    for (i = 0; i < TRAJ_MAX_WAYPOINTS; i++) {
+        traj->traj_queue_x.points[i] = 0.0f;
+        traj->traj_queue_y.points[i] = 0.0f;
+        traj->delay_queue[i] = 0;
+        traj->pump_queue[i] = 0;
+        traj->pitch_queue[i] = 0.0f;
+    }
+}
 
 /**
  * @brief 统一下发后向路径（存储/丢弃共用）
  * @return 1 表示成功下发
  */
-static uint8_t Arm_Back_SendPath(void)
+void Arm_Back_SendPath(void)
 {
     taskENTER_CRITICAL();
+
+    Arm_Path_Queue_Clear(&arm_traj);
 
     if (arm_back_mode == ARM_BACK_MODE_STORE) {
         /* 存储模式：保持吸附 → 到达目标 → 释放 → 过渡 */
@@ -1220,7 +1257,6 @@ static uint8_t Arm_Back_SendPath(void)
     }
 
     taskEXIT_CRITICAL();
-    return 1;
 }
 
 /**
@@ -1261,6 +1297,7 @@ static void Arm_Back_Service_Tick(void)
         break;
 
     case ARM_BACK_SEND_PATH:
+            arm_trajectory_init(&arm_traj, &arm);
             Arm_Back_SendPath();
             arm_back_state = ARM_BACK_WAIT_DONE;
             arm_back_timer_ms = 0;
@@ -1355,7 +1392,7 @@ static void Arm_Back_Service_Tick(void)
  */
 static BT_Status Cond_Has_MF_Request(void)
 {
-    // MC_bb.MF_MISSION_Req = 1;
+    MC_bb.MF_MISSION_Req = 1;
     return (MC_bb.MF_MISSION_Req || mf_task_request_flag) ? BT_SUCCESS : BT_FAILURE;
 }
 
@@ -1542,9 +1579,8 @@ static BT_Status Act_MF_Execute_Action(void)
             break;
         }
 
-        /* ---------- 拾取/移开 R2KFS（统一：仅背向工作区发点不同） ---------- */
-        case MF_ACT_PICK_R2:
-        case MF_ACT_MOVE_R2: {
+        /* ---------- 拾取 R2KFS ---------- */
+        case MF_ACT_PICK_R2: {
             if (arm_back_busy || arm_back_state != ARM_BACK_IDLE ||
                 arm.mode != ARM_MODE_FRONT) {
                 /* 后向服务占用中或手臂不在前向，等待 */
@@ -1560,10 +1596,30 @@ static BT_Status Act_MF_Execute_Action(void)
             chassis_route_point_add(&chassis_route_traj, stand_x, stand_y, pick_yaw, 0, 1);
             taskEXIT_CRITICAL();
 
-            /* 设置后向模式：PICK_R2→存储, MOVE_R2→丢弃 */
-            arm_back_mode = (act.type == MF_ACT_MOVE_R2) ? ARM_BACK_MODE_DISCARD : ARM_BACK_MODE_STORE;
+            arm_back_mode = ARM_BACK_MODE_STORE;
             mf_exec_state = MF_EXEC_PICK_R2;
             mf_exec_timer_ms = 0;
+            break;
+        }
+
+        /* ---------- 前向工作区移开/丢弃 R2KFS ---------- */
+        case MF_ACT_MOVE_R2: {
+            if (arm_back_busy || arm_back_state != ARM_BACK_IDLE ||
+                arm.mode != ARM_MODE_FRONT) {
+                return BT_RUNNING;
+            }
+
+            float stand_x, stand_y;
+            mf_pick_stand_position(act.row, act.col, act.dir, &stand_x, &stand_y);
+            float pick_yaw = mf_dir_to_yaw(act.dir);
+
+            taskENTER_CRITICAL();
+            chassis_route_point_add(&chassis_route_traj, stand_x, stand_y, pick_yaw, 0, 1);
+            taskEXIT_CRITICAL();
+
+            mf_exec_state = MF_EXEC_DISCARD_R2;
+            mf_exec_timer_ms = 0;
+            arm_front_discard_state = ARM_FRONT_DISCARD_IDLE;
             break;
         }
 
@@ -1619,8 +1675,8 @@ static BT_Status Act_MF_Execute_Action(void)
 
         if (chassis_if_arrived(scan_x, scan_y, scan_yaw)) {
             if (act.height_pick_diff == MF_SCAN_STAGE_ROW1) {
-                // MFPlanner_ScanRows(&mf_planner_ctx, 1, 1);
-                MFPlanner_ScanRow_1(&mf_planner_ctx);
+                MFPlanner_ScanRows(&mf_planner_ctx, 1, 1);
+                // MFPlanner_ScanRow_1(&mf_planner_ctx);
                 if (MF_PushAction(&mf_planner_ctx, MF_ACT_SCAN, MF_DIR_NORTH, 0, 1)) {
                     mf_planner_ctx.actions[mf_planner_ctx.action_count - 1].height_pick_diff = MF_SCAN_STAGE_ROW2;
                 } else {
@@ -1628,15 +1684,15 @@ static BT_Status Act_MF_Execute_Action(void)
                     return BT_RUNNING;
                 }
             } else if (act.height_pick_diff == MF_SCAN_STAGE_ROW2) {
-                // MFPlanner_ScanRows(&mf_planner_ctx, 2, 2);
-                MFPlanner_ScanRow_2(&mf_planner_ctx);
+                MFPlanner_ScanRows(&mf_planner_ctx, 2, 2);
+                // MFPlanner_ScanRow_2(&mf_planner_ctx);
                 if (!MFPlanner_BuildPhase1(&mf_planner_ctx, 0, 0, &mf_picked_phase1)) {
                     mf_exec_state = MF_EXEC_FAILED;
                     return BT_RUNNING;
                 }
             } else if (act.height_pick_diff == MF_SCAN_STAGE_ROW34) {
-                // MFPlanner_ScanRows(&mf_planner_ctx, 3, 4);
-                MFPlanner_ScanRow_34(&mf_planner_ctx);
+                MFPlanner_ScanRows(&mf_planner_ctx, 3, 4);
+                // MFPlanner_ScanRow_34(&mf_planner_ctx);
                 if (!MFPlanner_BuildPhase2(&mf_planner_ctx, R2_KFS_ALL_NEED - mf_picked_phase1)) {
                     mf_exec_state = MF_EXEC_FAILED;
                     return BT_RUNNING;
@@ -1854,7 +1910,7 @@ static BT_Status Act_MF_Execute_Action(void)
         float pick_yaw = mf_dir_to_yaw(act.dir);
 
         /* 底盘到位，并且之前没有发过点，再发出机械臂的抓取动作 */
-        if (chassis_if_arrived(stand_x, stand_y, pick_yaw) && arm_if_send_point == 0)
+        if (chassis_if_arrived(stand_x, stand_y, pick_yaw) && arm_if_send_point == 0 && arm.mode == ARM_MODE_FRONT)
         {
             arm_if_send_point = 1;
             arm_send_pick_trajectory(act.height_pick_diff);
@@ -1864,15 +1920,16 @@ static BT_Status Act_MF_Execute_Action(void)
         {
             if (arm_if_arrived_xy(PICK_PRE_TRANS_X, PICK_PRE_TRANS_Y))
             {
-                if (act.type == MF_ACT_PICK_R2 && mf_picked_kfs_count == 0)
+                if (mf_picked_kfs_count == 0)
                 {
+                    arm_back_busy = 1;
                     /* 第一次 PICK：存到车身后向存储位 */
                     arm_back_mode = ARM_BACK_MODE_STORE;
                     arm_back_slot = mf_bb.kfs_stored;
                     arm_back_request = 1;
                     mf_exec_timer_ms = 0;
                 }
-                else if (act.type == MF_ACT_PICK_R2)
+                else
                 {
                     /* 第二次 PICK：保持吸附，带着 KFS 进入 CZ */
                     arm_if_send_point = 0;
@@ -1884,13 +1941,6 @@ static BT_Status Act_MF_Execute_Action(void)
                     mf_exec_state = MF_EXEC_IDLE;
                     mf_exec_timer_ms = 0;
                 }
-                else /* MF_ACT_MOVE_R2 */
-                {
-                    /* MOVE_R2：抓起后到后向丢弃位释放 */
-                    arm_back_mode = ARM_BACK_MODE_DISCARD;
-                    arm_back_request = 1;
-                    mf_exec_timer_ms = 0;
-                }
             }
             else if (++mf_exec_timer_ms * 10 >= MF_PICK_TIMEOUT_MS)
             {
@@ -1898,6 +1948,41 @@ static BT_Status Act_MF_Execute_Action(void)
             }
         }
 
+
+        return BT_RUNNING;
+    }
+
+    /* ============================================================ */
+    /* DISCARD_R2 state: front-workspace pick, release, and rest     */
+    /* ============================================================ */
+    case MF_EXEC_DISCARD_R2:
+    {
+        float stand_x, stand_y;
+        mf_pick_stand_position(act.row, act.col, act.dir, &stand_x, &stand_y);
+        float pick_yaw = mf_dir_to_yaw(act.dir);
+
+        if (chassis_if_arrived(stand_x, stand_y, pick_yaw) &&
+            arm_front_discard_state == ARM_FRONT_DISCARD_IDLE &&
+            arm.mode == ARM_MODE_FRONT) {
+            arm_front_discard_state = ARM_FRONT_DISCARD_PICK_SENT;
+            arm_send_pick_trajectory(act.height_pick_diff);
+        }
+
+        if (arm_front_discard_state == ARM_FRONT_DISCARD_PICK_SENT &&
+            arm_if_arrived_xy(PICK_PRE_TRANS_X, PICK_PRE_TRANS_Y)) {
+            arm_front_discard_state = ARM_FRONT_DISCARD_RELEASE_SENT;
+            mf_exec_timer_ms = 0;
+            arm_send_front_discard_trajectory();
+        } else if (arm_front_discard_state == ARM_FRONT_DISCARD_RELEASE_SENT &&
+                   arm_if_arrived_xy(PICK_REST_X, PICK_REST_Y)) {
+            arm_front_discard_state = ARM_FRONT_DISCARD_IDLE;
+            MFPlanner_AdvanceAction(&mf_planner_ctx);
+            mf_exec_state = MF_EXEC_IDLE;
+            mf_exec_timer_ms = 0;
+        } else if (++mf_exec_timer_ms * 10 >= MF_FRONT_DISCARD_TIMEOUT_MS) {
+            arm_front_discard_state = ARM_FRONT_DISCARD_IDLE;
+            mf_exec_state = MF_EXEC_FAILED;
+        }
 
         return BT_RUNNING;
     }
@@ -1966,6 +2051,8 @@ static BT_Status Act_MF_Finish_Cleanup(void)
     arm_back_state = ARM_BACK_IDLE;
     arm_back_timer_ms = 0;
     arm_back_mode = ARM_BACK_MODE_STORE;
+    arm_if_send_point = 0;
+    arm_front_discard_state = ARM_FRONT_DISCARD_IDLE;
 
     // mf_bb.kfs_stored = 0;
 
@@ -2012,6 +2099,8 @@ void BT_MF_Start_Task(void)
     mf_phase_flag = 0;
     mf_exec_state = MF_EXEC_IDLE;
     mf_picked_kfs_count = 0;
+    arm_if_send_point = 0;
+    arm_front_discard_state = ARM_FRONT_DISCARD_IDLE;
 }
 
 /**
@@ -2034,6 +2123,8 @@ void BT_MF_Init_Task(void)
     arm_back_state = ARM_BACK_IDLE;
     arm_back_timer_ms = 0;
     arm_back_mode = ARM_BACK_MODE_STORE;
+    arm_if_send_point = 0;
+    arm_front_discard_state = ARM_FRONT_DISCARD_IDLE;
 
     mf_bb.kfs_stored = 0;
     seq_mem_idx_mf = 0;
@@ -2489,8 +2580,7 @@ static BT_Status Act_CZ_Mission(void)
         case CZ_NAV_TO_R1_PLATFORM:
         {
             /*
-             * 台阶跨越 FSM：底盘先到台阶接近点 �?面朝台阶方向 �?启动上台�?FSM
-             * 🟡【需实测】台阶高度默认为 200mm，若�?400mm 台阶需改为 STEP_UP_400
+             * 台阶跨越 FSM：底盘先到台阶接近点 �?面朝台阶方向 �?启动上 400mm 台阶 FSM
              * 🟡【需实测】台阶方向应�?R_CHASSIS_R1_STEP_APPROACH_W 对齐
              */
             static uint8_t step_fsm_started = 0;
@@ -2502,7 +2592,7 @@ static BT_Status Act_CZ_Mission(void)
                 if (chassis_if_arrived(R_CHASSIS_R1_STEP_APPROACH_X,
                     R_CHASSIS_R1_STEP_APPROACH_Y, R_CHASSIS_R1_STEP_APPROACH_W))
                 {
-                    chassis_step_fsm_start(&g_step_fsm, STEP_UP_200);
+                    chassis_step_fsm_start(&g_step_fsm, STEP_UP_400);
                     step_fsm_started = 1;
                     CZ_bb.cz_timer_ms = 0;
                 }
@@ -2530,7 +2620,7 @@ static BT_Status Act_CZ_Mission(void)
             {
                 /* 上台阶完成，关闭底盘使能 */
                 taskENTER_CRITICAL();
-                chassis_r2.chassis_en_flag = 0;
+                chassis_r2.chassis_lock_flag = 1;
                 taskEXIT_CRITICAL();
 
                 step_fsm_started = 0;
@@ -2913,11 +3003,11 @@ static BT_Status BT_MASTER_Task_Tree_Root(void)
 {
     static const BT_NodeFunc seq[] = {
         Cond_Has_MASTER_Request,       /* 1. 有总任务请求？ */
-        Act_MC_Task_Wrapper,           /* 2. MC(武馆) */
+        // Act_MC_Task_Wrapper,           /* 2. MC(武馆) */
         Cond_Has_MF_Request,           /* 3. 有 MF 任务请求 */
         Act_MF_Task_Wrapper,           /* 4. MF(梅林) */
-        Cond_Has_CZ_Request,           /* 5. 有 CZ 任务请求 */
-        Act_CZ_Task_Wrapper,           /* 6. CZ(对抗区) */
+        // Cond_Has_CZ_Request,           /* 5. 有 CZ 任务请求 */
+        // Act_CZ_Task_Wrapper,           /* 6. CZ(对抗区) */
         Act_MASTER_Finish_Cleanup      /* 7. 清理 */
     };
 
@@ -2972,6 +3062,8 @@ void BT_MASTER_Tick(void)
 }
 
 
+/* ================================================ PS 预选赛行为�?================================================ */
+/* ================================================ PS 预选赛行为�?================================================ */
 /* ================================================ PS 预选赛行为�?================================================ */
 
 PS_MC_Blackboard PS_bb;

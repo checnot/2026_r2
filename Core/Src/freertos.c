@@ -434,7 +434,7 @@ void entry_robotic_arm(void const * argument)
       //       // arm_gravity_comp(); // 重力补偿
 
       // 4. 逆解算出各关节的 theta_target ，并转换成电机位置环
-      arm_mode_update_execute(&arm, &arm_traj, &arm_trans_traj, 7.5f, 0.25f, 0.3f, 3.5f); // 位置环控制
+      arm_mode_update_execute(&arm, &arm_traj, &arm_trans_traj, 8.0f, 0.25f, 0.3f, 3.5f); // 位置环控制
       // arm_mode_update_execute(&arm, &arm_traj, &arm_trans_traj, 0.0f, 0.0f, 0.0f, 0.0f);
 
     }
@@ -818,9 +818,9 @@ void entry_cmd_task(void const * argument)
 
   BT_MASTER_Init_Task(); // 初始化行为树任务
                          //  BT_MASTER_Start_Task(); // 启动行为树主控任务
-  BT_CZ_Init_Task();
-  BT_Init_R2_MC_Mission();
-  BT_PS_Init_Task();
+  // BT_CZ_Init_Task();
+  // BT_Init_R2_MC_Mission();
+  // BT_PS_Init_Task();
   mf_planner_ctx.map_color = RED_MAP;
 
   // task_flag = 1;
@@ -828,12 +828,12 @@ void entry_cmd_task(void const * argument)
   /* Infinite loop */
   for (;;)
   {
-    if(camera_send == 1)
-    {
-      camera_send = 0;
-      MF_Scan_Command_Send(camera_command);
-//			MF_Scan_Command_Send(camera_command);
-    }
+//     if(camera_send == 1)
+//     {
+//       camera_send = 0;
+//       MF_Scan_Command_Send(camera_command);
+// //			MF_Scan_Command_Send(camera_command);
+//     }
    if (task_flag == 1)
    {
      BT_MASTER_Start_Task();

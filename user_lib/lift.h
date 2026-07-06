@@ -147,9 +147,9 @@ extern float       g_lift_wheel_kd;         /**< 辅助轮速度环 Kd */
 #define STEP_UP_WHEEL_KD        0.5f
 
 /** 上台阶支撑柱位置环 Kp */
-#define STEP_UP_BRACE_KP        1.8f
+#define STEP_UP_BRACE_KP        2.0f
 /** 上台阶支撑柱位置环 Kd */
-#define STEP_UP_BRACE_KD        0.10f
+#define STEP_UP_BRACE_KD        0.12f
 /* ---------- 下台阶参数 ---------- */
 
 /** 下台阶时辅助轮驱动速度（3508转子单位），比上台阶更慢以保证稳定 */
