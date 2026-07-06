@@ -1184,19 +1184,19 @@ static void arm_send_pick_trajectory(int16_t height_pick_diff)
 {
     taskENTER_CRITICAL();
     if (height_pick_diff == -200) {
-        arm_queue_add_point(&arm_traj, PICK_N200_APR_X_1, PICK_N200_APR_Y_1, 0, ARM_PUMP_RELEASE, -90.0f/180.0f*PI);
+        arm_queue_add_point(&arm_traj, PICK_N200_APR_X_1, PICK_N200_APR_Y_1, 0, ARM_PUMP_SUCK, -90.0f/180.0f*PI);
         arm_queue_add_point(&arm_traj, PICK_N200_TARGET_X, PICK_N200_TARGET_Y, PICK_TIME, ARM_PUMP_SUCK, -90/180.0f*PI);
         arm_queue_add_point(&arm_traj, PICK_PRE_TRANS_X, PICK_PRE_TRANS_Y, 0, ARM_PUMP_SUCK, -90.0f/180.0f*PI);
     } else if (height_pick_diff == 200) {
-        arm_queue_add_point(&arm_traj, PICK_P200_APR_X_1, PICK_P200_APR_Y_1, 0, ARM_PUMP_RELEASE, 0.0f);
+        arm_queue_add_point(&arm_traj, PICK_P200_APR_X_1, PICK_P200_APR_Y_1, 0, ARM_PUMP_SUCK, 0.0f);
         arm_queue_add_point(&arm_traj, PICK_P200_TARGET_X, PICK_P200_TARGET_Y, PICK_TIME, ARM_PUMP_SUCK, 0.0f);
         arm_queue_add_point(&arm_traj, PICK_PRE_TRANS_X, PICK_PRE_TRANS_Y, 0, ARM_PUMP_SUCK, 0.0f);
     } else if (height_pick_diff == 400) {
-        arm_queue_add_point(&arm_traj, PICK_P400_APR_X_1, PICK_P400_APR_Y_1, 0, ARM_PUMP_RELEASE, 0.0f);
+        arm_queue_add_point(&arm_traj, PICK_P400_APR_X_1, PICK_P400_APR_Y_1, 0, ARM_PUMP_SUCK, 0.0f);
         arm_queue_add_point(&arm_traj, PICK_P400_TARGET_X, PICK_P400_TARGET_Y, PICK_TIME, ARM_PUMP_SUCK, 0.0f);
         arm_queue_add_point(&arm_traj, PICK_PRE_TRANS_X, PICK_PRE_TRANS_Y, 0, ARM_PUMP_SUCK, 0.0f);
     } else { /* height_pick_diff == 0 */
-        arm_queue_add_point(&arm_traj, PICK_0_APR_X_1, PICK_0_APR_Y_1, 0, ARM_PUMP_RELEASE, 0.0f);
+        arm_queue_add_point(&arm_traj, PICK_0_APR_X_1, PICK_0_APR_Y_1, 0, ARM_PUMP_SUCK, 0.0f);
         arm_queue_add_point(&arm_traj, PICK_0_TARGET_X, PICK_0_TARGET_Y, PICK_TIME, ARM_PUMP_SUCK, 0.0f);
         arm_queue_add_point(&arm_traj, PICK_PRE_TRANS_X, PICK_PRE_TRANS_Y, 0, ARM_PUMP_SUCK, 0.0f);
     }

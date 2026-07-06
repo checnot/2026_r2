@@ -501,7 +501,7 @@ extern ArmBackMode arm_back_mode;
 #define DISCARD_PRE_TRANS_Y 0.8f   /* 丢弃完毕之后的过渡准备点 Y */
 #define DISCARD_THETA (180.0f/180.0f*PI) /* 丢弃路径末端角度 */
 #define DISCARD_PRE_TRANS_THETA (180.0f/180.0f*PI) /* 丢弃过渡准备点末端角度 */
-#define DISCARD_TIME 750          /* 丢弃点停留时间 (ms) */
+#define DISCARD_TIME 1000          /* 丢弃点停留时间 (ms) */
 
 /* 前向工作区丢弃点（MOVE_R2 专用，避免切到背向工作区） */
 #define FRONT_DISCARD_X 0.05f
