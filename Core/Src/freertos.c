@@ -852,6 +852,23 @@ void entry_cmd_task(void const * argument)
     //   BT_CZ_Start_Task();
     //   CZ_task = 0;
     //  };
+    
+    if(debug_flag == 1)
+    {
+      debug_flag = 0;
+      MF_Scan_Command_Send(1);
+    }
+    if(debug_flag == 2)
+    {
+      debug_flag = 0;
+      MF_Scan_Command_Send(2);
+    }
+    if(debug_flag == 3)
+    {
+      debug_flag = 0;
+      MF_Scan_Command_Send(3);
+    }
+    
     BT_MASTER_Tick(); // 每1ms调用，内部降频10ms，行为树主控任务周期调用
      //BT_Customized_Tick1ms_CZ();
     osDelay(1);

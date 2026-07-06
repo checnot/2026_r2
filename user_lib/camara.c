@@ -88,8 +88,9 @@ void MF_Scan_Command_Send(uint8_t Command_Number)
         Camera_SendCommand(HEU_CMD_CREAT2);
         break;
     case 3:
-    case 4:
         Camera_SendCommand(HEU_CMD_CREAT34);
+        break;
+    case 4:
         break;
     default:
         break;
