@@ -117,30 +117,14 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
         __HAL_DMA_DISABLE_IT(&hdma_usart6_rx, DMA_IT_HT);
     }
 
-    // uart5-供雷达回传
+    // uart5-供雷达(0x20)+摄像头网格(0x10)接收 (HEU 单串口多路复用)
     if (huart->Instance == UART5)
     {
-        Rec_Data[Size] = '\0'; // 转换成 C 字符串
-        Data_process_String((char *)Rec_Data);
+        Radar_ProcessBuffer(Rec_Data, Size);    /* 雷达遥测 src=0x20 */
+        Camera_ProcessBuffer(Rec_Data, Size);   /* 摄像头网格 src=0x10 */
         memset(Rec_Data, 0, sizeof(Rec_Data));
         HAL_UARTEx_ReceiveToIdle_DMA(&huart5, Rec_Data, sizeof(Rec_Data));
         __HAL_DMA_DISABLE_IT(&hdma_uart5_rx, DMA_IT_HT);
-    }
-    // usart5供 ht10a 回传数据
-    // if (huart->Instance == UART5)
-    // {
-    //     HT10A_process(ht10a_buffer);
-    //     HAL_UARTEx_ReceiveToIdle_DMA(&huart5, ht10a_buffer, sizeof(ht10a_buffer));
-    //     __HAL_DMA_DISABLE_IT(&hdma_uart5_rx, DMA_IT_HT);
-    // }
-    // uart8-camera
-    if (huart->Instance == UART8)
-    {
-        //Camera_CZ_Data_Progress((char*) Camera_Rec_Data);
-        Camera_Scan_Data_Progress((uint8_t *)Camera_Rec_Data);
-        memset(Camera_Rec_Data, 0, sizeof(Camera_Rec_Data));
-        HAL_UARTEx_ReceiveToIdle_DMA(&huart8, Camera_Rec_Data, sizeof(Camera_Rec_Data));
-        __HAL_DMA_DISABLE_IT(&hdma_uart8_rx, DMA_IT_HT);
     }
     // usart10-供hi14回传
     if (huart->Instance == USART10)
@@ -191,26 +175,12 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
     //     __HAL_DMA_DISABLE_IT(&hdma_uart8_rx, DMA_IT_HT);
     // }
 
-    // uart5供雷达回传
+    // uart5-雷达+摄像头 (HEU 单串口多路复用)
     if (huart->Instance == UART5)
     {
         memset(Rec_Data, 0, sizeof(Rec_Data));
         HAL_UARTEx_ReceiveToIdle_DMA(&huart5, Rec_Data, sizeof(Rec_Data));
         __HAL_DMA_DISABLE_IT(&hdma_uart5_rx, DMA_IT_HT);
-    }
-    // // usart5供 ht10a 回传数据
-    // if (huart->Instance == UART5)
-    // {
-        
-    //     HAL_UARTEx_ReceiveToIdle_DMA(&huart5, ht10a_buffer, sizeof(ht10a_buffer));
-    //     __HAL_DMA_DISABLE_IT(&hdma_uart5_rx, DMA_IT_HT);
-    // }
-    // uart8-camera
-    if (huart->Instance == UART8)
-    {
-        memset(Camera_Rec_Data, 0, sizeof(Camera_Rec_Data));
-        HAL_UARTEx_ReceiveToIdle_DMA(&huart8, Camera_Rec_Data, sizeof(Camera_Rec_Data));
-        __HAL_DMA_DISABLE_IT(&hdma_uart8_rx, DMA_IT_HT);
     }
     // usart10-hi14
     if (huart->Instance == USART10)

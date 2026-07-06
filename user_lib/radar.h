@@ -6,7 +6,16 @@
 // #include "chassis.h"
 #include "own_lib.h"
 #include "hi14.h"
+
+/* ========== HEU 帧协议常量 ========== */
+#define HEU_SYNC1           0x48  /* 'H' */
+#define HEU_SYNC2           0x45  /* 'E' */
+#define HEU_SYNC3           0x55  /* 'U' */
+#define HEU_SRC_RADAR       0x20  /* 雷达遥测 (机器人接收) */
+#define HEU_RADAR_PAYLOAD_MAX  80  /* 雷达遥测 ASCII 最大字节数 */
+
 #define RADAR_Filter_Threshold 80.0f //雷达数据滤波的速度阈值
+
 typedef struct {
 		float radar_x;
 		float radar_y;
@@ -43,7 +52,11 @@ extern RADAR_POSITION Radar_Pos;
 extern CHASSIS_POSITION Chassis_Pos;
 extern uint8_t Rec_Data[65];
 
-void Data_process_String(char *str);
+/* HEU 帧接收: 从 UART5 字节流中解析 src=0x20 雷达遥测帧 */
+void Radar_ProcessBuffer(uint8_t *data, uint16_t len);
+
+/* 底盘坐标解算 */
 void Calculate_Chassis_Position(void);
 
 #endif
+
