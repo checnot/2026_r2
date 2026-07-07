@@ -320,6 +320,40 @@ void BT_PS_Start_Task(void);
 void BT_PS_Init_Task(void);
 void BT_PS_Tick(void);
 
+/* ================================================ JGCB 预选赛行为树接口 ================================================ */
+
+typedef enum
+{
+    JGCB_IDLE = 0,
+    JGCB_NAV_TO_SLOPE_START,
+    JGCB_NAV_TO_SLOPE_END,
+    JGCB_ROTATE_90,
+    JGCB_NAV_TO_SCAN,
+    JGCB_CAMERA_SCAN,
+    JGCB_NAV_TO_SUDUKU,
+    JGCB_ARM_RAISE,
+    JGCB_ARM_RAISE_WAIT,
+    JGCB_FORWARD_PUSH,
+    JGCB_ARM_PLACE,
+    JGCB_PUMP_WAIT,
+    JGCB_DONE
+} JGCB_MissionState;
+
+typedef struct
+{
+    uint8_t req_start;
+    uint8_t seq_mem_idx;
+    JGCB_MissionState state;
+    uint32_t timer_ms;
+    uint8_t camera_scan_done;
+    uint16_t pos_stable_times;
+} JGCB_Blackboard;
+
+extern JGCB_Blackboard JGCB_bb;
+void BT_JGCB_Start_Task(void);
+void BT_JGCB_Init_Task(void);
+void BT_JGCB_Tick(void);
+
 void BT_Start_R2_MC_Mission(void);
 void BT_Init_R2_MC_Mission(void);   
 void BT_Customized_Tick1ms_R2_MC(void);
@@ -346,7 +380,13 @@ typedef struct
 
 /* ---------- MF 专用参数宏（需实测调整） ---------- */
 
-#define R2_KFS_ALL_NEED 2 /* 需要拾取的 R2KFS 总数量（根据实际情况调整，并非所有的R2KFS） */
+#define R1_KFS_ALL_NUM 3
+#define R2_KFS_ALL_NEED 2 /* 主赛需要拾取的 R2KFS 总数量 */
+#define FAKE_KFS_ALL_NUM 1
+
+#define PS_R1_KFS_ALL_NUM 2
+#define PS_R2_KFS_ALL_NEED 2 /* 预选赛 MF 区需要拾取的 R2KFS 总数量 */
+#define PS_FAKE_KFS_ALL_NUM 1
 
 /* MF 区原点在世界坐标系中的位置 (mm) — row0,col0 的坐标 */
 #define MF_ORIGIN_WORLD_X_BLUE  2600.0f   /* row0,col0 的中心在蓝地图世界坐标系中的x位置 */
@@ -358,8 +398,13 @@ typedef struct
 #define MF_CELL_SIZE_MM     1200.0f  /* 每个栅格的实际大小 */
 
 #define MF_SCAN_ROW1_X_OFFSET_MM (1000.0f) /* 扫row1的扫描点离row0col1中心的距离（该偏移应为向着x负方向） */
+#define MF_SCAN_ROW1_Y_OFFSET_MM (250.0f)  /* 扫row1的扫描点离row0col1中心的距离（该偏移应为向着y负方向） */
+
 #define MF_SCAN_ROW2_X_OFFSET_MM (200.0f)  /* 扫row2的扫描点离row0col1中心的距离（该偏移应为向着x正方向） */
-#define MF_SCAN_ROW34_X_OFFSET_MM (225.0f) /* 扫row3的扫描点离row0col1中心的距离（该偏移应为向着x正方向） */
+#define MF_SCAN_ROW2_Y_OFFSET_MM (250.0f)  /* 扫row2的扫描点离row0col1中心的距离（该偏移应为向着y负方向） */
+
+#define MF_SCAN_ROW34_X_OFFSET_MM (225.0f) /* 扫row3的扫描点离row1col1中心的距离（该偏移应为向着x正方向） */
+#define MF_SCAN_ROW34_Y_OFFSET_MM (250.0f) /* 扫row3的扫描点离row1col1中心的距离（该偏移应为向着y负方向） */
 
 /* 🟡【需实测】各方向对应的底盘朝向角 (度) */
 #define MF_YAW_NORTH        0.0f     /* 北向的底盘 yaw 角 */
@@ -499,7 +544,7 @@ extern ArmBackMode arm_back_mode;
 #define DISCARD_TIME 1000          /* 丢弃点停留时间 (ms) */
 
 /* 前向工作区丢弃点（MOVE_R2 专用，避免切到背向工作区） */
-#define FRONT_DISCARD_X 0.05f
+#define FRONT_DISCARD_X 0.0f
 #define FRONT_DISCARD_Y 0.95f
 #define FRONT_DISCARD_THETA (135.0f/180.0f*PI)
 

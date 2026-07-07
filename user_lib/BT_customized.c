@@ -678,6 +678,8 @@ uint8_t mf_phase_flag = 0;                  /* 规划阶段标记: 0=未规�? 
 
 uint8_t mf_picked_phase1 = 0;               /* Phase1 已拾�?R2KFS 数量 */
 uint8_t mf_picked_kfs_count = 0;            /* 已执行的 PICK_R2 数量：0=下一块存储，1=下一块手持 */
+static uint8_t mf_r2_kfs_all_need = R2_KFS_ALL_NEED;
+static uint8_t mf_finish_start_cz = 1;
 
 uint8_t arm_if_send_point = 0; /* 机械臂是否已经下发轨迹点标志位，避免重复下发 */
 
@@ -734,6 +736,7 @@ static void mf_scan_stand_position(const MF_Action* act, float* out_x, float* ou
     if (act->height_pick_diff == MF_SCAN_STAGE_ROW1) {
         mf_cell_to_world(0, 1, out_x, out_y, mf_planner_ctx.map_color);
         *out_x -= MF_SCAN_ROW1_X_OFFSET_MM;
+        *out_y -= MF_SCAN_ROW1_Y_OFFSET_MM;
         *out_yaw = MF_YAW_NORTH;
         return;
     }
@@ -741,6 +744,7 @@ static void mf_scan_stand_position(const MF_Action* act, float* out_x, float* ou
     if (act->height_pick_diff == MF_SCAN_STAGE_ROW2) {
         mf_cell_to_world(0, 1, out_x, out_y, mf_planner_ctx.map_color);
         *out_x += MF_SCAN_ROW2_X_OFFSET_MM;
+        *out_y -= MF_SCAN_ROW2_Y_OFFSET_MM;
         *out_yaw = MF_YAW_NORTH;
         return;
     }
@@ -748,6 +752,7 @@ static void mf_scan_stand_position(const MF_Action* act, float* out_x, float* ou
     if (act->height_pick_diff == MF_SCAN_STAGE_ROW34) {
         mf_cell_to_world(1, 1, out_x, out_y, mf_planner_ctx.map_color);
         *out_x += MF_SCAN_ROW34_X_OFFSET_MM;
+        *out_y -= MF_SCAN_ROW34_Y_OFFSET_MM;
         *out_yaw = MF_YAW_NORTH;
         return;
     }
@@ -945,6 +950,7 @@ void Arm_Back_SendPath(void)
         arm_queue_add_point(&arm_traj, STORE_X, STORE_Y, STORE_TIME/4, ARM_PUMP_RELEASE, STORE_THETA);
         arm_queue_add_point(&arm_traj, STORE_PRE_TRANS_X, STORE_PRE_TRANS_Y, 0, ARM_PUMP_RELEASE, STORE_PRE_TRANS_THETA);
     } else {
+        /* ！！！弃用！！！ */
         /* 丢弃模式：移动到位 → 直接释放 → 过渡 */
         arm_queue_add_point(&arm_traj, DISCARD_PRE_X, DISCARD_PRE_Y, 0, ARM_PUMP_KEEP, DISCARD_THETA);
         arm_queue_add_point(&arm_traj, DISCARD_X, DISCARD_Y, DISCARD_TIME, ARM_PUMP_RELEASE, DISCARD_THETA);
@@ -1370,8 +1376,8 @@ static BT_Status Act_MF_Execute_Action(void)
 
         if (chassis_if_arrived(scan_x, scan_y, scan_yaw)) {
             if (act.height_pick_diff == MF_SCAN_STAGE_ROW1) {
-                MFPlanner_ScanRows(&mf_planner_ctx, 1, 1);
-                // MFPlanner_ScanRow_1(&mf_planner_ctx);
+                // MFPlanner_ScanRows(&mf_planner_ctx, 1, 1);
+                MFPlanner_ScanRow_1(&mf_planner_ctx);
                 if (MF_PushAction(&mf_planner_ctx, MF_ACT_SCAN, MF_DIR_NORTH, 0, 1)) {
                     mf_planner_ctx.actions[mf_planner_ctx.action_count - 1].height_pick_diff = MF_SCAN_STAGE_ROW2;
                 } else {
@@ -1379,16 +1385,21 @@ static BT_Status Act_MF_Execute_Action(void)
                     return BT_RUNNING;
                 }
             } else if (act.height_pick_diff == MF_SCAN_STAGE_ROW2) {
-                MFPlanner_ScanRows(&mf_planner_ctx, 2, 2);
-                // MFPlanner_ScanRow_2(&mf_planner_ctx);
+                // MFPlanner_ScanRows(&mf_planner_ctx, 2, 2);
+                MFPlanner_ScanRow_2(&mf_planner_ctx);
                 if (!MFPlanner_BuildPhase1(&mf_planner_ctx, 0, 0, &mf_picked_phase1)) {
                     mf_exec_state = MF_EXEC_FAILED;
                     return BT_RUNNING;
                 }
             } else if (act.height_pick_diff == MF_SCAN_STAGE_ROW34) {
-                MFPlanner_ScanRows(&mf_planner_ctx, 3, 4);
-                // MFPlanner_ScanRow_34(&mf_planner_ctx);
-                if (!MFPlanner_BuildPhase2(&mf_planner_ctx, R2_KFS_ALL_NEED - mf_picked_phase1)) {
+                uint8_t r2_need_phase2 = 0;
+
+                // MFPlanner_ScanRows(&mf_planner_ctx, 3, 4);
+                MFPlanner_ScanRow_34(&mf_planner_ctx);
+                if (mf_r2_kfs_all_need > mf_picked_phase1) {
+                    r2_need_phase2 = mf_r2_kfs_all_need - mf_picked_phase1;
+                }
+                if (!MFPlanner_BuildPhase2(&mf_planner_ctx, r2_need_phase2)) {
                     mf_exec_state = MF_EXEC_FAILED;
                     return BT_RUNNING;
                 }
@@ -1751,7 +1762,11 @@ static BT_Status Act_MF_Finish_Cleanup(void)
 
     // mf_bb.kfs_stored = 0;
 
-    CZ_bb.req_start = 1;  // MF 完成后触发 CZ 对抗区任务
+    if (mf_finish_start_cz) {
+        CZ_bb.req_start = 1;  // MF 完成后触发 CZ 对抗区任务
+    }
+    mf_r2_kfs_all_need = R2_KFS_ALL_NEED;
+    mf_finish_start_cz = 1;
 
     return BT_SUCCESS;
 }
@@ -1788,14 +1803,22 @@ static BT_Status BT_MF_Task_Tree_Root(void)
 /**
  * @brief 发起 MF 任务请求（由按键/遥控/通信等触发）
  */
-void BT_MF_Start_Task(void)
+static void BT_MF_Start_Task_Config(uint8_t r2_kfs_all_need, uint8_t finish_start_cz)
 {
     mf_task_request_flag = 1;
     mf_phase_flag = 0;
     mf_exec_state = MF_EXEC_IDLE;
     mf_picked_kfs_count = 0;
+    mf_picked_phase1 = 0;
+    mf_r2_kfs_all_need = r2_kfs_all_need;
+    mf_finish_start_cz = finish_start_cz;
     arm_if_send_point = 0;
     arm_front_discard_state = ARM_FRONT_DISCARD_IDLE;
+}
+
+void BT_MF_Start_Task(void)
+{
+    BT_MF_Start_Task_Config(R2_KFS_ALL_NEED, 1);
 }
 
 /**
@@ -1809,6 +1832,8 @@ void BT_MF_Init_Task(void)
     mf_exec_timer_ms = 0;
     mf_picked_phase1 = 0;
     mf_picked_kfs_count = 0;
+    mf_r2_kfs_all_need = R2_KFS_ALL_NEED;
+    mf_finish_start_cz = 1;
 
     arm_back_request = 0;
     arm_back_busy = 0;
@@ -2768,7 +2793,7 @@ static BT_Status Cond_Has_PS_Request(void)
     return PS_bb.req_start ? BT_SUCCESS : BT_FAILURE;
 }
 
-static BT_Status Act_PS_Mission(void)
+static BT_Status Act_PS_MC_Mission(void)
 {
     /* 矛架位置表：每个位置独立 X/Y/W，修改此处即可适配红/蓝区 */
     static const struct { float x, y, w; } ps_rack[3] = {
@@ -2936,12 +2961,9 @@ static BT_Status Act_PS_Mission(void)
 
         case PS_MC_ENTER_MF:
         {
-            if(PS_bb.mf_req == 1)
-            {
-                PS_bb.state = PS_MC_IDLE;
-                return BT_SUCCESS;
-            }
-            return BT_RUNNING;
+            PS_bb.mf_req = 1;
+            PS_bb.state = PS_MC_IDLE;
+            return BT_SUCCESS;
         }
 
         default:
@@ -2949,8 +2971,53 @@ static BT_Status Act_PS_Mission(void)
     }
 }
 
+/**
+ * @brief [动作节点] PS(预选赛)MF区任务，复用主赛流程
+ * @note 与主赛 Act_MF_Task_Wrapper 流程一致，只替换 KFS 数量和收尾行为。
+ */
+static BT_Status Act_PS_MF_Mission(void)
+{
+    switch (mf_subtask_state) {
+
+    case SUBTASK_IDLE:{
+        /* 触发 PS MF 任务：预选赛只取 2 个 R2KFS，完成后停在 MF 结束区 */
+        BT_MF_Start_Task_Config(PS_R2_KFS_ALL_NEED, 0);
+        mf_subtask_state = SUBTASK_RUNNING;
+        return BT_RUNNING;
+    }
+    case SUBTASK_RUNNING: {
+        Arm_Back_Service_Tick();
+
+        /* 运行 MF 行为树 */
+        BT_Status mf_status = BT_MF_Task_Tree_Root();
+        if (mf_status == BT_SUCCESS) {
+            mf_subtask_state = SUBTASK_DONE;
+            return BT_SUCCESS;
+        } else if (mf_status == BT_FAILURE) {
+            mf_subtask_state = SUBTASK_FAILED;
+            return BT_FAILURE;
+        }
+        return BT_RUNNING;
+    }
+    case SUBTASK_DONE:{
+        return BT_SUCCESS;
+    }
+    case SUBTASK_FAILED:{
+        return BT_FAILURE;
+    }
+    default:{
+        return BT_FAILURE;
+    }
+
+    }
+}
+
+
 static BT_Status Act_PS_FinishCleanup(void)
 {
+    /* ！！！ 待测试 ！！！ */
+    chassis_set_lock(1);    /* 底盘完成后锁止在原地 */
+
     PS_bb.req_start = 0;
     PS_bb.state = PS_MC_IDLE;
     PS_bb.timer_ms = 0;
@@ -2962,7 +3029,9 @@ static BT_Status Act_PS_FinishCleanup(void)
     PS_bb.ext_jam_retries = 0;
     PS_bb.ext_timer_ms = 0;
     PS_bb.last_ext_angle = 0;
-    chassis_set_lock(0);
+    mf_subtask_state = SUBTASK_IDLE;
+    BT_MF_Init_Task();
+    // chassis_set_lock(0);
     return BT_SUCCESS;
 }
 
@@ -2970,7 +3039,8 @@ static BT_Status BT_PS_Task_Tree_Root(void)
 {
     static const BT_NodeFunc seq[] = {
         Cond_Has_PS_Request,
-        Act_PS_Mission,
+        Act_PS_MC_Mission,
+        Act_PS_MF_Mission,
         Act_PS_FinishCleanup
     };
     return BT_Sequence_Memory(seq, (uint8_t)(sizeof(seq) / sizeof(seq[0])), &PS_bb.seq_mem_idx);
@@ -2988,6 +3058,7 @@ void BT_PS_Start_Task(void)
     PS_bb.ext_jam_retries = 0;
     PS_bb.ext_timer_ms = 0;
     PS_bb.last_ext_angle = 0;
+    mf_subtask_state = SUBTASK_IDLE;
 }
 
 void BT_PS_Init_Task(void)
@@ -3004,6 +3075,8 @@ void BT_PS_Init_Task(void)
     PS_bb.ext_jam_retries = 0;
     PS_bb.ext_timer_ms = 0;
     PS_bb.last_ext_angle = 0;
+    mf_subtask_state = SUBTASK_IDLE;
+    BT_MF_Init_Task();
 }
 
 void BT_PS_Tick(void)
@@ -3021,5 +3094,338 @@ void BT_PS_Tick(void)
 
 
 
+/* ================================================ JGCB 预选赛行为树 ================================================ */
+/* ================================================ JGCB 预选赛行为树 ================================================ */
+/* ================================================ JGCB 预选赛行为树 ================================================ */
 
+JGCB_Blackboard JGCB_bb;
+
+static BT_Status Cond_Has_JGCB_Request(void)
+{
+    return JGCB_bb.req_start ? BT_SUCCESS : BT_FAILURE;
+}
+
+/**
+ * @brief [动作节点] JGCB(九宫藏宝)预选赛任务
+ * @note 单独执行主赛 CZ/三区的前半段：上坡、扫描、九宫格放块。
+ * @note 预选赛不进入主赛取存块、R1平台和第三层放块流程。
+ */
+static BT_Status Act_JGCB_Mission(void)
+{
+    switch (JGCB_bb.state) {
+
+        case JGCB_IDLE:
+        {
+            JGCB_bb.state = JGCB_NAV_TO_SLOPE_START;
+            JGCB_bb.timer_ms = 0;
+            return BT_RUNNING;
+        }
+
+        case JGCB_NAV_TO_SLOPE_START:
+        {
+            taskENTER_CRITICAL();
+            chassis_route_point_add(&chassis_route_traj, R_CHASSIS_SLOPE_START_X, R_CHASSIS_SLOPE_START_Y, R_CHASSIS_SLOPE_START_W, 0, 0);
+            chassis_route_point_add(&chassis_route_traj, R_CHASSIS_SLOPE_END_X, R_CHASSIS_SLOPE_END_Y, R_CHASSIS_SLOPE_END_W, 0, 0);
+            taskEXIT_CRITICAL();
+
+            JGCB_bb.state = JGCB_NAV_TO_SLOPE_END;
+            JGCB_bb.timer_ms = 0;
+            return BT_RUNNING;
+        }
+
+        case JGCB_NAV_TO_SLOPE_END:
+        {
+            if (fabsf(Radar_Pos.reliable_x - R_CHASSIS_SLOPE_START_X) < 250.0f &&
+                fabsf(Radar_Pos.reliable_y - R_CHASSIS_SLOPE_START_Y) < 250.0f)
+            {
+                chassis_route_set_slope_mode(1);
+            }
+
+            if (chassis_if_arrived(R_CHASSIS_SLOPE_END_X, R_CHASSIS_SLOPE_END_Y, R_CHASSIS_SLOPE_END_W))
+            {
+                chassis_route_set_slope_mode(0);
+                chassis_route_set_rotate_slow(1);
+
+                taskENTER_CRITICAL();
+                chassis_route_point_add(&chassis_route_traj, R_CHASSIS_SLOPE_END_X, R_CHASSIS_SLOPE_END_Y, 90.0f, 0, 1);
+                taskEXIT_CRITICAL();
+
+                JGCB_bb.state = JGCB_ROTATE_90;
+                JGCB_bb.timer_ms = 0;
+            }
+            else if (++JGCB_bb.timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS)
+            {
+                chassis_route_set_slope_mode(0);
+                return BT_FAILURE;
+            }
+            return BT_RUNNING;
+        }
+
+        case JGCB_ROTATE_90:
+        {
+            if (chassis_if_arrived(R_CHASSIS_SLOPE_END_X, R_CHASSIS_SLOPE_END_Y, 90.0f))
+            {
+                chassis_route_set_rotate_slow(0);
+
+                taskENTER_CRITICAL();
+                chassis_route_point_add(&chassis_route_traj, R_CHASSIS_CZ_CENTER_X, R_CHASSIS_CZ_CENTER_Y, R_CHASSIS_CZ_CENTER_W, 0, 1);
+                taskEXIT_CRITICAL();
+
+                JGCB_bb.state = JGCB_NAV_TO_SCAN;
+                JGCB_bb.timer_ms = 0;
+            }
+            else if (++JGCB_bb.timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS)
+            {
+                chassis_route_set_rotate_slow(0);
+                return BT_FAILURE;
+            }
+            return BT_RUNNING;
+        }
+
+        case JGCB_NAV_TO_SCAN:
+        {
+            if (chassis_if_arrived(R_CHASSIS_CZ_CENTER_X, R_CHASSIS_CZ_CENTER_Y, R_CHASSIS_CZ_CENTER_W))
+            {
+                JGCB_bb.state = JGCB_CAMERA_SCAN;
+                JGCB_bb.timer_ms = 0;
+            }
+            else if (++JGCB_bb.timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS)
+            {
+                return BT_FAILURE;
+            }
+            return BT_RUNNING;
+        }
+
+        case JGCB_CAMERA_SCAN:
+        {
+            if (chassis_if_arrived(R_CHASSIS_CZ_CENTER_X, R_CHASSIS_CZ_CENTER_Y, R_CHASSIS_CZ_CENTER_W))
+            {
+                clamp.lift_flag = 1;
+                JGCB_bb.pos_stable_times++;
+                if (JGCB_bb.pos_stable_times > CZ_POS_STABLE_CONDITION)
+                {
+                    chassis_set_lock(1);
+                    JGCB_bb.camera_scan_done = 1;
+
+                    switch (CZ_action)
+                    {
+                    case KFS_PUT:
+                        taskENTER_CRITICAL();
+                        if (CZ_put_pos == M1)
+                            chassis_route_point_add(&chassis_route_traj, R_CHASSIS_SUDUKU_3_X, R_CHASSIS_SUDUKU_3_Y, R_CHASSIS_SUDUKU_3_W, 0, 1);
+                        else if (CZ_put_pos == M2)
+                            chassis_route_point_add(&chassis_route_traj, R_CHASSIS_SUDUKU_2_X, R_CHASSIS_SUDUKU_2_Y, R_CHASSIS_SUDUKU_2_W, 0, 1);
+                        else
+                            chassis_route_point_add(&chassis_route_traj, R_CHASSIS_SUDUKU_1_X, R_CHASSIS_SUDUKU_1_Y, R_CHASSIS_SUDUKU_1_W, 0, 1);
+                        taskEXIT_CRITICAL();
+
+                        if (CZ_put_pos == M1)
+                        { CZ_SUDUKU_X = R_CHASSIS_SUDUKU_3_X; CZ_SUDUKU_Y = R_CHASSIS_SUDUKU_3_Y; CZ_SUDUKU_W = R_CHASSIS_SUDUKU_3_W; }
+                        else if (CZ_put_pos == M2)
+                        { CZ_SUDUKU_X = R_CHASSIS_SUDUKU_2_X; CZ_SUDUKU_Y = R_CHASSIS_SUDUKU_2_Y; CZ_SUDUKU_W = R_CHASSIS_SUDUKU_2_W; }
+                        else
+                        { CZ_SUDUKU_X = R_CHASSIS_SUDUKU_1_X; CZ_SUDUKU_Y = R_CHASSIS_SUDUKU_1_Y; CZ_SUDUKU_W = R_CHASSIS_SUDUKU_1_W; }
+
+                        JGCB_bb.state = JGCB_NAV_TO_SUDUKU;
+                        JGCB_bb.timer_ms = 0;
+                        JGCB_bb.pos_stable_times = 0;
+                        chassis_set_lock(0);
+                        return BT_RUNNING;
+
+                    case WAIT:
+                        JGCB_bb.state = JGCB_DONE;
+                        JGCB_bb.timer_ms = 0;
+                        JGCB_bb.pos_stable_times = 0;
+                        chassis_set_lock(0);
+                        return BT_RUNNING;
+
+                    case RESCAN:
+                        taskENTER_CRITICAL();
+                        chassis_route_point_add(&chassis_route_traj, R_CHASSIS_CZ_CENTER_X, R_CHASSIS_CZ_CENTER_Y, R_CHASSIS_CZ_CENTER_W, 0, 0);
+                        taskEXIT_CRITICAL();
+                        JGCB_bb.state = JGCB_CAMERA_SCAN;
+                        JGCB_bb.timer_ms = 0;
+                        JGCB_bb.pos_stable_times = 0;
+                        chassis_set_lock(0);
+                        return BT_RUNNING;
+
+                    default:
+                        JGCB_bb.state = JGCB_DONE;
+                        JGCB_bb.timer_ms = 0;
+                        JGCB_bb.pos_stable_times = 0;
+                        chassis_set_lock(0);
+                        return BT_RUNNING;
+                    }
+                }
+            }
+            else
+            {
+                JGCB_bb.pos_stable_times = 0;
+                if (++JGCB_bb.timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS)
+                    return BT_FAILURE;
+            }
+            return BT_RUNNING;
+        }
+
+        case JGCB_NAV_TO_SUDUKU:
+        {
+            if (chassis_if_arrived(CZ_SUDUKU_X, CZ_SUDUKU_Y, CZ_SUDUKU_W))
+            {
+                JGCB_bb.state = JGCB_ARM_RAISE;
+                JGCB_bb.timer_ms = 0;
+            }
+            else if (++JGCB_bb.timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS * 2)
+            {
+                return BT_FAILURE;
+            }
+            return BT_RUNNING;
+        }
+
+        case JGCB_ARM_RAISE:
+        {
+            taskENTER_CRITICAL();
+            arm_queue_add_point(&arm_traj, CZ_ARM_PLACE_1_X, CZ_ARM_PLACE_1_Y, 0, ARM_PUMP_KEEP, CZ_ARM_PLACE_PITCH/180.0f*PI);
+            taskEXIT_CRITICAL();
+
+            JGCB_bb.state = JGCB_ARM_RAISE_WAIT;
+            JGCB_bb.timer_ms = 0;
+            return BT_RUNNING;
+        }
+
+        case JGCB_ARM_RAISE_WAIT:
+        {
+            if (arm_if_arrived_xy(CZ_ARM_PLACE_1_X, CZ_ARM_PLACE_1_Y))
+            {
+                taskENTER_CRITICAL();
+                chassis_route_point_add(&chassis_route_traj, CZ_SUDUKU_X, CZ_SUDUKU_Y + 450.0f, CZ_SUDUKU_W, 0, 0);
+                taskEXIT_CRITICAL();
+
+                JGCB_bb.state = JGCB_FORWARD_PUSH;
+                JGCB_bb.timer_ms = 0;
+            }
+            else if (++JGCB_bb.timer_ms * 10 >= CZ_ARM_PLACE_TIMEOUT_MS)
+            {
+                return BT_FAILURE;
+            }
+            return BT_RUNNING;
+        }
+
+        case JGCB_FORWARD_PUSH:
+        {
+            if (chassis_if_arrived(CZ_SUDUKU_X, CZ_SUDUKU_Y + 450.0f, CZ_SUDUKU_W))
+            {
+                JGCB_bb.state = JGCB_ARM_PLACE;
+                JGCB_bb.timer_ms = 0;
+            }
+            else if (++JGCB_bb.timer_ms * 10 >= CZ_ARM_PLACE_TIMEOUT_MS)
+            {
+                return BT_FAILURE;
+            }
+            return BT_RUNNING;
+        }
+
+        case JGCB_ARM_PLACE:
+        {
+            taskENTER_CRITICAL();
+            arm_queue_add_point(&arm_traj, CZ_ARM_PLACE_1_X, CZ_ARM_PLACE_1_Y, 0, ARM_PUMP_RELEASE, CZ_ARM_PLACE_PITCH/180.0f*PI);
+            taskEXIT_CRITICAL();
+
+            JGCB_bb.state = JGCB_PUMP_WAIT;
+            JGCB_bb.timer_ms = 0;
+            return BT_RUNNING;
+        }
+
+        case JGCB_PUMP_WAIT:
+        {
+            if (++JGCB_bb.timer_ms * 10 >= CZ_PUMP_WAIT_MS)
+            {
+                clamp.lift_flag = 0;
+                JGCB_bb.state = JGCB_DONE;
+                JGCB_bb.timer_ms = 0;
+            }
+            return BT_RUNNING;
+        }
+
+        case JGCB_DONE:
+        {
+            return BT_SUCCESS;
+        }
+
+        default:
+        {
+            return BT_FAILURE;
+        }
+    }
+}
+
+static BT_Status Act_JGCB_FinishCleanup(void)
+{
+    JGCB_bb.req_start = 0;
+    JGCB_bb.state = JGCB_IDLE;
+    JGCB_bb.timer_ms = 0;
+    JGCB_bb.camera_scan_done = 0;
+    JGCB_bb.pos_stable_times = 0;
+    clamp.lift_flag = 0;
+    chassis_route_set_slope_mode(0);
+    chassis_route_set_rotate_slow(0);
+    chassis_set_lock(1);
+    return BT_SUCCESS;
+}
+
+static BT_Status BT_JGCB_Task_Tree_Root(void)
+{
+    static const BT_NodeFunc seq[] = {
+        Cond_Has_JGCB_Request,
+        Act_JGCB_Mission,
+        Act_JGCB_FinishCleanup
+    };
+
+    return BT_Sequence_Memory(seq,
+                              (uint8_t)(sizeof(seq) / sizeof(seq[0])),
+                              &JGCB_bb.seq_mem_idx);
+}
+
+void BT_JGCB_Start_Task(void)
+{
+    JGCB_bb.req_start = 1;
+    JGCB_bb.seq_mem_idx = 0;
+    JGCB_bb.state = JGCB_IDLE;
+    JGCB_bb.timer_ms = 0;
+    JGCB_bb.camera_scan_done = 0;
+    JGCB_bb.pos_stable_times = 0;
+}
+
+void BT_JGCB_Init_Task(void)
+{
+    JGCB_bb.req_start = 0;
+    JGCB_bb.seq_mem_idx = 0;
+    JGCB_bb.state = JGCB_IDLE;
+    JGCB_bb.timer_ms = 0;
+    JGCB_bb.camera_scan_done = 0;
+    JGCB_bb.pos_stable_times = 0;
+}
+
+void BT_JGCB_Tick(void)
+{
+    static uint8_t div10 = 0;
+    div10++;
+    if (div10 < 10) return;
+    div10 = 0;
+
+    BT_Status status = BT_JGCB_Task_Tree_Root();
+    if (status == BT_FAILURE) {
+        Act_JGCB_FinishCleanup();
+        JGCB_bb.seq_mem_idx = 0;
+    }
+}
+
+
+
+
+
+
+
+/* ================================================ CWTY 预选赛行为树================================================ */
+/* ================================================ CWTY 预选赛行为树================================================ */
+/* ================================================ CWTY 预选赛行为树================================================ */
 

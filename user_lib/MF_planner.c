@@ -996,8 +996,9 @@ void MFPlanner_camera_to_ctx(MF_Planner* ctx, uint8_t row, uint8_t col)
  */
 void MFPlanner_ScanRow_1(MF_Planner* ctx)
 {
+    osDelay(1000); /* 等待相机（夹爪）升降完成 */
     MF_Scan_Command_Send(1);    /* 向相机发送扫描 row1 的指令 */
-    osDelay(100); /* 等待视觉扫描完成 */
+    osDelay(500); /* 等待视觉扫描完成 */
     for(uint8_t col=0; col<MF_COLS; col++){
         MFPlanner_camera_to_ctx(ctx, 1, col);
     }
@@ -1016,9 +1017,11 @@ void MFPlanner_ScanRow_1(MF_Planner* ctx)
 */
 void MFPlanner_ScanRow_2(MF_Planner* ctx)
 {
+    osDelay(1000); /* 等待相机（夹爪）升降完成 */
     MF_Scan_Command_Send(2);    /* 向相机发送扫描 row2 的指令 */
-    osDelay(100); /* 等待视觉扫描完成 */
+    osDelay(500); /* 等待视觉扫描完成 */
     for(uint8_t col=0; col<MF_COLS; col++){
+        /* 将相机回传转为MF规划器地图状态 */
         MFPlanner_camera_to_ctx(ctx, 2, col);
     }
 
@@ -1036,8 +1039,9 @@ void MFPlanner_ScanRow_2(MF_Planner* ctx)
 */
 void MFPlanner_ScanRow_34(MF_Planner* ctx)
 {
+    osDelay(1000); /* 等待相机（夹爪）升降完成 */
     MF_Scan_Command_Send(3);    /* 向相机发送扫描 row3和row4 的指令 */
-    osDelay(100); /* 等待视觉扫描完成 */
+    osDelay(500); /* 等待视觉扫描完成 */
     for(uint8_t col=0; col<MF_COLS; col++){
         MFPlanner_camera_to_ctx(ctx, 3, col);
         MFPlanner_camera_to_ctx(ctx, 4, col);
