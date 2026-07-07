@@ -913,26 +913,26 @@ void MFPlanner_LoadFixedDemoMap(MF_Planner* ctx)
  * @warning 实际比赛中应替换为从视觉模块获取的实时数据
  * @warning 实际比赛中应替换为从视觉模块获取的实时数据
  */
+static const MF_CellType k_mf_debug_cell_blue[MF_ROWS][MF_COLS] = {
+    { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_EMPTY },
+    { MF_CELL_EMPTY,  MF_CELL_R2KFS,  MF_CELL_R1KFS },
+    { MF_CELL_R1KFS,  MF_CELL_R2KFS,  MF_CELL_EMPTY },
+    { MF_CELL_R1KFS,  MF_CELL_R2KFS,  MF_CELL_FAKEKFS },
+    { MF_CELL_EMPTY,  MF_CELL_R2KFS,  MF_CELL_EMPTY },
+    { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_EMPTY }
+};
+
+static const MF_CellType k_mf_debug_cell_red[MF_ROWS][MF_COLS] = {
+    { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_EMPTY },
+    { MF_CELL_EMPTY,  MF_CELL_R2KFS,  MF_CELL_R1KFS },
+    { MF_CELL_R1KFS,  MF_CELL_R2KFS,  MF_CELL_EMPTY },
+    { MF_CELL_R1KFS,  MF_CELL_R2KFS,  MF_CELL_FAKEKFS },
+    { MF_CELL_EMPTY,  MF_CELL_R2KFS,  MF_CELL_EMPTY },
+    { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_EMPTY }
+};
+
 void MFPlanner_ScanRows(MF_Planner* ctx, uint8_t start_row, uint8_t end_row)
 {
-    /* 真实 KFS 分布(与 LoadFixedDemoMap 中的 demo_cellx 一致) */
-    static const MF_CellType real_cell_debug_blue[MF_ROWS][MF_COLS] = {
-        { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_EMPTY },
-        { MF_CELL_EMPTY,  MF_CELL_R2KFS,  MF_CELL_R1KFS },
-        { MF_CELL_R1KFS,  MF_CELL_R2KFS,  MF_CELL_EMPTY },
-        { MF_CELL_R1KFS,  MF_CELL_R2KFS,  MF_CELL_FAKEKFS },
-        { MF_CELL_EMPTY,  MF_CELL_R2KFS,  MF_CELL_EMPTY },
-        { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_EMPTY }
-    };
-    static const MF_CellType real_cell_debug_red[MF_ROWS][MF_COLS] = {
-        { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_EMPTY },
-        { MF_CELL_EMPTY,  MF_CELL_R2KFS,  MF_CELL_R1KFS },
-        { MF_CELL_R1KFS,  MF_CELL_R2KFS,  MF_CELL_EMPTY },
-        { MF_CELL_R1KFS,  MF_CELL_R2KFS,  MF_CELL_FAKEKFS },
-        { MF_CELL_EMPTY,  MF_CELL_R2KFS,  MF_CELL_EMPTY },
-        { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_EMPTY }
-    };
-
 
     /* 遍历指定行范围 */
     for (uint8_t r = start_row; r <= end_row && r < MF_ROWS; r++) {
@@ -941,10 +941,10 @@ void MFPlanner_ScanRows(MF_Planner* ctx, uint8_t start_row, uint8_t end_row)
             if (ctx->cell[r][c] == MF_CELL_UNKNOWN) {
                 switch (ctx->map_color) {
                     case BLUE_MAP:
-                        ctx->cell[r][c] = real_cell_debug_blue[r][c];
+                        ctx->cell[r][c] = k_mf_debug_cell_blue[r][c];
                         break;
                     case RED_MAP:
-                        ctx->cell[r][c] = real_cell_debug_red[r][c];
+                        ctx->cell[r][c] = k_mf_debug_cell_red[r][c];
                         break;
                 }
             }
@@ -1205,7 +1205,6 @@ bool MFPlanner_BuildPhase1(MF_Planner* ctx,
 
     return true;
 }
-
 /**
  * @brief 分阶段规划：阶段2 在 row1,col1 的基础上继续拾取剩余 R2KFS 并走到出口
  * @note 该函数假设阶段1已完成，当前位于 row1,col1，且至少一个 row1 上的 R2KFS 已被拾取
@@ -1434,6 +1433,771 @@ void MFPlanner_NotifyR1KfsRemoved(MF_Planner* ctx, uint8_t row, uint8_t col)
 /* ================================================== 应用层调用部分 ================================================== */
 
 
-/* ================================================== 调试输出日志部分 ================================================== */
-// 暂无
-/* ================================================== 调试输出日志部分 ================================================== */
+
+
+
+
+
+/* ================================================== 以下为预输入版本 ================================================== */
+/* ================================================== 以下为预输入版本 ================================================== */
+/* ================================================== 以下为预输入版本 ================================================== */
+
+/*
+ * 新版预输入规划器：
+ * 1) 这一段只新增并行入口，不替换 MFPlanner_BuildPhase1/2，也不改变现有相机扫描流程；
+ * 2) 输入来源被抽象为“赛前/赛中键盘预输入”，所以这里直接得到 row1~row4 的完整 KFS 分布；
+ * 3) 动作输出仍然使用原来的 MF_Action / MF_ACT_*，执行层不用理解“新规划器”这个概念；
+ * 4) 与旧版最关键的规则差异是允许相邻格高度差达到 +/-400mm，并且出口可选 row5 任意列。
+ */
+#define MF_PREINPUT_MAX_STEP_DIFF 400
+
+/**
+ * @brief 为预输入规划器装载固定地形高度。
+ * @note 这里只装载 height，不写 cell。KFS 分布由键盘输入接口写入。
+ * @note 高度矩阵必须与 MFPlanner_LoadFixedDemoMap() 保持一致，避免同一张场地图
+ *       在旧规划器和新规划器中得到不同的世界语义。
+ */
+static void MF_PreInputLoadFixedTerrain(MF_Planner* ctx)
+{
+    uint16_t fixed_height_blue[MF_ROWS][MF_COLS] = {
+        { 0,   0,   0   },
+        { 400, 200, 400 },
+        { 200, 400, 600 },
+        { 400, 600, 400 },
+        { 200, 400, 200 },
+        { 0,   0,   0   }
+    };
+    uint16_t fixed_height_red[MF_ROWS][MF_COLS] = {
+        { 0,   0,   0   },
+        { 400, 200, 400 },
+        { 600, 400, 200 },
+        { 400, 600, 400 },
+        { 200, 400, 200 },
+        { 0,   0,   0   }
+    };
+
+    if (ctx->map_color == BLUE_MAP) {
+        memcpy(ctx->height, fixed_height_blue, sizeof(fixed_height_blue));
+    } else {
+        memcpy(ctx->height, fixed_height_red, sizeof(fixed_height_red));
+    }
+}
+
+/**
+ * @brief 初始化预输入规划地图，键盘输入层之后只需要调用 SetCell 填 row1~row4。
+ * @note row0/row5 固定为空地；地形高度和现有 MFPlanner_LoadFixedDemoMap 保持一致。
+ */
+void MFPlanner_PreInputInit(MF_Planner* ctx, MF_MapColor color)
+{
+    MFPlanner_Init(ctx, color);
+    MF_PreInputLoadFixedTerrain(ctx);
+
+    for (uint8_t r = 0; r < MF_ROWS; r++) {
+        for (uint8_t c = 0; c < MF_COLS; c++) {
+            ctx->cell[r][c] = MF_CELL_UNKNOWN;
+        }
+    }
+}
+
+/**
+ * @brief 键盘预输入接口：设置指定格子的 KFS 类型。
+ * @note 只允许修改 row1~row4；row0/row5 是入口/出口平地，保持 EMPTY。
+ */
+bool MFPlanner_PreInputSetCell(MF_Planner* ctx, uint8_t row, uint8_t col, MF_CellType type)
+{
+    if (row == 0 || row >= (MF_ROWS - 1) || col >= MF_COLS) {
+        return false;
+    }
+    if (type > MF_CELL_UNKNOWN) {
+        return false;
+    }
+
+    ctx->cell[row][col] = type;
+    return true;
+}
+
+/**
+ * @brief 一次性装载键盘预输入矩阵。
+ * @note 输入矩阵中的 row0/row5 会被忽略并强制保持 EMPTY。
+ */
+bool MFPlanner_PreInputLoadCells(MF_Planner* ctx,
+                                 MF_MapColor color,
+                                 const MF_CellType input_cell[MF_ROWS][MF_COLS])
+{
+    MFPlanner_PreInputInit(ctx, color);
+
+    for (uint8_t r = 1; r < (MF_ROWS - 1); r++) {
+        for (uint8_t c = 0; c < MF_COLS; c++) {
+            if (!MFPlanner_PreInputSetCell(ctx, r, c, input_cell[r][c])) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+/**
+ * @brief 为新版预输入规划器装载一套固定调试地图。
+ * @note 这份 KFS 分布与旧版 MFPlanner_ScanRows() 的扫描模拟地图完全相同。
+ *       调试时可以跳过相机扫描和键盘逐格输入，直接调用本函数后做全局规划。
+ */
+void MFPlanner_PreInputLoadFixedDemoMap(MF_Planner* ctx, MF_MapColor color)
+{
+    const MF_CellType (*debug_cell)[MF_COLS];
+
+    MFPlanner_PreInputInit(ctx, color);
+    debug_cell = (ctx->map_color == BLUE_MAP) ? k_mf_debug_cell_blue : k_mf_debug_cell_red;
+
+    for (uint8_t r = 1; r < (MF_ROWS - 1); r++) {
+        for (uint8_t c = 0; c < MF_COLS; c++) {
+            ctx->cell[r][c] = debug_cell[r][c];
+        }
+    }
+}
+
+/**
+ * @brief 新版相邻格通行高度判断。
+ * @note 旧版 MF_IsStepAllowed() 只允许 0 / +/-200；预输入版按机构能力放宽为
+ *       0 / +/-200 / +/-400。该函数只影响规划搜索，不直接改变底盘执行 FSM。
+ * @warning 生成的 STEP_UP/STEP_DOWN 动作会在 height_pick_diff 中记录 +/-400，
+ *          但真正使用 400mm 台阶动作仍需要执行层读取该字段。
+ */
+static bool MF_PreInputIsStepAllowed(const MF_Planner* ctx,
+                                     uint8_t r1, uint8_t c1,
+                                     uint8_t r2, uint8_t c2)
+{
+    int16_t h1 = (int16_t)ctx->height[r1][c1];
+    int16_t h2 = (int16_t)ctx->height[r2][c2];
+    int16_t diff = (int16_t)(h2 - h1);
+
+    return (diff == 0 ||
+            diff == 200 || diff == -200 ||
+            diff == MF_PREINPUT_MAX_STEP_DIFF ||
+            diff == -MF_PREINPUT_MAX_STEP_DIFF);
+}
+
+/**
+ * @brief 预输入版 A* 搜索。
+ * @note 结构基本复制旧 MF_AStar()，只替换高度约束为 MF_PreInputIsStepAllowed()。
+ * @note R1KFS / R2KFS / FAKEKFS 的基础规则仍复用 MF_IsBlockedForMove()：
+ *       - R1KFS 可穿越，但代价高，会生成 WAIT_R1；
+ *       - R2KFS 只有 allow_r2kfs_cross=true 时可作为“移开后穿越”的轻障碍；
+ *       - FAKEKFS 永远不可登上。
+ */
+static bool MF_PreInputAStar(const MF_Planner* ctx,
+                             uint8_t sr, uint8_t sc,
+                             uint8_t gr, uint8_t gc,
+                             bool allow_r2kfs_cross,
+                             uint8_t* out_path,
+                             uint8_t* out_len,
+                             int16_t* out_cost)
+{
+    for (uint8_t i = 0; i < MF_MAX_NODES; i++) {
+        ASTAR_nodes[i].g = 0x3FFF;
+        ASTAR_nodes[i].f = 0x3FFF;
+        ASTAR_nodes[i].parent = -1;
+        ASTAR_nodes[i].in_open = 0;
+        ASTAR_nodes[i].in_closed = 0;
+    }
+
+    uint8_t start_index = MF_ToIndex(sr, sc);
+    uint8_t goal_index = MF_ToIndex(gr, gc);
+    ASTAR_nodes[start_index].g = 0;
+    ASTAR_nodes[start_index].f = MF_Manhattan(sr, sc, gr, gc);
+    ASTAR_nodes[start_index].in_open = 1;
+
+    while (1) {
+        /* 开放集中取 f 最小的节点；f 相同时取 g 更小的节点，保持旧版择路习惯。 */
+        int16_t best_f = 0x3FFF;
+        int16_t best_g = 0x3FFF;
+        int8_t current = -1;
+
+        for (uint8_t i = 0; i < MF_MAX_NODES; i++) {
+            if (!ASTAR_nodes[i].in_open) {
+                continue;
+            }
+            if (ASTAR_nodes[i].f < best_f ||
+                (ASTAR_nodes[i].f == best_f && ASTAR_nodes[i].g < best_g)) {
+                best_f = ASTAR_nodes[i].f;
+                best_g = ASTAR_nodes[i].g;
+                current = (int8_t)i;
+            }
+        }
+
+        if (current < 0) {
+            return false;
+        }
+
+        if ((uint8_t)current == goal_index) {
+            /* 找到终点后沿 parent 回溯，再反转成 起点->终点 的路径。 */
+            uint8_t path[MF_MAX_NODES];
+            uint8_t count = 0;
+            int8_t idx = current;
+
+            while (idx >= 0 && count < MF_MAX_NODES) {
+                path[count++] = (uint8_t)idx;
+                idx = ASTAR_nodes[idx].parent;
+            }
+            if (count == 0) {
+                return false;
+            }
+            for (uint8_t i = 0; i < count; i++) {
+                out_path[i] = path[count - 1 - i];
+            }
+            *out_len = count;
+            if (out_cost != NULL) {
+                *out_cost = ASTAR_nodes[goal_index].g;
+            }
+            return true;
+        }
+
+        ASTAR_nodes[current].in_open = 0;
+        ASTAR_nodes[current].in_closed = 1;
+
+        uint8_t cr, cc;
+        MF_FromIndex((uint8_t)current, &cr, &cc);
+        for (uint8_t d = 0; d < 4; d++) {
+            int8_t nr = (int8_t)cr + k_dir_dr[d];
+            int8_t nc = (int8_t)cc + k_dir_dc[d];
+            if (!MF_InBounds(nr, nc)) {
+                continue;
+            }
+
+            uint8_t ur = (uint8_t)nr;
+            uint8_t uc = (uint8_t)nc;
+            if (MF_IsBlockedForMove(ctx, ur, uc, allow_r2kfs_cross)) {
+                continue;
+            }
+            /* 新版唯一放宽点：相邻高度差允许 +/-400。 */
+            if (!MF_PreInputIsStepAllowed(ctx, cr, cc, ur, uc)) {
+                continue;
+            }
+
+            uint8_t nidx = MF_ToIndex(ur, uc);
+            if (ASTAR_nodes[nidx].in_closed) {
+                continue;
+            }
+
+            /* 与旧版一致：穿越 R1KFS 追加等待代价，穿越 R2KFS 追加移开代价。 */
+            int16_t step_cost = 1;
+            if (ctx->cell[ur][uc] == MF_CELL_R1KFS) {
+                step_cost = (int16_t)(1 + MF_WAIT_R1_COST);
+            } else if (ctx->cell[ur][uc] == MF_CELL_R2KFS) {
+                step_cost = (int16_t)(1 + MF_MOVE_R2_COST);
+            }
+
+            int16_t tentative_g = (int16_t)(ASTAR_nodes[current].g + step_cost);
+            if (!ASTAR_nodes[nidx].in_open || tentative_g < ASTAR_nodes[nidx].g) {
+                ASTAR_nodes[nidx].parent = current;
+                ASTAR_nodes[nidx].g = tentative_g;
+                ASTAR_nodes[nidx].f = (int16_t)(tentative_g + MF_Manhattan(ur, uc, gr, gc));
+                ASTAR_nodes[nidx].in_open = 1;
+            }
+        }
+    }
+}
+
+/**
+ * @brief 将预输入版路径翻译成现有 MF_Action 动作序列。
+ * @note 输出动作类型不新增：
+ *       - R1KFS -> WAIT_R1 后再进入；
+ *       - R2KFS -> MOVE_R2 丢弃/移开后再进入；
+ *       - 高差 0 -> MOVE_FLAT；
+ *       - 高差 +200/+400 -> STEP_UP；
+ *       - 高差 -200/-400 -> STEP_DOWN。
+ * @note 400mm 差值会写入 STEP_UP/STEP_DOWN 的 height_pick_diff，供后续执行侧区分。
+ */
+static bool MF_PreInputAddPathActions(MF_Planner* ctx,
+                                      const uint8_t* path,
+                                      uint8_t path_len)
+{
+    for (uint8_t i = 1; i < path_len; i++) {
+        uint8_t r1, c1, r2, c2;
+        MF_FromIndex(path[i - 1], &r1, &c1);
+        MF_FromIndex(path[i], &r2, &c2);
+
+        int8_t dr = (int8_t)r2 - (int8_t)r1;
+        int8_t dc = (int8_t)c2 - (int8_t)c1;
+        MF_Dir dir = MF_DirFromDelta(dr, dc);
+
+        /* 规划阶段假设 R1 完成清理，后续路径可以把该格视为空格。 */
+        if (ctx->cell[r2][c2] == MF_CELL_R1KFS) {
+            if (!MF_PushAction(ctx, MF_ACT_WAIT_R1, dir, r2, c2)) {
+                return false;
+            }
+            ctx->cell[r2][c2] = MF_CELL_EMPTY;
+        }
+
+        /* MOVE_R2 是“移开/丢弃”，不增加已存储或已持有的 R2KFS 数量。 */
+        if (ctx->cell[r2][c2] == MF_CELL_R2KFS) {
+            if (!MF_PushAction(ctx, MF_ACT_MOVE_R2, dir, r2, c2)) {
+                return false;
+            }
+            ctx->actions[ctx->action_count - 1].height_pick_diff =
+                (int16_t)ctx->height[r2][c2] - (int16_t)ctx->height[r1][c1];
+            ctx->cell[r2][c2] = MF_CELL_EMPTY;
+        }
+
+        /* 注意：这里仍然只生成 STEP_UP/STEP_DOWN，具体 200/400 由 height_pick_diff 区分。 */
+        int16_t diff = (int16_t)ctx->height[r2][c2] - (int16_t)ctx->height[r1][c1];
+        if (diff == 0) {
+            if (!MF_PushAction(ctx, MF_ACT_MOVE_FLAT, dir, r2, c2)) {
+                return false;
+            }
+        } else if (diff == 200 || diff == MF_PREINPUT_MAX_STEP_DIFF) {
+            if (!MF_PushAction(ctx, MF_ACT_STEP_UP, dir, r2, c2)) {
+                return false;
+            }
+            ctx->actions[ctx->action_count - 1].height_pick_diff = diff;
+        } else if (diff == -200 || diff == -MF_PREINPUT_MAX_STEP_DIFF) {
+            if (!MF_PushAction(ctx, MF_ACT_STEP_DOWN, dir, r2, c2)) {
+                return false;
+            }
+            ctx->actions[ctx->action_count - 1].height_pick_diff = diff;
+        } else {
+            return false;
+        }
+    }
+    return true;
+}
+
+/**
+ * @brief 查找到目标 R2KFS 的最佳相邻站位路径。
+ * @note R2 不能登上 R2KFS 本体，只能站在四邻格面向它执行 PICK_R2。
+ * @note allow_r2kfs_cross 只影响“去相邻格的途中”是否允许移开其它 R2KFS。
+ */
+static bool MF_PreInputFindPathToAdjacent(const MF_Planner* ctx,
+                                          uint8_t sr, uint8_t sc,
+                                          uint8_t target_r, uint8_t target_c,
+                                          bool allow_r2kfs_cross,
+                                          uint8_t* out_path,
+                                          uint8_t* out_len,
+                                          uint8_t* out_adj_r,
+                                          uint8_t* out_adj_c,
+                                          int16_t* out_cost)
+{
+    bool found = false;
+    uint8_t best_path[MF_MAX_NODES];
+    uint8_t best_len = 0;
+    uint8_t best_r = 0;
+    uint8_t best_c = 0;
+    int16_t best_cost = 0x3FFF;
+
+    for (uint8_t d = 0; d < 4; d++) {
+        int8_t ar = (int8_t)target_r + k_dir_dr[d];
+        int8_t ac = (int8_t)target_c + k_dir_dc[d];
+        if (!MF_InBounds(ar, ac)) {
+            continue;
+        }
+
+        uint8_t ur = (uint8_t)ar;
+        uint8_t uc = (uint8_t)ac;
+        if (MF_IsBlockedForMove(ctx, ur, uc, allow_r2kfs_cross)) {
+            continue;
+        }
+
+        uint8_t path[MF_MAX_NODES];
+        uint8_t len = 0;
+        int16_t cost = 0;
+        if (MF_PreInputAStar(ctx, sr, sc, ur, uc,
+                             allow_r2kfs_cross, path, &len, &cost)) {
+            if (!found || cost < best_cost) {
+                found = true;
+                best_len = len;
+                best_cost = cost;
+                memcpy(best_path, path, len);
+                best_r = ur;
+                best_c = uc;
+            }
+        }
+    }
+
+    if (!found) {
+        return false;
+    }
+
+    memcpy(out_path, best_path, best_len);
+    *out_len = best_len;
+    *out_adj_r = best_r;
+    *out_adj_c = best_c;
+    if (out_cost != NULL) {
+        *out_cost = best_cost;
+    }
+    return true;
+}
+
+/**
+ * @brief 给前瞻搜索应用路径副作用。
+ * @note 只用于候选评分，不直接生成动作。它模拟 MF_PreInputAddPathActions() 会造成的
+ *       地图变化：经过 R1KFS/R2KFS 后，该格在后续搜索中变成 EMPTY。
+ */
+static void MF_PreInputApplyPathCellEffects(MF_Planner* ctx,
+                                            const uint8_t* path,
+                                            uint8_t path_len)
+{
+    for (uint8_t i = 1; i < path_len; i++) {
+        uint8_t r, c;
+        MF_FromIndex(path[i], &r, &c);
+        if (ctx->cell[r][c] == MF_CELL_R1KFS ||
+            ctx->cell[r][c] == MF_CELL_R2KFS) {
+            ctx->cell[r][c] = MF_CELL_EMPTY;
+        }
+    }
+}
+
+/**
+ * @brief 计算完成所有拾取后到出口的最小代价。
+ * @note 新版出口候选是 row5 的任意列 col0/col1/col2；出口阶段禁止继续 MOVE_R2。
+ */
+static bool MF_PreInputFindBestExitCost(const MF_Planner* ctx,
+                                        uint8_t cur_r,
+                                        uint8_t cur_c,
+                                        int16_t* out_cost)
+{
+    bool found = false;
+    int16_t best_cost = 0x3FFF;
+    uint8_t path[MF_MAX_NODES];
+    uint8_t len = 0;
+    int16_t cost = 0;
+
+    for (uint8_t c = 0; c < MF_COLS; c++) {
+        if (MF_PreInputAStar(ctx, cur_r, cur_c, 5, c, false, path, &len, &cost)) {
+            if (!found || cost < best_cost) {
+                found = true;
+                best_cost = cost;
+            }
+        }
+    }
+
+    if (!found) {
+        return false;
+    }
+    if (out_cost != NULL) {
+        *out_cost = best_cost;
+    }
+    return true;
+}
+
+/**
+ * @brief 递归评估“剩余拾取 + 最终出口”的最小代价。
+ * @note 这是新版全局规划避免纯贪心的关键：当前要拾取哪个 R2KFS，不只看眼前距离，
+ *       还要把后续剩余 R2KFS 和最终出口可达性一起纳入评分。
+ */
+static bool MF_PreInputEvaluateRemainingPlanCost(const MF_Planner* ctx,
+                                                 uint8_t cur_r,
+                                                 uint8_t cur_c,
+                                                 uint8_t remaining_picks,
+                                                 int16_t* out_cost)
+{
+    if (remaining_picks == 0) {
+        return MF_PreInputFindBestExitCost(ctx, cur_r, cur_c, out_cost);
+    }
+
+    bool found_any = false;
+    int16_t best_total_cost = 0x3FFF;
+
+    for (uint8_t r = 1; r < (MF_ROWS - 1); r++) {
+        for (uint8_t c = 0; c < MF_COLS; c++) {
+            if (ctx->cell[r][c] != MF_CELL_R2KFS) {
+                continue;
+            }
+
+            uint8_t path[MF_MAX_NODES];
+            uint8_t len = 0;
+            uint8_t adj_r = 0;
+            uint8_t adj_c = 0;
+            int16_t path_cost = 0;
+
+            if (!MF_PreInputFindPathToAdjacent(ctx, cur_r, cur_c, r, c,
+                                               true, path, &len, &adj_r, &adj_c, &path_cost)) {
+                continue;
+            }
+
+            /* 用临时上下文模拟走到该候选并拾取后，后续地图会变成什么样。 */
+            MF_Planner next_ctx = *ctx;
+            MF_PreInputApplyPathCellEffects(&next_ctx, path, len);
+            next_ctx.cell[r][c] = MF_CELL_EMPTY;
+
+            int16_t remain_cost = 0;
+            if (!MF_PreInputEvaluateRemainingPlanCost(&next_ctx, adj_r, adj_c,
+                                                      (uint8_t)(remaining_picks - 1),
+                                                      &remain_cost)) {
+                continue;
+            }
+
+            int16_t total_cost = (int16_t)(path_cost + remain_cost);
+            if (!found_any || total_cost < best_total_cost) {
+                found_any = true;
+                best_total_cost = total_cost;
+            }
+        }
+    }
+
+    if (!found_any) {
+        return false;
+    }
+    if (out_cost != NULL) {
+        *out_cost = best_total_cost;
+    }
+    return true;
+}
+
+/**
+ * @brief 执行新版规则中的“若 row1 有 R2KFS，则首次进入树林前必须先拾取一个”。
+ * @note 该函数只在 row0 上规划移动，并固定从 row0 面向 NORTH 拾取 row1 的 R2KFS。
+ * @note 如果 row1 没有 R2KFS，规则允许 R2 直接登上 row1，因此这里返回成功但 picked=0。
+ * @note 如果 row1 有 R2KFS，但从起点无法到达任何对应 row0 站位，才返回失败。
+ */
+static bool MF_PreInputPickFirstRow1R2(MF_Planner* ctx,
+                                       uint8_t start_row,
+                                       uint8_t start_col,
+                                       uint8_t r2kfs_need,
+                                       uint8_t* out_picked_count,
+                                       uint8_t* out_cur_r,
+                                       uint8_t* out_cur_c)
+{
+    bool found_any = false;
+    bool row1_has_r2kfs = false;
+    uint8_t best_c = 0;
+    uint8_t best_path[MF_MAX_NODES];
+    uint8_t best_len = 0;
+    int16_t best_path_cost = 0x3FFF;
+    int16_t best_plan_cost = 0x3FFF;
+
+    if (out_picked_count != NULL) {
+        *out_picked_count = 0;
+    }
+    if (start_row != 0 || start_col >= MF_COLS) {
+        return false;
+    }
+    if (r2kfs_need == 0) {
+        *out_cur_r = start_row;
+        *out_cur_c = start_col;
+        return true;
+    }
+
+    /* 枚举 row1 上所有 R2KFS，选择“首次拾取 + 后续全局任务”总代价最低的那一个。 */
+    for (uint8_t c = 0; c < MF_COLS; c++) {
+        if (ctx->cell[1][c] != MF_CELL_R2KFS) {
+            continue;
+        }
+        row1_has_r2kfs = true;
+
+        uint8_t path[MF_MAX_NODES];
+        uint8_t len = 0;
+        int16_t path_cost = 0;
+        if (!MF_PreInputAStar(ctx, start_row, start_col, 0, c,
+                              false, path, &len, &path_cost)) {
+            continue;
+        }
+
+        /* 首次拾取后还停留在 row0,col(c)，再评估剩余任务。 */
+        MF_Planner lookahead_ctx = *ctx;
+        MF_PreInputApplyPathCellEffects(&lookahead_ctx, path, len);
+        lookahead_ctx.cell[1][c] = MF_CELL_EMPTY;
+
+        int16_t remaining_cost = 0;
+        if (!MF_PreInputEvaluateRemainingPlanCost(&lookahead_ctx, 0, c,
+                                                  (uint8_t)(r2kfs_need - 1),
+                                                  &remaining_cost)) {
+            continue;
+        }
+
+        int16_t plan_cost = (int16_t)(path_cost + remaining_cost);
+        if (!found_any ||
+            plan_cost < best_plan_cost ||
+            (plan_cost == best_plan_cost && path_cost < best_path_cost)) {
+            found_any = true;
+            best_c = c;
+            best_len = len;
+            best_path_cost = path_cost;
+            best_plan_cost = plan_cost;
+            memcpy(best_path, path, len);
+        }
+    }
+
+    if (!found_any) {
+        if (!row1_has_r2kfs) {
+            /* row1 没有 R2KFS 时，规则允许直接进入 row1，后续全局规划从原起点继续。 */
+            *out_cur_r = start_row;
+            *out_cur_c = start_col;
+            return true;
+        }
+        return false;
+    }
+
+    /* 真正把选择出的首次路径和 PICK_R2 写入动作列表。 */
+    if (!MF_PreInputAddPathActions(ctx, best_path, best_len)) {
+        return false;
+    }
+
+    int16_t height_diff = (int16_t)ctx->height[1][best_c] - (int16_t)ctx->height[0][best_c];
+    if (!MF_PushAction(ctx, MF_ACT_PICK_R2, MF_DIR_NORTH, 1, best_c)) {
+        return false;
+    }
+    ctx->actions[ctx->action_count - 1].height_pick_diff = height_diff;
+    ctx->cell[1][best_c] = MF_CELL_EMPTY;
+
+    *out_cur_r = 0;
+    *out_cur_c = best_c;
+    if (out_picked_count != NULL) {
+        *out_picked_count = 1;
+    }
+    return true;
+}
+
+/**
+ * @brief 基于键盘预输入地图的一次性全局规划。
+ * @note 规则差异：
+ *       1) 若 row1 有 R2KFS，必须先在 row0 面向 NORTH 拾取其中一个；
+ *          若 row1 没有 R2KFS，则允许直接登上 row1 并进入全局规划；
+ *       2) A* 允许 0 / +/-200 / +/-400 的相邻高度差；
+ *       3) 出口候选为 row5 的任意 col；
+ *       4) 动作类型仍复用现有 MF 动作集合。
+ */
+bool MFPlanner_PreInputBuildFullPlan(MF_Planner* ctx,
+                                     uint8_t start_row,
+                                     uint8_t start_col,
+                                     uint8_t r2kfs_need)
+{
+    uint8_t cur_r = 0;
+    uint8_t cur_c = 0;
+    uint8_t picked_start = 0;
+
+    ctx->action_count = 0;
+    ctx->action_index = 0;
+
+    /*
+     * 第一段是进入树林前的规则检查：
+     * - row1 有 R2KFS：先从 row0 拾取一个，picked_start=1；
+     * - row1 没有 R2KFS：不生成首次 PICK，picked_start=0，直接从起点做全局规划。
+     */
+    if (!MF_PreInputPickFirstRow1R2(ctx, start_row, start_col,
+                                    r2kfs_need, &picked_start, &cur_r, &cur_c)) {
+        return false;
+    }
+
+    /* 后续拾取阶段：允许沿途 MOVE_R2，但每次选点都按剩余任务总代价做前瞻。 */
+    for (uint8_t picked = picked_start; picked < r2kfs_need; picked++) {
+        bool found_any = false;
+        uint8_t best_target_r = 0;
+        uint8_t best_target_c = 0;
+        uint8_t best_path[MF_MAX_NODES];
+        uint8_t best_len = 0;
+        uint8_t best_adj_r = 0;
+        uint8_t best_adj_c = 0;
+        int16_t best_cost = 0x3FFF;
+        int16_t best_plan_cost = 0x3FFF;
+
+        for (uint8_t r = 1; r < (MF_ROWS - 1); r++) {
+            for (uint8_t c = 0; c < MF_COLS; c++) {
+                if (ctx->cell[r][c] != MF_CELL_R2KFS) {
+                    continue;
+                }
+
+                uint8_t path[MF_MAX_NODES];
+                uint8_t len = 0;
+                uint8_t adj_r = 0;
+                uint8_t adj_c = 0;
+                int16_t cost = 0;
+
+                /* 找到该 R2KFS 四邻格中代价最低的可站立位置。 */
+                if (!MF_PreInputFindPathToAdjacent(ctx, cur_r, cur_c, r, c,
+                                                   true, path, &len, &adj_r, &adj_c, &cost)) {
+                    continue;
+                }
+
+                /* 前瞻：假设当前候选被选中，继续检查剩余拾取和最终出口。 */
+                MF_Planner lookahead_ctx = *ctx;
+                MF_PreInputApplyPathCellEffects(&lookahead_ctx, path, len);
+                lookahead_ctx.cell[r][c] = MF_CELL_EMPTY;
+
+                int16_t remaining_cost = 0;
+                if (!MF_PreInputEvaluateRemainingPlanCost(&lookahead_ctx,
+                                                          adj_r,
+                                                          adj_c,
+                                                          (uint8_t)(r2kfs_need - picked - 1),
+                                                          &remaining_cost)) {
+                    continue;
+                }
+
+                int16_t plan_cost = (int16_t)(cost + remaining_cost);
+                if (!found_any ||
+                    plan_cost < best_plan_cost ||
+                    (plan_cost == best_plan_cost && cost < best_cost)) {
+                    found_any = true;
+                    best_len = len;
+                    best_cost = cost;
+                    best_plan_cost = plan_cost;
+                    memcpy(best_path, path, len);
+                    best_target_r = r;
+                    best_target_c = c;
+                    best_adj_r = adj_r;
+                    best_adj_c = adj_c;
+                }
+            }
+        }
+
+        if (!found_any) {
+            return false;
+        }
+
+        if (!MF_PreInputAddPathActions(ctx, best_path, best_len)) {
+            return false;
+        }
+
+        int8_t dr = (int8_t)best_target_r - (int8_t)best_adj_r;
+        int8_t dc = (int8_t)best_target_c - (int8_t)best_adj_c;
+        MF_Dir pick_dir = MF_DirFromDelta(dr, dc);
+        int16_t height_diff = (int16_t)ctx->height[best_target_r][best_target_c]
+                              - (int16_t)ctx->height[best_adj_r][best_adj_c];
+
+        if (!MF_PushAction(ctx, MF_ACT_PICK_R2, pick_dir, best_target_r, best_target_c)) {
+            return false;
+        }
+        ctx->actions[ctx->action_count - 1].height_pick_diff = height_diff;
+        ctx->cell[best_target_r][best_target_c] = MF_CELL_EMPTY;
+
+        cur_r = best_adj_r;
+        cur_c = best_adj_c;
+    }
+
+    /* 最终出口阶段：row5 的三个 col 都是候选，且剩余 R2KFS 变为硬障碍。 */
+    {
+        bool found_exit = false;
+        uint8_t best_exit_path[MF_MAX_NODES];
+        uint8_t best_exit_len = 0;
+        int16_t best_exit_cost = 0x3FFF;
+
+        for (uint8_t c = 0; c < MF_COLS; c++) {
+            uint8_t exit_path[MF_MAX_NODES];
+            uint8_t exit_len = 0;
+            int16_t exit_cost = 0;
+
+            if (cur_r == 5 && cur_c == c) {
+                found_exit = true;
+                best_exit_len = 0;
+                break;
+            }
+
+            if (MF_PreInputAStar(ctx, cur_r, cur_c, 5, c,
+                                 false, exit_path, &exit_len, &exit_cost)) {
+                if (!found_exit || exit_cost < best_exit_cost) {
+                    found_exit = true;
+                    best_exit_len = exit_len;
+                    best_exit_cost = exit_cost;
+                    memcpy(best_exit_path, exit_path, exit_len);
+                }
+            }
+        }
+
+        if (!found_exit) {
+            return false;
+        }
+        if (best_exit_len > 0 && !MF_PreInputAddPathActions(ctx, best_exit_path, best_exit_len)) {
+            return false;
+        }
+    }
+
+    return true;
+}

@@ -134,4 +134,26 @@ bool MFPlanner_BuildPhase2(MF_Planner* ctx, uint8_t r2kfs_need);
 /*---------------------- 多步/动态规划暂存 ----------------------*/
 
 
+/*---------------------- PreInput / full-map planner ----------------------*/
+
+void MFPlanner_PreInputInit(MF_Planner* ctx, MF_MapColor color);
+
+bool MFPlanner_PreInputSetCell(MF_Planner* ctx,
+                               uint8_t row,
+                               uint8_t col,
+                               MF_CellType type);
+
+bool MFPlanner_PreInputLoadCells(MF_Planner* ctx,
+                                 MF_MapColor color,
+                                 const MF_CellType input_cell[MF_ROWS][MF_COLS]);
+
+void MFPlanner_PreInputLoadFixedDemoMap(MF_Planner* ctx, MF_MapColor color);
+
+bool MFPlanner_PreInputBuildFullPlan(MF_Planner* ctx,
+                                     uint8_t start_row,
+                                     uint8_t start_col,
+                                     uint8_t r2kfs_need);
+
+/*---------------------- PreInput / full-map planner ----------------------*/
+
 #endif

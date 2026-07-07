@@ -681,6 +681,9 @@ uint8_t mf_picked_kfs_count = 0;            /* 已执行的 PICK_R2 数量：0=�
 static uint8_t mf_r2_kfs_all_need = R2_KFS_ALL_NEED;
 static uint8_t mf_finish_start_cz = 1;
 
+#define MF_PREINPUT_START_ROW 0
+#define MF_PREINPUT_START_COL 0
+
 uint8_t arm_if_send_point = 0; /* 机械臂是否已经下发轨迹点标志位，避免重复下发 */
 
 typedef enum {
@@ -912,6 +915,26 @@ static void arm_send_front_discard_trajectory(void)
     taskEXIT_CRITICAL();
 }
 
+static ChassisStepType mf_step_type_from_action(const MF_Action *act)
+{
+    if (act->type == MF_ACT_STEP_UP) {
+        if (act->height_pick_diff == 400) {
+            return STEP_UP_400;
+        }
+        if (act->height_pick_diff == 0 || act->height_pick_diff == 200) {
+            return STEP_UP_200;
+        }
+    } else if (act->type == MF_ACT_STEP_DOWN) {
+        if (act->height_pick_diff == -400) {
+            return STEP_DOWN_400;
+        }
+        if (act->height_pick_diff == 0 || act->height_pick_diff == -200) {
+            return STEP_DOWN_200;
+        }
+    }
+    return STEP_NONE;
+}
+
 /* ================= 统一后向服务 ================= */
 
 static void Arm_Path_Queue_Clear(robotic_arm_traj_stu *traj)
@@ -1100,50 +1123,37 @@ static BT_Status Cond_Has_MF_Request(void)
 /* ================= 3. 动作节点 ================= */
 
 /**
- * @brief 初始�?MF 规划�?
- * @note 函数内部仅含有：规划器初始化，地图加载，状态初始化
- * @note 包含一个初始扫描动作的下发，供后续阶段使用
- * @warning 不包含阶段性的规划函数调用（BuildPhase1/2�?
+ * @brief 初始化 MF，并使用新版预输入地图做一次性全局规划。
+ * @note 新版规划器不再下发 SCAN 动作，也不再依赖 MF_EXEC_SCAN 中的 Phase1/Phase2。
+ * @note 当前调试阶段使用 MFPlanner_PreInputLoadFixedDemoMap() 载入固定预设地图；
+ *       后续接入键盘预输入时，将这里替换为 MFPlanner_PreInputLoadCells() 即可。
  */
 static BT_Status Act_MF_Init_And_Plan(void)
 {
     if (mf_phase_flag >= 2) {
-        /* 已经规划完成，直接返回成�?*/
+        /* 已经规划完成，直接返回成功 */
         return BT_SUCCESS;
     }
 
-    /* --- 初始化规划器 --- */
-    /* 🟡【需替换】根据实际比赛地图颜色选择 RED_MAP �?BLUE_MAP */
-    MFPlanner_Init(&mf_planner_ctx, RED_MAP);  
-    MFPlanner_LoadFixedDemoMap(&mf_planner_ctx);
-    /* 此时：row0/row5=EMPTY，height 全部已知，row1~row4=UNKNOWN */
+    /* 当前先使用固定预设地图调试新版全局规划；正式键盘输入时改为 PreInputLoadCells。 */
+    MFPlanner_PreInputLoadFixedDemoMap(&mf_planner_ctx, RED_MAP);
+
     mf_bb.kfs_stored = 0;
     mf_picked_kfs_count = 0;
+    mf_picked_phase1 = 0;
 
-    // /* --- 阶段1：第一次扫�?+ 局部规�?--- */
-    // /*
-    //  * 🟡【需替换】BuildPhase1 内部会调�?ScanRows 模拟扫描�?
-    //  * 实际比赛时应由相机回调填�?cell 数据，再调用 BuildPhase1�?
-    //  * 当前调试阶段 BuildPhase1 内部硬编码了 real_cell�?
-    //  */
-    // MFPlanner_BuildPhase1(&mf_planner_ctx, 0, 1, &mf_picked_phase1);
-    // mf_phase_flag = 1;
-    // /* --- 阶段2：全局拾取 + 走到出口 --- */
-    // /*
-    //  * 🟡【需确认】r2kfs_all_need 的值应根据实际视觉识别结果动态确定�?
-    //  * 当前硬编码为 4（与 ScanRows �?real_cell �?R2KFS 总数一致）�?
-    //  */
-    // uint8_t r2kfs_all_need = 3; /* 🟡 占位，需根据实际视觉结果替换 */
-    // MFPlanner_BuildPhase2(&mf_planner_ctx, r2kfs_all_need - mf_picked_phase1);
-    // mf_phase_flag = 2;
-
-    /* 由于 BT+状态机 的特性，需要在初始化时即向动作序列中添加第一个扫描动作 */
-    /* 扫描1：站在 row0,col1 向 X 负方向偏移的位置，揭示 row1 */
-    if (MF_PushAction(&mf_planner_ctx, MF_ACT_SCAN, MF_DIR_NORTH, 0, 1)) {
-        mf_planner_ctx.actions[mf_planner_ctx.action_count - 1].height_pick_diff = MF_SCAN_STAGE_ROW1;
+    if (!MFPlanner_PreInputBuildFullPlan(&mf_planner_ctx,
+                                         MF_PREINPUT_START_ROW,
+                                         MF_PREINPUT_START_COL,
+                                         mf_r2_kfs_all_need)) {
+        mf_exec_state = MF_EXEC_FAILED;
+        mf_exec_timer_ms = 0;
+        mf_phase_flag = 0;
+        return BT_FAILURE;
     }
+    mf_phase_flag = 2;
 
-    /* 初始化执行状�?*/
+    /* 初始化执行状态 */
     mf_exec_state = MF_EXEC_IDLE;
     mf_exec_timer_ms = 0;
 
@@ -1482,7 +1492,11 @@ static BT_Status Act_MF_Execute_Action(void)
             if (chassis_if_arrived(stand_x, stand_y, step_yaw))
             {
                 /* 底盘已到位，启动上台�?FSM */
-                ChassisStepType step_type = STEP_UP_200;
+                ChassisStepType step_type = mf_step_type_from_action(&act);
+                if (step_type == STEP_NONE) {
+                    mf_exec_state = MF_EXEC_FAILED;
+                    return BT_RUNNING;
+                }
                 chassis_step_fsm_start(&g_step_fsm, step_type);
                 step_up_fsm_started = 1;
                 mf_exec_timer_ms = 0;
@@ -1556,7 +1570,11 @@ static BT_Status Act_MF_Execute_Action(void)
             if (chassis_if_arrived(stand_x, stand_y, step_yaw))
             {
                 /* 底盘已到位，启动下台�?FSM */
-                ChassisStepType step_type = STEP_DOWN_200;
+                ChassisStepType step_type = mf_step_type_from_action(&act);
+                if (step_type == STEP_NONE) {
+                    mf_exec_state = MF_EXEC_FAILED;
+                    return BT_RUNNING;
+                }
                 chassis_step_fsm_start(&g_step_fsm, step_type);
                 step_down_fsm_started = 1;
                 mf_exec_timer_ms = 0;
@@ -1780,7 +1798,7 @@ static uint8_t seq_mem_idx_mf = 0;
  * @brief MF 任务行为�?Root 根节�?
  * @note 流程�?
  *   1. 等待 MF 任务请求
- *   2. 初始�?+ 扫描 + 规划（一次性）
+ *   2. 初始化 + 预输入全局规划（一次性）
  *   3. 逐个执行动作列表（内�?FSM，多 Tick 返回 RUNNING�?
  *   4. 清理
  */
@@ -1788,7 +1806,7 @@ static BT_Status BT_MF_Task_Tree_Root(void)
 {
     static const BT_NodeFunc seq[] = {
         Cond_Has_MF_Request,       /* 1. �?MF 任务请求�?*/
-        Act_MF_Init_And_Plan,      /* 2. 初始�?+ 规划 */
+        Act_MF_Init_And_Plan,      /* 2. 初始化 + 预输入全局规划 */
         Act_MF_Execute_Action,     /* 3. 执行动作列表（内�?FSM�?*/
         Act_MF_Finish_Cleanup      /* 4. 清理 */
     };
