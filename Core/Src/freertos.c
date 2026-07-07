@@ -78,8 +78,8 @@ uint8_t kalman_init_flag = 0;    // 卡尔曼滤波初始化flag
 
 /* 自适应一阶低通滤波变量（与卡尔曼对照） */
 // 静止时深滤波（alpha小），运动时浅滤波（alpha大），解决静止雷达抖动
-#define LOWPASS_ALPHA_STATIC     0.002f   // 静止：截止频率≈0.3Hz，强去噪
-#define LOWPASS_ALPHA_MOVING     0.1f     // 运动：截止频率≈16Hz，快速跟踪
+#define LOWPASS_ALPHA_STATIC     0.7f   // 静止：截止频率≈0.3Hz，强去噪
+#define LOWPASS_ALPHA_MOVING     0.9f     // 运动：截止频率≈16Hz，快速跟踪
 #define LOWPASS_SPEED_THRESH     50.0f    // 线速度阈值
 #define LOWPASS_ANGULAR_THRESH   50.0f     // 角速度阈值 
 
@@ -270,23 +270,23 @@ void StartDefaultTask(void const * argument)
     // data_send_vofa[6] = m3508_fdcan3[0].Now_Speed;
     // data_send_vofa[7] = m3508_fdcan3[0].M3508_Speed_PID.Target;
     // Vofa 10通道：卡尔曼 vs 低通对比视图
-    // data_send_vofa[0] = Radar_Pos.radar_x;            // ch0: 雷达原始X
-    // data_send_vofa[1] = Radar_Pos.radar_x_filtered;   // ch1: 卡尔曼滤波X
-    // data_send_vofa[2] = radar_x_lowpass;              // ch2: 一阶低通X
-    // data_send_vofa[3] = Radar_Pos.reliable_x;         // ch3: 最终使用X
+    data_send_vofa[0] = Radar_Pos.radar_x;            // ch0: 雷达原始X
+    data_send_vofa[1] = Radar_Pos.radar_x_filtered;   // ch1: 卡尔曼滤波X
+    data_send_vofa[2] = radar_x_lowpass;              // ch2: 一阶低通X
+    data_send_vofa[3] = Radar_Pos.reliable_x;         // ch3: 最终使用X
     // data_send_vofa[4] = chassis_route_traj.traj_vx.out_vel;          // ch4: 雷达原始Y
     // data_send_vofa[5] = Radar_Pos.radar_y_filtered;   // ch5: 卡尔曼滤波Y
     // data_send_vofa[6] = radar_y_lowpass;              // ch6: 一阶低通Y
     // data_send_vofa[7] = Radar_Pos.reliable_y;         // ch7: 最终使用Y
  
-    data_send_vofa[0] = m3508_fdcan3[0].M3508_Speed_PID.Target; // ch0: 目标速度
-    data_send_vofa[1] = m3508_fdcan3[0].Now_Speed;              // ch1: 实际速度
-    data_send_vofa[2] = m3508_fdcan3[1].M3508_Speed_PID.Target; // ch2: 目标速度
-    data_send_vofa[3] = m3508_fdcan3[1].Now_Speed;              // ch3: 实际速度
-    data_send_vofa[4] = m3508_fdcan3[2].M3508_Speed_PID.Target; // ch4: 目标速度
-    data_send_vofa[5] = m3508_fdcan3[2].Now_Speed;              // ch5: 实际速度
-    data_send_vofa[6] = m3508_fdcan3[3].M3508_Speed_PID.Target; // ch6: 目标速度
-    data_send_vofa[7] = m3508_fdcan3[3].Now_Speed;              // ch7: 实际速度
+//    data_send_vofa[0] = m3508_fdcan3[0].M3508_Speed_PID.Target; // ch0: 目标速度
+//    data_send_vofa[1] = m3508_fdcan3[0].Now_Speed;              // ch1: 实际速度
+//    data_send_vofa[2] = m3508_fdcan3[1].M3508_Speed_PID.Target; // ch2: 目标速度
+//    data_send_vofa[3] = m3508_fdcan3[1].Now_Speed;              // ch3: 实际速度
+//    data_send_vofa[4] = m3508_fdcan3[2].M3508_Speed_PID.Target; // ch4: 目标速度
+//    data_send_vofa[5] = m3508_fdcan3[2].Now_Speed;              // ch5: 实际速度
+//    data_send_vofa[6] = m3508_fdcan3[3].M3508_Speed_PID.Target; // ch6: 目标速度
+//    data_send_vofa[7] = m3508_fdcan3[3].Now_Speed;              // ch7: 实际速度
 
     vofa_send_to_show_justfloat(&huart7, data_send_vofa);
 
@@ -474,6 +474,7 @@ void entry_chassis(void const * argument)
   {
     if (m3508_fdcan3[0].Initial_flag == 200 && m3508_fdcan3[1].Initial_flag == 200 && m3508_fdcan3[2].Initial_flag == 200 && m3508_fdcan3[3].Initial_flag == 200)
     {
+     // DR_Update(); 
       // //雷达建图用
       // if (HT10A.switch_d == -1)
       // {
@@ -500,16 +501,16 @@ void entry_chassis(void const * argument)
       //   else if(HT10A.right_y == 0)chassis_r2.vw = 0;
       // }
       //一区平移测试
-      // if (point_add== 1 )
-      // {
-      //   chassis_route_point_add(&chassis_route_traj,1000.0f,-1400.0f,0.0f,0);
-			// 	point_add = 0;
-      // }
-      // if (point_add== 2 )
-      // {
-      //   chassis_route_point_add(&chassis_route_traj,1000.0f,-4500.0f,180.0f,0);
-			// 	point_add = 0;
-      // }
+      if (point_add== 1 )
+       {
+         chassis_route_point_add(&chassis_route_traj,1000.0f,-1400.0f,0.0f,0,0);
+			 	point_add = 0;
+       }
+       if (point_add== 2 )
+       {
+         chassis_route_point_add(&chassis_route_traj,2000.0f,-1400.0f,180.0f,0,0);
+			 	point_add = 0;
+       }
     //  //测试用添加路径点
 //     if (point_add == 1)
 //     {
@@ -591,11 +592,11 @@ void entry_chassis(void const * argument)
 //	chassis_route_point_add(&chassis_route_traj, 11400.0f,-1500.0f, -90.0f, 0,0);
 //  point_add = 0;
 //}
-       if (point_add == 1)
-      {
-        chassis_route_point_add(&chassis_route_traj,arm_target_x,arm_target_y, angle, 0,0);
-        point_add = 0;
-      }
+//       if (point_add == 1)
+//      {
+//        chassis_route_point_add(&chassis_route_traj,arm_target_x,arm_target_y, angle, 0,0);
+//        point_add = 0;
+//      }
 
 
       // // 滤波后的雷达数据更新
@@ -653,6 +654,12 @@ void entry_chassis(void const * argument)
           }
           Radar_Pos.reliable_yaw = Radar_Pos.hi14_yaw;
       }
+ 
+          
+//					 Radar_Pos.reliable_x = Radar_Pos.radar_x;
+//           Radar_Pos.reliable_y = Radar_Pos.radar_y;
+//           Radar_Pos.reliable_yaw = Radar_Pos.hi14_yaw;
+          
 
       if (traj_init_flag_chassis == 0)
       {
@@ -797,7 +804,7 @@ void entry_clamp(void const * argument)
      clamp_extend_control(clamp.retractable_flag * CLAMP_EXTEND_MAX_POSITION, &m3508_fdcan2[1]);
       // // 夹爪升降部分
      clamp_lift_control(clamp.lift_flag, &m3508_fdcan2[0]);
-      // m3508_anglesum_control(&m3508_fdcan2[0],rotate_target_angle,8000);
+       //m3508_anglesum_control(&m3508_fdcan2[0],rotate_target_angle,8000);
     }
     osDelay(1);
   }

@@ -754,6 +754,11 @@
               <FileType>1</FileType>
               <FilePath>..\user_lib\lift.c</FilePath>
             </File>
+            <File>
+              <FileName>dead_reckoning.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\user_lib\dead_reckoning.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

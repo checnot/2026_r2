@@ -1,4 +1,4 @@
-﻿#ifndef __BT_CUSTOMIZED_H
+#ifndef __BT_CUSTOMIZED_H
 #define __BT_CUSTOMIZED_H
 
 #include "main.h"
@@ -51,7 +51,7 @@
 **************************************** */
 #define R_CLAMP_TO_CHASSIS_CENTER_DIST 111.25f /* 夹爪中心到底盘中心的X方向距离 (mm) */
 #define B_CLAMP_TO_CHASSIS_CENTER_DIST 132.0f /* 夹爪中心到底盘中心的X方向距离 (mm) */
-#define R_RACK_STABLE_TIMES_CONDITION 50      /* 取矛头时到达目标位置次数，保证稳定抓取（降低以加速） */
+#define R_RACK_STABLE_TIMES_CONDITION 100      /* 取矛头时到达目标位置次数，保证稳定抓取（降低以加速） */
 #define B_RACK_STABLE_TIMES_CONDITION 50      /* 取矛头时到达目标位置次数，保证稳定抓取 */
 
 /* ===== 伸缩堵转保护参数 ===== */
@@ -67,14 +67,14 @@
 #define R_CHASSIS_HOME_MC_W 0.0f           /* 红区 底盘 HOME 位置 W (deg) */
 
 // 矛头位置：最靠近坐标系原点的第一个矛头为1，依次递增
-#define R_CHASSIS_RACK_1_X 460.0f             /* 红区 第一个矛头位置 X (mm) */
+#define R_CHASSIS_RACK_1_X 445.0f             /* 红区 第一个矛头位置 X (mm) */
 #define R_CHASSIS_RACK_2_X 650.0f - R_CLAMP_TO_CHASSIS_CENTER_DIST  /* 红区 第二个矛头位置 X (mm) */
 #define R_CHASSIS_RACK_3_X 850.0f - R_CLAMP_TO_CHASSIS_CENTER_DIST  /* 红区 第三个矛头位置 X (mm) */
 #define R_CHASSIS_RACK_4_X 1050.0f - R_CLAMP_TO_CHASSIS_CENTER_DIST /* 红区 第四个矛头位置 X (mm) */
 #define R_CHASSIS_RACK_5_X 1250.0f - R_CLAMP_TO_CHASSIS_CENTER_DIST /* 红区 第五个矛头位置 X (mm) */
 #define R_CHASSIS_RACK_6_X 1450.0f - R_CLAMP_TO_CHASSIS_CENTER_DIST /* 红区 第六个矛头位置 X (mm) */
-#define R_CHASSIS_RACK_Y -594.82f              /* 红区 取矛头位置 Y (mm) */
-#define R_CHASSIS_RACK_Y_1 -605.0f            /* 红区 取第一个矛头位置 Y (mm) */
+#define R_CHASSIS_RACK_Y -584.82f              /* 红区 取矛头位置 Y (mm) */
+#define R_CHASSIS_RACK_Y_1 -595.0f            /* 红区 取第一个矛头位置 Y (mm) */
 #define R_CHASSIS_RACK_W_1 10.0f              /* 红区 取第一个矛头位置 W (deg) */
 #define R_CHASSIS_RACK_W 0.0f                 /* 红区 取矛头位置 W (deg) */
 
