@@ -50,6 +50,7 @@
 #include "H7_F1_spi.h"
 #include "ir_action.h"
 #include "Ana_keyboard.h"
+#include "screen.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -246,8 +247,7 @@ void StartDefaultTask(void const * argument)
   // start tim7
   TIM7->CNT = 0;
   HAL_TIM_Base_Start_IT(&htim7);
-
-  /* Infinite loop */
+/* Infinite loop */
   for (;;)
   {
     //=======================================================================
@@ -291,7 +291,8 @@ void StartDefaultTask(void const * argument)
     data_send_vofa[6] = m3508_fdcan3[3].M3508_Speed_PID.Target; // ch6: 目标速度
     data_send_vofa[7] = m3508_fdcan3[3].Now_Speed;              // ch7: 实际速度
 
-    vofa_send_to_show_justfloat(&huart7, data_send_vofa);
+    // UART7 is now used by screen.c; do not send VOFA on the same port.
+    // vofa_send_to_show_justfloat(&huart7, data_send_vofa);
 
     // vofa显示调试信息
     //=======================================================================
@@ -315,7 +316,8 @@ void StartDefaultTask(void const * argument)
 
     debug_test_time += 0.001f;
 		AnaKeyboard_Update();
-    osDelay(1);
+		Screen_TestDisplay();
+    osDelay(1000);
   }
   /* USER CODE END StartDefaultTask */
 }
@@ -344,7 +346,6 @@ void entry_robotic_arm(void const * argument)
 
   // 初始化机械臂工作区域
   arm.mode = ARM_MODE_FRONT;
-
   /* Infinite loop */
   for (;;)
   {
@@ -492,6 +493,7 @@ void entry_chassis(void const * argument)
   // chassis_lift_front_control(chassis_r2.lift_front);
   // chassis_lift_back_control(chassis_r2.lift_back);
   // chassis_route_traj_init();
+
   /* Infinite loop */
   for (;;)
   {
@@ -802,6 +804,7 @@ void entry_clamp(void const * argument)
   clamp.retractable_flag = 0;
   clamp.lift_flag = 0;
 
+
   /* Infinite loop */
   for (;;)
   {
@@ -839,6 +842,8 @@ void entry_cmd_task(void const * argument)
   BT_CZ_Init_Task();
   BT_Init_R2_MC_Mission();
   mf_planner_ctx.map_color = RED_MAP;
+
+
 
   /* Infinite loop */
   for (;;)
@@ -891,6 +896,7 @@ void entry_m8010_task(void const * argument)
   m8010_bus_3.motors[1].target.mode = 1;
   // m8010_bus_3.motors[2].target.id = 3;
   // m8010_bus_3.motors[2].target.mode = 1;
+
 
   /* Infinite loop */
   for (;;)

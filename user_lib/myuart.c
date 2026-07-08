@@ -1,4 +1,6 @@
-#include "myuart.h"
+﻿#include "myuart.h"
+#include "screen.h"
+
 
 
 
@@ -160,6 +162,12 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
         __HAL_DMA_DISABLE_IT(&hdma_usart10_rx, DMA_IT_HT);
     }
 
+
+    // uart7 - serial screen
+    if (huart->Instance == UART7)
+    {
+        Screen_UART_RxEventCallback(huart, Size);
+    }
     taskEXIT_CRITICAL_FROM_ISR(status_value); // 退出临界段
 }
 
@@ -219,6 +227,12 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
         HAL_UARTEx_ReceiveToIdle_DMA(&huart10, dma_rx_buf, sizeof(dma_rx_buf));
         __HAL_DMA_DISABLE_IT(&hdma_usart10_rx, DMA_IT_HT);
     }
+
+    // uart7 - serial screen
+    if (huart->Instance == UART7)
+    {
+        Screen_UART_ErrorCallback(huart);
+    }
     taskEXIT_CRITICAL_FROM_ISR(status_value); // 退出临界段
 }
 
@@ -244,4 +258,14 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
             b->internal.g_state = GOM_STATE_WAIT_RX;
         }
     }
+
+    // uart7 - serial screen
+    if (huart->Instance == UART7)
+    {
+        Screen_UART_TxCpltCallback(huart);
+    }
+
 }
+
+
+

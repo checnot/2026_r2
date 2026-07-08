@@ -45,6 +45,7 @@
 #include "camera.h"
 #include "H7_F1_spi.h"
 #include "Ana_keyboard.h"
+#include "screen.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -144,6 +145,7 @@ int main(void)
   // CS 使用 PA4 软件控制，空闲为高电平。
   H7_F1_SPI_Init(&hspi1);
   AnaKeyboard_Init(&hadc1);
+  Screen_InitDisplay();
   // FDCAN初始化，配置过滤器并开启CAN
   FDCan_Start(&FDCAN_Default_FilterConfig_1);
 
