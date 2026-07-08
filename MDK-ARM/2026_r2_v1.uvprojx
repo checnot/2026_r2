@@ -710,6 +710,11 @@
               <FilePath>..\user_lib\myuart.c</FilePath>
             </File>
             <File>
+              <FileName>screen.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\user_lib\screen.c</FilePath>
+            </File>
+            <File>
               <FileName>vofa.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\user_lib\vofa.c</FilePath>
