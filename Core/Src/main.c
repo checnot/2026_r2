@@ -41,6 +41,7 @@
 #include "go_m8010.h"
 #include "BT_customized.h"
 #include "camera.h"
+#include "keyboard.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -170,9 +171,14 @@ int main(void)
   // HAL_UARTEx_ReceiveToIdle_DMA(&huart5, ht10a_buffer, sizeof(ht10a_buffer));
   // __HAL_DMA_DISABLE_IT(&hdma_uart5_rx, DMA_IT_HT);
 
-  // uart8 - camera
-  memset(Camera_Rec_Data, 0, sizeof(Camera_Rec_Data));
-  HAL_UARTEx_ReceiveToIdle_DMA(&huart8, Camera_Rec_Data, sizeof(Camera_Rec_Data));
+  // // uart8 - camera
+  // memset(Camera_Rec_Data, 0, sizeof(Camera_Rec_Data));
+  // HAL_UARTEx_ReceiveToIdle_DMA(&huart8, Camera_Rec_Data, sizeof(Camera_Rec_Data));
+  // __HAL_DMA_DISABLE_IT(&hdma_uart8_rx, DMA_IT_HT);
+
+  // uart8 - keyboard
+  memset(keyboard_buffer, 0, sizeof(keyboard_buffer));
+  HAL_UARTEx_ReceiveToIdle_DMA(&huart8, keyboard_buffer, sizeof(keyboard_buffer));
   __HAL_DMA_DISABLE_IT(&hdma_uart8_rx, DMA_IT_HT);
 
   // 雷达卡尔曼滤波器初始化

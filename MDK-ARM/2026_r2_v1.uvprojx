@@ -664,6 +664,11 @@
               <FileType>1</FileType>
               <FilePath>..\user_lib\micro_switch.c</FilePath>
             </File>
+            <File>
+              <FileName>keyboard.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\user_lib\keyboard.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

@@ -11,6 +11,8 @@
 #include "radar.h"
 #include "go_m8010.h"
 #include "camera.h"
+#include "keyboard.h"
+
 // //引入uart1供 a1
 // extern DMA_HandleTypeDef hdma_usart1_tx;
 // extern DMA_HandleTypeDef hdma_usart1_rx;

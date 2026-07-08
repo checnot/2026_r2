@@ -13,7 +13,7 @@
  * 
  * @note 用于 RS485 通信：3-4851 6-4952 4-4853
  * @note 用于雷达回传：5
- * @note 用于相机回传：8
+ * @note 用于矩阵键盘回传：8
  * @note 用于调试输出：7
  * @note 用于 hi14 回传：10
  * 
@@ -143,6 +143,15 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
         memset(dma_rx_buf, 0, sizeof(dma_rx_buf));
         HAL_UARTEx_ReceiveToIdle_DMA(&huart10, dma_rx_buf, sizeof(dma_rx_buf));
         __HAL_DMA_DISABLE_IT(&hdma_usart10_rx, DMA_IT_HT);
+    }
+
+    // uart8-供矩阵键盘回传
+    if (huart->Instance == UART8)
+    {
+        keyboard_process();
+        memset(keyboard_buffer, 0, sizeof(keyboard_buffer));
+        HAL_UARTEx_ReceiveToIdle_DMA(&huart8, keyboard_buffer, sizeof(keyboard_buffer));
+        __HAL_DMA_DISABLE_IT(&hdma_uart8_rx, DMA_IT_HT);
     }
 
     taskEXIT_CRITICAL_FROM_ISR(status_value); // 退出临界段
