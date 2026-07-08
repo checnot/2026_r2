@@ -836,14 +836,14 @@ void entry_cmd_task(void const * argument)
 //     }
    if (task_flag == 1)
    {
-    //  BT_MASTER_Start_Task();
-    BT_CZ_Start_Task();
-    CZ_bb.req_start = 1;
-    CZ_bb.seq_mem_idx = 0;
-    CZ_bb.cz_mission_state = CZ_WAIT_R1_PLATFORM;
-    CZ_bb.cz_timer_ms = 0;
-    CZ_bb.r1_platform_cmd = 1;
-    CZ_bb.r1_place_cmd = 0;
+    BT_MASTER_Start_Task();
+    // BT_CZ_Start_Task();
+    // CZ_bb.req_start = 1;
+    // CZ_bb.seq_mem_idx = 0;
+    // CZ_bb.cz_mission_state = CZ_WAIT_R1_PLATFORM;
+    // CZ_bb.cz_timer_ms = 0;
+    // CZ_bb.r1_platform_cmd = 1;
+    // CZ_bb.r1_place_cmd = 0;
     task_flag = 0;
     // MFPlanner_PreInputBuildFullPlan(&mf_planner_ctx, 0, 1, 2);
    }
@@ -877,8 +877,8 @@ void entry_cmd_task(void const * argument)
     //   MF_Scan_Command_Send(3);
     // }
     
-    // BT_MASTER_Tick(); // 每1ms调用，内部降频10ms，行为树主控任务周期调用
-    BT_Customized_Tick1ms_CZ();
+    BT_MASTER_Tick(); // 每1ms调用，内部降频10ms，行为树主控任务周期调用
+    // BT_Customized_Tick1ms_CZ();
     osDelay(1);
   }
   /* USER CODE END entry_cmd_task */

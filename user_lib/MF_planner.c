@@ -1,4 +1,5 @@
 ﻿#include "MF_planner.h"
+#include "camera.h"
 #include <string.h>
 #include <stdio.h>
 

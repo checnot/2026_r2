@@ -1,5 +1,7 @@
 ﻿#include "BT_customized.h"
 
+#include "keyboard.h"
+
 /* ================= 万能小变�?================= */
 uint8_t debug_if_reach_MF_phase2_scan = 0; // 用于调试是否达到 MF 区第二次扫描的条件，实际比赛时请删除或替换为 BuildPhase2 调用
 
@@ -1125,8 +1127,7 @@ static BT_Status Cond_Has_MF_Request(void)
 /**
  * @brief 初始化 MF，并使用新版预输入地图做一次性全局规划。
  * @note 新版规划器不再下发 SCAN 动作，也不再依赖 MF_EXEC_SCAN 中的 Phase1/Phase2。
- * @note 当前调试阶段使用 MFPlanner_PreInputLoadFixedDemoMap() 载入固定预设地图；
- *       后续接入键盘预输入时，将这里替换为 MFPlanner_PreInputLoadCells() 即可。
+ * @note 当前使用 UART8 矩阵键盘维护的预输入地图，不再载入固定调试地图。
  */
 static BT_Status Act_MF_Init_And_Plan(void)
 {
@@ -1135,8 +1136,14 @@ static BT_Status Act_MF_Init_And_Plan(void)
     //     return BT_SUCCESS;
     // }
 
-    /* 当前先使用固定预设地图调试新版全局规划；正式键盘输入时改为 PreInputLoadCells。 */
-    MFPlanner_PreInputLoadFixedDemoMap(&mf_planner_ctx, RED_MAP);
+    /* 使用键盘预输入地图装载 row1~row4 的 KFS 分布。 */
+    if (!MFPlanner_PreInputLoadCells(&mf_planner_ctx, RED_MAP,
+                                     (const MF_CellType (*)[MF_COLS])keyboard_mf_cell)) {
+        mf_exec_state = MF_EXEC_FAILED;
+        mf_exec_timer_ms = 0;
+        mf_phase_flag = 0;
+        return BT_FAILURE;
+    }
 
     mf_bb.kfs_stored = 0;
     mf_picked_kfs_count = 0;
