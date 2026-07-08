@@ -915,19 +915,19 @@ void MFPlanner_LoadFixedDemoMap(MF_Planner* ctx)
  */
 static const MF_CellType k_mf_debug_cell_blue[MF_ROWS][MF_COLS] = {
     { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_EMPTY },
-    { MF_CELL_EMPTY,  MF_CELL_R2KFS,  MF_CELL_R1KFS },
-    { MF_CELL_R1KFS,  MF_CELL_R2KFS,  MF_CELL_EMPTY },
-    { MF_CELL_R1KFS,  MF_CELL_R2KFS,  MF_CELL_FAKEKFS },
-    { MF_CELL_EMPTY,  MF_CELL_R2KFS,  MF_CELL_EMPTY },
+    { MF_CELL_R2KFS,  MF_CELL_R1KFS,  MF_CELL_R1KFS },
+    { MF_CELL_R2KFS,  MF_CELL_FAKEKFS,  MF_CELL_R1KFS },
+    { MF_CELL_R2KFS,  MF_CELL_EMPTY,  MF_CELL_EMPTY },
+    { MF_CELL_R2KFS,  MF_CELL_EMPTY,  MF_CELL_EMPTY },
     { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_EMPTY }
 };
 
 static const MF_CellType k_mf_debug_cell_red[MF_ROWS][MF_COLS] = {
     { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_EMPTY },
-    { MF_CELL_EMPTY,  MF_CELL_R2KFS,  MF_CELL_R1KFS },
-    { MF_CELL_R1KFS,  MF_CELL_R2KFS,  MF_CELL_EMPTY },
-    { MF_CELL_R1KFS,  MF_CELL_R2KFS,  MF_CELL_FAKEKFS },
-    { MF_CELL_EMPTY,  MF_CELL_R2KFS,  MF_CELL_EMPTY },
+    { MF_CELL_R2KFS,  MF_CELL_R1KFS,  MF_CELL_R1KFS },
+    { MF_CELL_R2KFS,  MF_CELL_FAKEKFS,  MF_CELL_R1KFS },
+    { MF_CELL_R2KFS,  MF_CELL_EMPTY,  MF_CELL_EMPTY },
+    { MF_CELL_R2KFS,  MF_CELL_EMPTY,  MF_CELL_EMPTY },
     { MF_CELL_EMPTY,  MF_CELL_EMPTY,  MF_CELL_EMPTY }
 };
 
@@ -1494,7 +1494,7 @@ void MFPlanner_PreInputInit(MF_Planner* ctx, MF_MapColor color)
 
     for (uint8_t r = 0; r < MF_ROWS; r++) {
         for (uint8_t c = 0; c < MF_COLS; c++) {
-            ctx->cell[r][c] = MF_CELL_UNKNOWN;
+            ctx->cell[r][c] = MF_CELL_EMPTY; /* 预输入阶段默认全部为空地，键盘输入层之后再填充 row1~row4 */
         }
     }
 }

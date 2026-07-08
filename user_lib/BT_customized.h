@@ -587,12 +587,17 @@ void BT_Customized_Tick1ms_MF(void);
 #define CZ_PUMP_WAIT_MS 1000      /* 关气泵后等待时间 (ms) */
 
 /* R1 平台等待 & 九宫格第三层坐标 (🟡需实测填入真实值) */
-#define R_CHASSIS_R1_WAIT_X 11500.0f     /* 🟡 R1平台等待点 X */
-#define R_CHASSIS_R1_WAIT_Y -800.0f     /* 🟡 R1平台等待点 Y */
-#define R_CHASSIS_R1_WAIT_W 180.0f         /* 🟡 R1平台等待点 W */
-#define R_CHASSIS_R1_STEP_APPROACH_X 9200.0f  /* 🟡 台阶接近点 X (台阶边缘前) */
-#define R_CHASSIS_R1_STEP_APPROACH_Y -5000.0f /* 🟡 台阶接近点 Y */
+#define R_CHASSIS_R1_WAIT_X 10750.0f     /* 🟡 RED R1平台等待点 X */
+#define R_CHASSIS_R1_WAIT_Y -2000.0f     /* 🟡 R1平台等待点 Y */
+#define R_CHASSIS_R1_WAIT_W 90.0f         /* 🟡 R1平台等待点 W */
+// #define R_CHASSIS_R1_STEP_APPROACH_X 10750.0f  /* 🟡 台阶接近点 X (台阶边缘前) */
+// #define R_CHASSIS_R1_STEP_APPROACH_Y -2000.0f /* 🟡 台阶接近点 Y */
+// #define R_CHASSIS_R1_STEP_APPROACH_W 90.0f     /* 🟡 台阶接近点 W (面朝台阶方向) */
+
+#define R_CHASSIS_R1_STEP_APPROACH_X 2600.0f  /* 🟡 台阶接近点 X (台阶边缘前) */
+#define R_CHASSIS_R1_STEP_APPROACH_Y -600.0f /* 🟡 台阶接近点 Y */
 #define R_CHASSIS_R1_STEP_APPROACH_W 0.0f     /* 🟡 台阶接近点 W (面朝台阶方向) */
+
 #define R_CHASSIS_R1_PLATFORM_X 9000.0f  /* 🟡 R1平台上面 X (台阶后) */
 #define R_CHASSIS_R1_PLATFORM_Y -5000.0f /* 🟡 R1平台上面 Y */
 #define R_CHASSIS_R1_PLATFORM_W 0.0f     /* 🟡 R1平台上面 W */
@@ -682,4 +687,4 @@ void BT_MASTER_Init_Task(void);
 void BT_MASTER_Tick(void);
 
 
-#endif // __BT_CUSTOMIZED_
+#endif

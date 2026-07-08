@@ -56,6 +56,7 @@ extern uint8_t Rec_Data[65];
 void Radar_ProcessBuffer(uint8_t *data, uint16_t len);
 
 /* 底盘坐标解算 */
+void Data_process_String(char *str);
 void Calculate_Chassis_Position(void);
 
 #endif

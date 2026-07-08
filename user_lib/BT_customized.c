@@ -682,7 +682,7 @@ static uint8_t mf_r2_kfs_all_need = R2_KFS_ALL_NEED;
 static uint8_t mf_finish_start_cz = 1;
 
 #define MF_PREINPUT_START_ROW 0
-#define MF_PREINPUT_START_COL 0
+#define MF_PREINPUT_START_COL 1
 
 uint8_t arm_if_send_point = 0; /* 机械臂是否已经下发轨迹点标志位，避免重复下发 */
 
@@ -1130,10 +1130,10 @@ static BT_Status Cond_Has_MF_Request(void)
  */
 static BT_Status Act_MF_Init_And_Plan(void)
 {
-    if (mf_phase_flag >= 2) {
-        /* 已经规划完成，直接返回成功 */
-        return BT_SUCCESS;
-    }
+    // if (mf_phase_flag >= 2) {
+    //     /* 已经规划完成，直接返回成功 */
+    //     return BT_SUCCESS;
+    // }
 
     /* 当前先使用固定预设地图调试新版全局规划；正式键盘输入时改为 PreInputLoadCells。 */
     MFPlanner_PreInputLoadFixedDemoMap(&mf_planner_ctx, RED_MAP);
@@ -2283,7 +2283,10 @@ static BT_Status Act_CZ_Mission(void)
             return BT_RUNNING;
         }
 
-        /* ========== R1 平台阶段 ========== */
+
+
+
+        /* ==================== R1 平台阶段 ==================== */
 
         case CZ_NAV_TO_R1_WAIT:
         {
@@ -2344,21 +2347,22 @@ static BT_Status Act_CZ_Mission(void)
             /* 阶段2：每 Tick 推进台阶 FSM */
             BT_Status step_status = chassis_step_fsm_tick(&g_step_fsm);
 
-            /* 刚启动抬升时预下发平台上目标点，让底�?FSM 后续自动行驶 */
+            /* 刚启动抬升时关闭底盘使能 */
             if (!platform_route_sent &&
                 g_step_fsm.state == STEP_UP_WAIT_DEPLOY_DONE)
             {
                 taskENTER_CRITICAL();
-                chassis_route_point_add(&chassis_route_traj, R_CHASSIS_R1_PLATFORM_X, R_CHASSIS_R1_PLATFORM_Y, R_CHASSIS_R1_PLATFORM_W, 0, 0);
+                // chassis_route_point_add(&chassis_route_traj, R_CHASSIS_R1_PLATFORM_X, R_CHASSIS_R1_PLATFORM_Y, R_CHASSIS_R1_PLATFORM_W, 0, 0);
+                chassis_r2.chassis_en_flag = 0; // 关闭底盘使能
                 platform_route_sent = 1;
                 taskEXIT_CRITICAL();
             }
 
             if (step_status == BT_SUCCESS)
             {
-                /* 上台阶完成，关闭底盘使能 */
+                /* 上台阶完成，不需要恢复底盘使能，锁止底盘 */
                 taskENTER_CRITICAL();
-                chassis_r2.chassis_lock_flag = 1;
+                chassis_set_lock(1);
                 taskEXIT_CRITICAL();
 
                 step_fsm_started = 0;
