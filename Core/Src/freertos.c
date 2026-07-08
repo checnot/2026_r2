@@ -501,16 +501,16 @@ void entry_chassis(void const * argument)
       //   else if(HT10A.right_y == 0)chassis_r2.vw = 0;
       // }
       //一区平移测试
-      if (point_add== 1 )
-       {
-         chassis_route_point_add(&chassis_route_traj,1000.0f,-1400.0f,0.0f,0,0);
-			 	point_add = 0;
-       }
-       if (point_add== 2 )
-       {
-         chassis_route_point_add(&chassis_route_traj,2000.0f,-1400.0f,180.0f,0,0);
-			 	point_add = 0;
-       }
+      // if (point_add== 1 )
+      //  {
+      //    chassis_route_point_add(&chassis_route_traj,1000.0f,-1400.0f,0.0f,0,0);
+			//  	point_add = 0;
+      //  }
+      //  if (point_add== 2 )
+      //  {
+      //    chassis_route_point_add(&chassis_route_traj,2000.0f,-1400.0f,180.0f,0,0);
+			//  	point_add = 0;
+      //  }
     //  //测试用添加路径点
 //     if (point_add == 1)
 //     {

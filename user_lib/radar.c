@@ -13,7 +13,7 @@ KalmanFilter_stu  Radar_Kalman_Y;
 KalmanFilter_stu  Radar_Kalman_Z;
 KalmanFilter_stu  Radar_Kalman_Yaw;
 float x, y, z, yaw;
-float temp_a, temp_b, temp_c;
+//float temp_a, temp_b, temp_c;
 uint8_t Rec_Data[65];
 
 void Data_process_String(char *str)
@@ -23,7 +23,7 @@ void Data_process_String(char *str)
     
     if (header_ptr != NULL)
     {
-        
+        float temp_a, temp_b, temp_c;
         
         //2. 跳过 "heu" 后的非数字分隔符（如逗号、冒号等），定位到第一个数字
         // float temp_a, temp_b, temp_c, temp_d ;
@@ -54,7 +54,7 @@ void Data_process_String(char *str)
 }
 
 /* ================================================================
- *  底盘中心坐标解算 (mm), 镜像时改 Y
+ *  底盘中心坐标解算 (mm)
  * ================================================================ */
 void Calculate_Chassis_Position(void)
 {

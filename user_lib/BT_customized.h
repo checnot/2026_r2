@@ -1,4 +1,4 @@
-#ifndef __BT_CUSTOMIZED_H
+﻿#ifndef __BT_CUSTOMIZED_H
 #define __BT_CUSTOMIZED_H
 
 #include "main.h"
@@ -73,7 +73,7 @@
 #define R_CHASSIS_RACK_4_X 1050.0f - R_CLAMP_TO_CHASSIS_CENTER_DIST /* 红区 第四个矛头位置 X (mm) */
 #define R_CHASSIS_RACK_5_X 1250.0f - R_CLAMP_TO_CHASSIS_CENTER_DIST /* 红区 第五个矛头位置 X (mm) */
 #define R_CHASSIS_RACK_6_X 1450.0f - R_CLAMP_TO_CHASSIS_CENTER_DIST /* 红区 第六个矛头位置 X (mm) */
-#define R_CHASSIS_RACK_Y -584.82f              /* 红区 取矛头位置 Y (mm) */
+#define R_CHASSIS_RACK_Y -585.82f              /* 红区 取矛头位置 Y (mm) */
 #define R_CHASSIS_RACK_Y_1 -595.0f            /* 红区 取第一个矛头位置 Y (mm) */
 #define R_CHASSIS_RACK_W_1 10.0f              /* 红区 取第一个矛头位置 W (deg) */
 #define R_CHASSIS_RACK_W 0.0f                 /* 红区 取矛头位置 W (deg) */

@@ -4,6 +4,14 @@
 
 DeadReckoning dr;
 
+/* DR 替代雷达定位开关：MC 区设 1，离开 MC 区设 0 */
+uint8_t g_use_dr_pos = 0;
+
+/* 调试变量 */
+float dr_dbg_dL[4];
+float dr_dbg_dx;
+float dr_dbg_dy;
+
 /**
  * @brief 航位推算初始化
  * @note 首次调用 DR_Update 前调用，置零位姿和编码器参考
@@ -88,12 +96,20 @@ void DR_Update(void)
     float dx_robot = (dL[0] - dL[1] - dL[2] + dL[3]) * DR_SQRT2_OVER_4;
     float dy_robot = (-dL[0] - dL[1] + dL[2] + dL[3]) * DR_SQRT2_OVER_4;
 
+    /* 调试：记录四轮位移和机器人系增量 (mm/tick) */
+    dr_dbg_dL[0] = dL[0] * 1000.0f;
+    dr_dbg_dL[1] = dL[1] * 1000.0f;
+    dr_dbg_dL[2] = dL[2] * 1000.0f;
+    dr_dbg_dL[3] = dL[3] * 1000.0f;
+    dr_dbg_dx = dx_robot * 1000.0f;
+    dr_dbg_dy = dy_robot * 1000.0f;
+
     /* ---- 5. 用陀螺仪偏航角旋转到世界坐标系 ---- */
     float yaw_rad = Radar_Pos.hi14_yaw * 3.1415926f / 180.0f;
     float cos_yaw = cosf(yaw_rad);
     float sin_yaw = sinf(yaw_rad);
 
-    dr.x += dx_robot * cos_yaw - dy_robot * sin_yaw;
-    dr.y += dx_robot * sin_yaw + dy_robot * cos_yaw;
+    dr.x += (dx_robot * cos_yaw - dy_robot * sin_yaw)*1000.0f;
+    dr.y += (dx_robot * sin_yaw + dy_robot * cos_yaw)*1000.0f;
     dr.yaw_deg =  hipnuc_raw.hi91.yaw;
 }
