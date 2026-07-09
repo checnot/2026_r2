@@ -31,7 +31,7 @@ void Data_process_String(char *str)
         if (data_ptr && sscanf(data_ptr, "%f,%f,%f", &temp_a, &temp_b, &temp_c) >= 3)
         {
             Radar_Pos.radar_x = 1000.0f * temp_a;
-            Radar_Pos.radar_y = 1000.0f * temp_b + 25.0f;
+            Radar_Pos.radar_y = 1000.0f * temp_b +20.0f;
             //Radar_Pos.radar_z = 1000.0f * temp_c;
             Radar_Pos.radar_yaw = temp_c;
             Radar_Pos.hi14_yaw = hipnuc_raw.hi91.yaw;
@@ -60,8 +60,8 @@ void Calculate_Chassis_Position(void)
 {
     // 底盘中心相对于雷达的偏移（单位：mm）
     //镜像时记得改Y
-    const float OFFSET_X = -315.15f;  // 车体坐标系下，底盘中心相对雷达的x偏移
-    const float OFFSET_Y = -152.15f;   // 车体坐标系下，底盘中心相对雷达的y偏移
+    const float OFFSET_X = -290.15f;  // 车体坐标系下，底盘中心相对雷达的x偏移
+    const float OFFSET_Y = -150.15f;   // 车体坐标系下，底盘中心相对雷达的y偏移
 
     // 角度转弧度
     float yaw_rad = Radar_Pos.hi14_yaw * 3.1415926f / 180.0f;

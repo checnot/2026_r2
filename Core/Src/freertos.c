@@ -78,7 +78,7 @@ uint8_t kalman_init_flag = 0;    // 卡尔曼滤波初始化flag
 
 /* 自适应一阶低通滤波变量（与卡尔曼对照） */
 // 静止时深滤波（alpha小），运动时浅滤波（alpha大），解决静止雷达抖动
-#define LOWPASS_ALPHA_STATIC     0.7f   // 静止：截止频率≈0.3Hz，强去噪
+#define LOWPASS_ALPHA_STATIC     0.05f   // 静止：截止频率≈0.3Hz，强去噪
 #define LOWPASS_ALPHA_MOVING     0.9f     // 运动：截止频率≈16Hz，快速跟踪
 #define LOWPASS_SPEED_THRESH     50.0f    // 线速度阈值
 #define LOWPASS_ANGULAR_THRESH   50.0f     // 角速度阈值 
@@ -592,11 +592,11 @@ void entry_chassis(void const * argument)
 //	chassis_route_point_add(&chassis_route_traj, 11400.0f,-1500.0f, -90.0f, 0,0);
 //  point_add = 0;
 //}
-//       if (point_add == 1)
-//      {
-//        chassis_route_point_add(&chassis_route_traj,arm_target_x,arm_target_y, angle, 0,0);
-//        point_add = 0;
-//      }
+       if (point_add == 1)
+      {
+        chassis_route_point_add(&chassis_route_traj,arm_target_x,arm_target_y, angle, 0,0);
+        point_add = 0;
+      }
 
 
       // // 滤波后的雷达数据更新
@@ -845,12 +845,12 @@ void entry_cmd_task(void const * argument)
 //    }
     if (MC_task == 1)
     {
-      BT_Start_R2_MC_Mission();
-     //BT_PS_Start_Task();
+      //BT_Start_R2_MC_Mission();
+     BT_PS_Start_Task();
       MC_task=0;
     }
-    //BT_PS_Tick();
-    BT_Customized_Tick1ms_R2_MC();
+    BT_PS_Tick();
+   // BT_Customized_Tick1ms_R2_MC();
     //  if(CZ_task == 1)
     //  {
     //   BT_CZ_Start_Task();

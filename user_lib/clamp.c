@@ -74,7 +74,7 @@ void clamp_rotate_control(int32_t target_angle, M3508_Motor_Struct *motor)
     else
     {
         int16_t speed = (position_error > 0) ? max_speed : -max_speed;
-        m3508_speed_control(motor, speed, 3000);
+        m3508_speed_control(motor, speed, 8000);
     }
 }
 
