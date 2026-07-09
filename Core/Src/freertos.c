@@ -283,22 +283,23 @@ void StartDefaultTask(void const * argument)
     // data_send_vofa[5] = Radar_Pos.radar_y_filtered;   // ch5: 卡尔曼滤波Y
     // data_send_vofa[6] = radar_y_lowpass;              // ch6: 一阶低通Y
     // data_send_vofa[7] = Radar_Pos.reliable_y;         // ch7: 最终使用Y
- 
-    data_send_vofa[0] = m3508_fdcan3[0].M3508_Speed_PID.Target; // ch0: 目标速度
-    data_send_vofa[1] = m3508_fdcan3[0].Now_Speed;              // ch1: 实际速度
-    data_send_vofa[2] = m3508_fdcan3[1].M3508_Speed_PID.Target; // ch2: 目标速度
-    data_send_vofa[3] = m3508_fdcan3[1].Now_Speed;              // ch3: 实际速度
-    data_send_vofa[4] = m3508_fdcan3[2].M3508_Speed_PID.Target; // ch4: 目标速度
-    data_send_vofa[5] = m3508_fdcan3[2].Now_Speed;              // ch5: 实际速度
-    data_send_vofa[6] = m3508_fdcan3[3].M3508_Speed_PID.Target; // ch6: 目标速度
-    data_send_vofa[7] = m3508_fdcan3[3].Now_Speed;              // ch7: 实际速度
+    // data_send_vofa[0] = m3508_fdcan3[0].M3508_Speed_PID.Target; // ch0: 目标速度
+    // data_send_vofa[1] = m3508_fdcan3[0].Now_Speed;              // ch1: 实际速度
+    // data_send_vofa[2] = m3508_fdcan3[1].M3508_Speed_PID.Target; // ch2: 目标速度
+    // data_send_vofa[3] = m3508_fdcan3[1].Now_Speed;              // ch3: 实际速度
+    // data_send_vofa[4] = m3508_fdcan3[2].M3508_Speed_PID.Target; // ch4: 目标速度
+    // data_send_vofa[5] = m3508_fdcan3[2].Now_Speed;              // ch5: 实际速度
+    // data_send_vofa[6] = m3508_fdcan3[3].M3508_Speed_PID.Target; // ch6: 目标速度
+    // data_send_vofa[7] = m3508_fdcan3[3].Now_Speed;              // ch7: 实际速度
 
-    // UART7 is now used by screen.c; do not send VOFA on the same port.
+
     // vofa_send_to_show_justfloat(&huart7, data_send_vofa);
-
     // vofa显示调试信息
     //=======================================================================
 
+
+
+    // UART7 is now used by screen.c; do not send VOFA on the same port.
     /*
      * H7 通过 SPI1 轮询 F103C8T6 的红外接收结果，并交给 ir_action 处理。
      * IR_Action_Poll() 内部会调用 H7_F1_SPI_Task()：
@@ -317,9 +318,8 @@ void StartDefaultTask(void const * argument)
     }
 
     debug_test_time += 0.001f;
-		AnaKeyboard_Update();
-		Screen_TestDisplay();
-    osDelay(1000);
+		// Screen_TestDisplay();
+    osDelay(40); // 25Hz
   }
   /* USER CODE END StartDefaultTask */
 }
@@ -861,6 +861,16 @@ void entry_cmd_task(void const * argument)
 // //			MF_Scan_Command_Send(camera_command);
 //     }
 
+  /* 当按下按键时，根据最新地图刷新屏幕 */
+  if(key_now != 0)
+  {
+    uint8_t screen_index = 0;
+
+    if (Keyboard_MF_KeyToCell(key_now, NULL, NULL, &screen_index))
+    {
+      Merlin_SetBlock(screen_index, keyboard_kfs_screen_info[screen_index]);
+    }
+  }
   /* 按下 'A' 键之后启动行为树 */
   if (key_now == 'A')
   {
@@ -880,7 +890,7 @@ void entry_cmd_task(void const * argument)
     // CZ_bb.r1_platform_cmd = 1;
     // CZ_bb.r1_place_cmd = 0;
     task_flag = 0;
-    // MFPlanner_PreInputBuildFullPlan(&mf_planner_ctx, 0, 1, 2);
+    MFPlanner_PreInputBuildFullPlan(&mf_planner_ctx, 0, 1, 2);
   }
     // if (MC_task == 1)
     // {
@@ -895,7 +905,6 @@ void entry_cmd_task(void const * argument)
     //   BT_CZ_Start_Task();
     //   CZ_task = 0;
     //  };
-    
     // if(debug_flag == 1)
     // {
     //   debug_flag = 0;

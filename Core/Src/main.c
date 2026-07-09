@@ -145,7 +145,6 @@ int main(void)
   // H7(SPI1 Master) <-> F103C8T6(SPI1 Slave) 红外状态通信初始化
   // CS 使用 PA4 软件控制，空闲为高电平。
   H7_F1_SPI_Init(&hspi1);
-  AnaKeyboard_Init(&hadc1);
   Screen_InitDisplay();
   // FDCAN初始化，配置过滤器并开启CAN
   FDCan_Start(&FDCAN_Default_FilterConfig_1);
