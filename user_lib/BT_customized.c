@@ -443,9 +443,26 @@ static BT_Status Act_R2_MC_Mission(void)
                 int32_t cur_angle = m3508_fdcan2[1].Angle_Sum;
                 if (abs_int32(cur_angle - MC_bb.last_ext_angle) < 3000)
                 {
+                    
+                     
+                    
+
                     /* 本Tick电机基本没动，累计堵转计时 */
                     if (++MC_bb.ext_timer_ms * 10 >= R_EXT_TIMEOUT_MS)
                     {
+                            clamp.catch_flag = 1;
+                            osDelay(400);
+                            if (MC_bb.RACK_PICK_SUCCESS == 1)
+                            {
+                                clamp.rotate_flag = 0;
+                                MC_bb.mc_mission_state = DOCKING;
+                                MC_bb.R2_MC_timer_ms = 0;
+                                return BT_RUNNING; /* 防止穿透到堵转检测 */
+                            }
+                            else
+                            {
+                                clamp.catch_flag = 0;
+                            }
                         MC_bb.ext_timer_ms = 0;
                         if (MC_bb.ext_jam_retries >= R_EXT_MAX_RETRIES )
                         {
@@ -2845,6 +2862,18 @@ static BT_Status Act_PS_MC_Mission(void)
         {
             clamp.lift_flag = 1;
             clamp.rotate_flag = 1;
+            PS_bb.state = PS_MC_SELF_ROTATE;
+            PS_bb.timer_ms = 0;
+            return BT_RUNNING;
+        }
+
+        case PS_MC_SELF_ROTATE:
+        {
+            /* 原地自转：先转到目标 yaw，再平移去矛架 */
+            uint8_t r = PS_bb.round_count;
+            taskENTER_CRITICAL();
+            chassis_route_point_add(&chassis_route_traj, Radar_Pos.reliable_x, Radar_Pos.reliable_y, ps_rack[r].w, 2000, 0);
+            taskEXIT_CRITICAL();
             PS_bb.state = PS_MC_NAV_TO_RACK;
             PS_bb.timer_ms = 0;
             return BT_RUNNING;
@@ -2854,7 +2883,7 @@ static BT_Status Act_PS_MC_Mission(void)
         {
             uint8_t r = PS_bb.round_count;
             taskENTER_CRITICAL();
-            chassis_route_point_add(&chassis_route_traj, ps_rack[r].x, ps_rack[r].y, ps_rack[r].w, 0, 1);
+            chassis_route_point_add(&chassis_route_traj, ps_rack[r].x, ps_rack[r].y, ps_rack[r].w, 0, 0);
             taskEXIT_CRITICAL();
             PS_bb.state = PS_MC_RACK_PICK;
             PS_bb.timer_ms = 0;
@@ -2877,7 +2906,7 @@ static BT_Status Act_PS_MC_Mission(void)
                     clamp.retractable_flag = 1;
                     PS_bb.last_ext_angle = m3508_fdcan2[1].Angle_Sum; /* 记录伸出起始角度 */
                     {
-                        if (abs_int32(m3508_fdcan2[1].Angle_Sum - CLAMP_EXTEND_MAX_POSITION) < 6000)
+                        if (abs_int32(m3508_fdcan2[1].Angle_Sum - CLAMP_EXTEND_MAX_POSITION) < 4000)
                         {
                             /* 伸到位 → 抓取 */
                             PS_bb.ext_jam_retries = 0;
@@ -2888,6 +2917,7 @@ static BT_Status Act_PS_MC_Mission(void)
                                 clamp.rotate_flag = 0;
                                 PS_bb.state = PS_MC_NAV_TO_DOCK;
                                 PS_bb.timer_ms = 0;
+                                PS_bb.pos_stable_times = 0;
                                 return BT_RUNNING; /* 防止穿透到堵转检测 */
                             }
                             else
@@ -2914,6 +2944,20 @@ static BT_Status Act_PS_MC_Mission(void)
                     /* 本Tick电机基本没动，累计堵转计时 */
                     if (++PS_bb.ext_timer_ms * 10 >= R_EXT_TIMEOUT_MS)
                     {
+                         clamp.catch_flag = 1;
+                            osDelay(400);
+                            if (PS_bb.pick_success == 1)
+                            {
+                               clamp.rotate_flag = 0;
+                                PS_bb.state = PS_MC_NAV_TO_DOCK;
+                                PS_bb.timer_ms = 0;
+                                PS_bb.pos_stable_times = 0;
+                                return BT_RUNNING; /* 防止穿透到堵转检测 */
+                            }
+                            else
+                            {
+                                clamp.catch_flag = 0;
+                            }
                         PS_bb.ext_timer_ms = 0;
                         if (PS_bb.ext_jam_retries >= R_EXT_MAX_RETRIES)
                         {
@@ -2960,8 +3004,13 @@ static BT_Status Act_PS_MC_Mission(void)
         case PS_MC_DOCK_WAIT:
         {
             if (chassis_if_arrived(PS_DOCK_X, PS_DOCK_Y, PS_DOCK_W))
-            {    clamp.lift_flag = 0;
+            {  
+							PS_bb.pos_stable_times++;
+                if (PS_bb.pos_stable_times > R_RACK_STABLE_TIMES_CONDITION)
+                { 
+							  clamp.lift_flag = 0;
                 chassis_set_lock(1);
+								}
             }
             if (PS_bb.dock_success == 1)
             {

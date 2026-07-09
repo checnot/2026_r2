@@ -54,7 +54,7 @@ void chassis_world_to_robot_velocity(chassis_stu *chassis, float vx_world, float
  * @param vy 横向速度
  * @param vw 旋转速度
  * @param en_flag 使能标志，1为使能底盘，0为禁用底盘（电机输出纯为0）
- * @warning 该函数全程使用机器人坐标系，并且单位未定义----电机id:右前为id1，右后为id2，左后为id3，左前为id4
+ * @warning 该函数全程使用机器人坐标系，并且单位未定义----电机id:左前为id1，右前为id2，右后为id3，左后为id4
 */
 void omni_chassis_calculate(chassis_stu *chassis, float vx, float vy, float vw, uint8_t en_flag)
 {
