@@ -19,8 +19,10 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "cmsis_os.h"
+#include "adc.h"
 #include "dma.h"
 #include "fdcan.h"
+#include "spi.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
@@ -41,6 +43,9 @@
 #include "go_m8010.h"
 #include "BT_customized.h"
 #include "camera.h"
+#include "H7_F1_spi.h"
+#include "Ana_keyboard.h"
+#include "screen.h"
 #include "keyboard.h"
 /* USER CODE END Includes */
 
@@ -133,8 +138,15 @@ int main(void)
   MX_UART7_Init();
   MX_USART10_UART_Init();
   MX_UART8_Init();
+  MX_SPI1_Init();
+  MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
 
+  // H7(SPI1 Master) <-> F103C8T6(SPI1 Slave) 红外状态通信初始化
+  // CS 使用 PA4 软件控制，空闲为高电平。
+  H7_F1_SPI_Init(&hspi1);
+  AnaKeyboard_Init(&hadc1);
+  Screen_InitDisplay();
   // FDCAN初始化，配置过滤器并开启CAN
   FDCan_Start(&FDCAN_Default_FilterConfig_1);
 

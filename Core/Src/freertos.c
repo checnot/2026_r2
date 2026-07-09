@@ -47,6 +47,10 @@
 #include "MF_planner.h"
 #include "go_m8010.h"
 #include "lift.h"
+#include "H7_F1_spi.h"
+#include "ir_action.h"
+#include "Ana_keyboard.h"
+#include "screen.h"
 #include "keyboard.h"
 /* USER CODE END Includes */
 
@@ -110,6 +114,7 @@ uint8_t traj_init_flag_lift = 0;    // 抬升轨迹初始化标志位
 uint8_t traj_init_flag_chassis = 0; // 底盘轨迹初始化标志位
 
 extern volatile uint8_t a1_send_request;
+static uint8_t c8_spi_poll_cnt = 0;
 /* USER CODE END Variables */
 osThreadId defaultTaskHandle;
 osThreadId roboticarm_taskHandle;
@@ -244,8 +249,7 @@ void StartDefaultTask(void const * argument)
   // start tim7
   TIM7->CNT = 0;
   HAL_TIM_Base_Start_IT(&htim7);
-
-  /* Infinite loop */
+/* Infinite loop */
   for (;;)
   {
     //=======================================================================
@@ -289,13 +293,33 @@ void StartDefaultTask(void const * argument)
     data_send_vofa[6] = m3508_fdcan3[3].M3508_Speed_PID.Target; // ch6: 目标速度
     data_send_vofa[7] = m3508_fdcan3[3].Now_Speed;              // ch7: 实际速度
 
-    vofa_send_to_show_justfloat(&huart7, data_send_vofa);
+    // UART7 is now used by screen.c; do not send VOFA on the same port.
+    // vofa_send_to_show_justfloat(&huart7, data_send_vofa);
 
     // vofa显示调试信息
     //=======================================================================
 
+    /*
+     * H7 通过 SPI1 轮询 F103C8T6 的红外接收结果，并交给 ir_action 处理。
+     * IR_Action_Poll() 内部会调用 H7_F1_SPI_Task()：
+     *   1. 有新红外帧时，更新 h7_f1_spi_last_frame 和 ir_action_rx_frame；
+     *   2. 如果红外帧匹配指定数据包，则置位 MC_bb.DOCKING_SUCCESS = 1；
+     *   3. 没有新红外帧时，显示用的数据包会清零，方便 Watch 观察。
+     * 调试时可观察：
+     *   h7_f1_spi_rx_ok_count / h7_f1_spi_last_ch / h7_f1_spi_last_frame
+     *   ir_action_rx_count / ir_action_rx_frame / ir_action_docking_success_set_count
+     */
+    c8_spi_poll_cnt++;
+    if (c8_spi_poll_cnt >= 5U)
+    {
+      c8_spi_poll_cnt = 0;
+      IR_Action_Poll();
+    }
+
     debug_test_time += 0.001f;
-    osDelay(1);
+		AnaKeyboard_Update();
+		Screen_TestDisplay();
+    osDelay(1000);
   }
   /* USER CODE END StartDefaultTask */
 }
@@ -324,7 +348,6 @@ void entry_robotic_arm(void const * argument)
 
   // 初始化机械臂工作区域
   arm.mode = ARM_MODE_FRONT;
-
   /* Infinite loop */
   for (;;)
   {
@@ -471,6 +494,7 @@ void entry_chassis(void const * argument)
   // chassis_lift_front_control(chassis_r2.lift_front);
   // chassis_lift_back_control(chassis_r2.lift_back);
   // chassis_route_traj_init();
+
   /* Infinite loop */
   for (;;)
   {
@@ -785,6 +809,7 @@ void entry_clamp(void const * argument)
   clamp.retractable_flag = 0;
   clamp.lift_flag = 0;
 
+
   /* Infinite loop */
   for (;;)
   {
@@ -918,6 +943,7 @@ void entry_m8010_task(void const * argument)
   m8010_bus_3.motors[1].target.mode = 1;
   // m8010_bus_3.motors[2].target.id = 3;
   // m8010_bus_3.motors[2].target.mode = 1;
+
 
   /* Infinite loop */
   for (;;)
