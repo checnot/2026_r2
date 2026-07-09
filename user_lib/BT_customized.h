@@ -322,31 +322,66 @@ void BT_PS_Tick(void);
 
 /* ================================================ JGCB 预选赛行为树接口 ================================================ */
 
+/* JGCB 固定点位：等待点、场边 KFS 位置，实测后按需微调 */
+#define R_CHASSIS_JGCB_WAIT_X R_CHASSIS_CZ_CENTER_X
+#define R_CHASSIS_JGCB_WAIT_Y R_CHASSIS_CZ_CENTER_Y
+#define R_CHASSIS_JGCB_WAIT_W R_CHASSIS_CZ_CENTER_W
+
+#define R_CHASSIS_JGCB_KFS_X R_CHASSIS_CZ_CENTER_X
+#define R_CHASSIS_JGCB_KFS_1_CENTER_Y -1925.0f
+#define R_CHASSIS_JGCB_KFS_2_CENTER_Y -2675.0f
+#define R_CHASSIS_JGCB_KFS_3_CENTER_Y -3425.0f
+#define R_CHASSIS_JGCB_KFS_PICK_OFFSET_Y 500.0f
+#define R_CHASSIS_JGCB_KFS_PICK_W 90.0f
+
 typedef enum
 {
     JGCB_IDLE = 0,
     JGCB_NAV_TO_SLOPE_START,
     JGCB_NAV_TO_SLOPE_END,
     JGCB_ROTATE_90,
-    JGCB_NAV_TO_SCAN,
-    JGCB_CAMERA_SCAN,
+    JGCB_NAV_TO_WAIT_POINT,
+    JGCB_WAIT_PLACE_CMD,
     JGCB_NAV_TO_SUDUKU,
     JGCB_ARM_RAISE,
     JGCB_ARM_RAISE_WAIT,
+    JGCB_WAIT_PUSH_CMD,
     JGCB_FORWARD_PUSH,
     JGCB_ARM_PLACE,
     JGCB_PUMP_WAIT,
+    JGCB_BACK_FROM_SUDUKU,
+    JGCB_NAV_TO_KFS,
+    JGCB_PICK_KFS,
+    JGCB_PICK_KFS_WAIT,
+    JGCB_RETURN_WAIT_POINT,
+    JGCB_ARM_RAISE_FOR_R1,
+    JGCB_ARM_RAISE_FOR_R1_WAIT,
+    JGCB_NAV_TO_R1_PLATFORM,
+    JGCB_ON_R1_WAIT_PLACE_CMD,
+    JGCB_ON_R1_PLACE,
+    JGCB_ON_R1_PUMP_WAIT,
     JGCB_DONE
 } JGCB_MissionState;
 
+/* JGCB 黑板：红外模块只需要写入 ir_column_cmd/r1_platform_cmd/r1_place_cmd */
 typedef struct
 {
-    uint8_t req_start;
-    uint8_t seq_mem_idx;
-    JGCB_MissionState state;
-    uint32_t timer_ms;
-    uint8_t camera_scan_done;
-    uint16_t pos_stable_times;
+    uint8_t req_start;            /* 任务启动请求 */
+    uint8_t seq_mem_idx;          /* 记忆序列进度 */
+    JGCB_MissionState state;      /* 当前任务状态 */
+    uint32_t timer_ms;            /* 10ms tick 计时 */
+    uint16_t pos_stable_times;    /* 到位稳定计数 */
+    uint8_t placed_count;         /* 已放入九宫格的 KFS 数量 */
+    uint8_t held_kfs;             /* 0=无块，1=预装块，2/3=场边 KFS 编号 */
+    uint8_t next_kfs_index;       /* 下一个要取的场边 KFS：先 2 后 3 */
+    uint8_t active_col;           /* 当前要放的九宫格列：1/2/3 */
+    uint8_t arm_raise_sent;       /* 去九宫格途中是否已提前下发抬臂轨迹 */
+    uint8_t pick_sent;            /* 取块机械臂轨迹是否已下发 */
+    uint8_t step_fsm_started;     /* 上 R1 台阶 FSM 是否已启动 */
+    uint8_t platform_route_sent;  /* 上 R1 过程中底盘锁止是否已处理 */
+    uint8_t ir_column_cmd;        /* 外部写入：1/2/3=放对应列，0=无命令 */
+    uint8_t r1_platform_cmd;      /* 外部写入：允许上 R1 */
+    uint8_t r1_place_cmd;         /* 外部写入：在 R1 上释放 KFS */
 } JGCB_Blackboard;
 
 extern JGCB_Blackboard JGCB_bb;
@@ -594,18 +629,18 @@ void BT_Customized_Tick1ms_MF(void);
 // #define R_CHASSIS_R1_STEP_APPROACH_Y -2000.0f /* 🟡 台阶接近点 Y */
 // #define R_CHASSIS_R1_STEP_APPROACH_W 90.0f     /* 🟡 台阶接近点 W (面朝台阶方向) */
 
-#define R_CHASSIS_R1_STEP_APPROACH_X 2600.0f  /* 🟡 台阶接近点 X (台阶边缘前) */
-#define R_CHASSIS_R1_STEP_APPROACH_Y -600.0f /* 🟡 台阶接近点 Y */
-#define R_CHASSIS_R1_STEP_APPROACH_W 0.0f     /* 🟡 台阶接近点 W (面朝台阶方向) */
+#define R_CHASSIS_R1_STEP_APPROACH_X 11080.0f  /* 🟡 台阶接近点 X (台阶边缘前) */
+#define R_CHASSIS_R1_STEP_APPROACH_Y -3055.0f /* 🟡 台阶接近点 Y */
+#define R_CHASSIS_R1_STEP_APPROACH_W 90.0f     /* 🟡 台阶接近点 W (面朝台阶方向) */
 
 #define R_CHASSIS_R1_PLATFORM_X 9000.0f  /* 🟡 R1平台上面 X (台阶后) */
 #define R_CHASSIS_R1_PLATFORM_Y -5000.0f /* 🟡 R1平台上面 Y */
 #define R_CHASSIS_R1_PLATFORM_W 0.0f     /* 🟡 R1平台上面 W */
-#define CZ_ARM_PLACE_L3_X 0.25f          /* 🟡 九宫格第三层机械臂抬升 X */
-#define CZ_ARM_PLACE_L3_Y 1.05f          /* 🟡 九宫格第三层机械臂抬升 Y (比第一层更高) */
-#define CZ_ARM_PLACE_L3_FWD_X 0.50f      /* 🟡 九宫格第三层机械臂前送 X (往前伸) */
-#define CZ_ARM_PLACE_L3_FWD_Y 1.05f      /* 🟡 九宫格第三层机械臂前送 Y */
-#define CZ_ARM_PLACE_L3_PITCH 50.0f      /* 🟡 九宫格第三层 pitch */
+#define CZ_ARM_PLACE_L3_X 0.1f          /* 🟡 九宫格第三层机械臂抬升 X */
+#define CZ_ARM_PLACE_L3_Y 0.90f          /* 🟡 九宫格第三层机械臂抬升 Y (比第一层更高) */
+#define CZ_ARM_PLACE_L3_FWD_X 0.4f      /* 🟡 九宫格第三层机械臂前送 X (往前伸) */
+#define CZ_ARM_PLACE_L3_FWD_Y 0.90f      /* 🟡 九宫格第三层机械臂前送 Y */
+#define CZ_ARM_PLACE_L3_PITCH 20.0f      /* 🟡 九宫格第三层 pitch */
 
 /* 对抗区任务状态机 */
 typedef enum
