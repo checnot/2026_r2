@@ -47,6 +47,7 @@
 #include "MF_planner.h"
 #include "go_m8010.h"
 #include "lift.h"
+#include "keyboard.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -834,8 +835,17 @@ void entry_cmd_task(void const * argument)
 //       MF_Scan_Command_Send(camera_command);
 // //			MF_Scan_Command_Send(camera_command);
 //     }
-   if (task_flag == 1)
-   {
+
+  /* 按下 'A' 键之后启动行为树 */
+  if (key_now == 'A')
+  {
+    task_flag = 1;
+    key_now = 0;
+    key_last = 0;
+  }
+
+  if (task_flag == 1)
+  {
     BT_MASTER_Start_Task();
     // BT_CZ_Start_Task();
     // CZ_bb.req_start = 1;
@@ -846,7 +856,7 @@ void entry_cmd_task(void const * argument)
     // CZ_bb.r1_place_cmd = 0;
     task_flag = 0;
     // MFPlanner_PreInputBuildFullPlan(&mf_planner_ctx, 0, 1, 2);
-   }
+  }
     // if (MC_task == 1)
     // {
     //   //BT_Start_R2_MC_Mission();
