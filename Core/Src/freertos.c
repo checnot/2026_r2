@@ -388,8 +388,8 @@ void entry_robotic_arm(void const * argument)
       if (traj_init_flag_arm == 0)
       {
         arm_trajectory_init(&arm_traj, &arm);   // 以当前位置初始化轨迹系统
-        arm_queue_add_point(&arm_traj, PICK_PRE_REST_X, PICK_PRE_REST_Y, 200, 0, 0.0f);
-        arm_queue_add_point(&arm_traj, PICK_REST_X, PICK_REST_Y, 500, 0, 0.0f);
+        arm_queue_add_point(&arm_traj, PICK_PRE_REST_X, PICK_PRE_REST_Y, 200, ARM_PUMP_SUCK, 0.0f);
+        arm_queue_add_point(&arm_traj, PICK_REST_X, PICK_REST_Y, 500, ARM_PUMP_SUCK, 0.0f);
         traj_init_flag_arm = 1;
       }
 //       if(point_add == 1)
@@ -849,11 +849,12 @@ void entry_cmd_task(void const * argument)
 {
   /* USER CODE BEGIN entry_cmd_task */
 
-  BT_MASTER_Init_Task(); // 初始化行为树任务
+  // BT_MASTER_Init_Task(); // 初始化行为树任务
                          //  BT_MASTER_Start_Task(); // 启动行为树主控任务
   // BT_CZ_Init_Task();
   // BT_Init_R2_MC_Mission();
-  // BT_PS_Init_Task();
+  BT_PS_Init_Task();
+  // BT_JGCB_Init_Task();
   mf_planner_ctx.map_color = RED_MAP;
 
   // task_flag = 1;
@@ -888,7 +889,7 @@ void entry_cmd_task(void const * argument)
 
   if (task_flag == 1)
   {
-    BT_MASTER_Start_Task();
+    // BT_MASTER_Start_Task();
     // BT_CZ_Start_Task();
     // CZ_bb.req_start = 1;
     // CZ_bb.seq_mem_idx = 0;
@@ -896,8 +897,13 @@ void entry_cmd_task(void const * argument)
     // CZ_bb.cz_timer_ms = 0;
     // CZ_bb.r1_platform_cmd = 1;
     // CZ_bb.r1_place_cmd = 0;
+    
+    BT_PS_Start_Task();
+
+    // BT_JGCB_Start_Task();
+
     task_flag = 0;
-    MFPlanner_PreInputBuildFullPlan(&mf_planner_ctx, 0, 1, 2);
+    // MFPlanner_PreInputBuildFullPlan(&mf_planner_ctx, 0, 1, 2);
   }
     // if (MC_task == 1)
     // {
@@ -928,7 +934,9 @@ void entry_cmd_task(void const * argument)
     //   MF_Scan_Command_Send(3);
     // }
     
-    BT_MASTER_Tick(); // 每1ms调用，内部降频10ms，行为树主控任务周期调用
+    // BT_JGCB_Tick();
+    BT_PS_Tick(); // 每1ms调用，内部降频10ms，行为树PS预选赛任务周期调用
+    // BT_MASTER_Tick(); // 每1ms调用，内部降频10ms，行为树主控任务周期调用
     // BT_Customized_Tick1ms_CZ();
     osDelay(1);
   }

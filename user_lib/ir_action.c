@@ -60,7 +60,8 @@ uint8_t IR_Action_Poll(void)
          *   chassis_set_lock(0);
          *   MC_bb.mc_mission_state = WAIT_MF_INSTRUCTION;
          */
-        MC_bb.DOCKING_SUCCESS = 1U;
+        // MC_bb.DOCKING_SUCCESS = 1U;
+        PS_bb.dock_success = 1;
         ir_action_docking_success_set_count++;
         cmd = IR_ACTION_CMD_DOCKING_SUCCESS;
     }

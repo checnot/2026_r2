@@ -3126,6 +3126,8 @@ static BT_Status BT_PS_Task_Tree_Root(void)
 
 void BT_PS_Start_Task(void)
 {
+    chassis_r2.chassis_lock_flag = 0;
+
     PS_bb.req_start = 1;
     PS_bb.state = PS_MC_IDLE;
     PS_bb.timer_ms = 0;
@@ -3263,7 +3265,13 @@ static void JGCB_RouteSudokuBack(void)
     taskEXIT_CRITICAL();
 }
 
-/* 场边 KFS 中心 Y：1 号最近，2/3 号依次远离九宫格。 */
+/* 场边 KFS 中心点：1 号最近，2/3 号依次远离九宫格。 */
+static float JGCB_KfsCenterX(uint8_t kfs_index)
+{
+    (void)kfs_index;
+    return R_CHASSIS_JGCB_KFS_CENTER_X;
+}
+
 static float JGCB_KfsCenterY(uint8_t kfs_index)
 {
     if (kfs_index == 2) {
@@ -3274,10 +3282,15 @@ static float JGCB_KfsCenterY(uint8_t kfs_index)
     return R_CHASSIS_JGCB_KFS_1_CENTER_Y;
 }
 
-/* 由 KFS 中心点换算 R2 实际取块站位。 */
+/* R2 取块站位：X 比 KFS 中心小 900mm，Y 与 KFS 中心一致。 */
+static float JGCB_KfsPickX(uint8_t kfs_index)
+{
+    return JGCB_KfsCenterX(kfs_index) - R_CHASSIS_JGCB_KFS_PICK_OFFSET_X;
+}
+
 static float JGCB_KfsPickY(uint8_t kfs_index)
 {
-    return JGCB_KfsCenterY(kfs_index) - R_CHASSIS_JGCB_KFS_PICK_OFFSET_Y;
+    return JGCB_KfsCenterY(kfs_index);
 }
 
 /* 下发前往场边指定 KFS 的取块点。 */
@@ -3285,7 +3298,7 @@ static void JGCB_RouteToKfsPick(uint8_t kfs_index)
 {
     taskENTER_CRITICAL();
     chassis_route_point_add(&chassis_route_traj,
-                            R_CHASSIS_JGCB_KFS_X,
+                            JGCB_KfsPickX(kfs_index),
                             JGCB_KfsPickY(kfs_index),
                             R_CHASSIS_JGCB_KFS_PICK_W,
                             0,
@@ -3296,7 +3309,7 @@ static void JGCB_RouteToKfsPick(uint8_t kfs_index)
 /* 判断是否已到达场边指定 KFS 的取块点。 */
 static uint8_t JGCB_AtKfsPick(uint8_t kfs_index)
 {
-    return chassis_if_arrived(R_CHASSIS_JGCB_KFS_X,
+    return chassis_if_arrived(JGCB_KfsPickX(kfs_index),
                               JGCB_KfsPickY(kfs_index),
                               R_CHASSIS_JGCB_KFS_PICK_W);
 }

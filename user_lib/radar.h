@@ -54,6 +54,10 @@ extern uint8_t Rec_Data[65];
 
 /* HEU 帧接收: 从 UART5 字节流中解析 src=0x20 雷达遥测帧 */
 void Data_process_String(char *str);
+
+void Radar_ProcessBuffer(uint8_t *data, uint16_t len);
+
+
 /* 底盘坐标解算 */
 void Data_process_String(char *str);
 void Calculate_Chassis_Position(void);
