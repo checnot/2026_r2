@@ -1,11 +1,11 @@
-#include "ir_action.h"
+﻿#include "ir_action.h"
 #include "BT_customized.h"
 
 volatile uint32_t ir_action_poll_count = 0;
 volatile uint32_t ir_action_rx_count = 0;
 volatile uint32_t ir_action_no_new_count = 0;
 volatile uint32_t ir_action_unknown_count = 0;
-volatile uint32_t ir_action_docking_success_set_count = 0;
+volatile uint32_t ir_action_packet_count[IR_ACTION_CMD_MAX + 1U] = {0};
 volatile uint8_t  ir_action_last_cmd = IR_ACTION_CMD_NONE;
 volatile uint8_t  ir_action_last_ch = 0;
 volatile uint8_t  ir_action_last_seq = 0;
@@ -18,11 +18,115 @@ static void IR_Action_ClearRxFrame(void)
     ir_action_rx_frame[2] = 0U;
 }
 
-static uint8_t IR_Action_IsDockingSuccessFrame(const uint8_t frame[H7_F1_SPI_IR_FRAME_LEN])
+static uint8_t IR_Action_MatchFrame(const uint8_t frame[H7_F1_SPI_IR_FRAME_LEN])
 {
-    return (frame[0] == IR_ACTION_DOCKING_B0 &&
-            frame[1] == IR_ACTION_DOCKING_B1 &&
-            frame[2] == IR_ACTION_DOCKING_B2) ? 1U : 0U;
+    if (frame[0] == IR_ACTION_PACKET1_B0 &&
+        frame[1] == IR_ACTION_PACKET1_B1 &&
+        frame[2] == IR_ACTION_PACKET1_B2)
+    {
+        return IR_ACTION_CMD_PACKET1;
+    }
+
+    if (frame[0] == IR_ACTION_PACKET2_B0 &&
+        frame[1] == IR_ACTION_PACKET2_B1 &&
+        frame[2] == IR_ACTION_PACKET2_B2)
+    {
+        return IR_ACTION_CMD_PACKET2;
+    }
+
+    if (frame[0] == IR_ACTION_PACKET3_B0 &&
+        frame[1] == IR_ACTION_PACKET3_B1 &&
+        frame[2] == IR_ACTION_PACKET3_B2)
+    {
+        return IR_ACTION_CMD_PACKET3;
+    }
+
+    if (frame[0] == IR_ACTION_PACKET4_B0 &&
+        frame[1] == IR_ACTION_PACKET4_B1 &&
+        frame[2] == IR_ACTION_PACKET4_B2)
+    {
+        return IR_ACTION_CMD_PACKET4;
+    }
+
+    if (frame[0] == IR_ACTION_PACKET5_B0 &&
+        frame[1] == IR_ACTION_PACKET5_B1 &&
+        frame[2] == IR_ACTION_PACKET5_B2)
+    {
+        return IR_ACTION_CMD_PACKET5;
+    }
+
+    if (frame[0] == IR_ACTION_PACKET6_B0 &&
+        frame[1] == IR_ACTION_PACKET6_B1 &&
+        frame[2] == IR_ACTION_PACKET6_B2)
+    {
+        return IR_ACTION_CMD_PACKET6;
+    }
+
+    return IR_ACTION_CMD_NONE;
+}
+
+static void IR_Action_OnPacket1(void)
+{
+  MC_bb.DOCKING_SUCCESS = 1U;
+    
+}
+
+static void IR_Action_OnPacket2(void)
+{
+    /* TODO: packet2 action. */
+}
+
+static void IR_Action_OnPacket3(void)
+{
+    /* TODO: packet3 action. */
+}
+
+static void IR_Action_OnPacket4(void)
+{
+    /* TODO: packet4 action. */
+}
+
+static void IR_Action_OnPacket5(void)
+{
+    /* TODO: packet5 action. */
+}
+
+static void IR_Action_OnPacket6(void)
+{
+    /* TODO: packet6 action. */
+}
+
+static void IR_Action_Dispatch(uint8_t cmd)
+{
+    switch (cmd)
+    {
+    case IR_ACTION_CMD_PACKET1:
+        IR_Action_OnPacket1();
+        break;
+
+    case IR_ACTION_CMD_PACKET2:
+        IR_Action_OnPacket2();
+        break;
+
+    case IR_ACTION_CMD_PACKET3:
+        IR_Action_OnPacket3();
+        break;
+
+    case IR_ACTION_CMD_PACKET4:
+        IR_Action_OnPacket4();
+        break;
+
+    case IR_ACTION_CMD_PACKET5:
+        IR_Action_OnPacket5();
+        break;
+
+    case IR_ACTION_CMD_PACKET6:
+        IR_Action_OnPacket6();
+        break;
+
+    default:
+        break;
+    }
 }
 
 uint8_t IR_Action_Poll(void)
@@ -50,19 +154,11 @@ uint8_t IR_Action_Poll(void)
     ir_action_rx_frame[1] = frame[1];
     ir_action_rx_frame[2] = frame[2];
 
-    if (IR_Action_IsDockingSuccessFrame(frame))
+    cmd = IR_Action_MatchFrame(frame);
+    if (cmd != IR_ACTION_CMD_NONE)
     {
-        /* Tell the existing behavior tree that docking is complete.
-         * The behavior tree will execute the original code:
-         *   clamp.catch_flag = 0;
-         *   osDelay(800);
-         *   clamp.rotate_flag = 0;
-         *   chassis_set_lock(0);
-         *   MC_bb.mc_mission_state = WAIT_MF_INSTRUCTION;
-         */
-        MC_bb.DOCKING_SUCCESS = 1U;
-        ir_action_docking_success_set_count++;
-        cmd = IR_ACTION_CMD_DOCKING_SUCCESS;
+        ir_action_packet_count[cmd]++;
+        IR_Action_Dispatch(cmd);
     }
     else
     {
@@ -74,4 +170,6 @@ uint8_t IR_Action_Poll(void)
 
     return cmd;
 }
+
+
 
