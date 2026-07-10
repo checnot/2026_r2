@@ -67,8 +67,8 @@ static uint8_t IR_Action_MatchFrame(const uint8_t frame[H7_F1_SPI_IR_FRAME_LEN])
 
 static void IR_Action_OnPacket1(void)
 {
-  MC_bb.DOCKING_SUCCESS = 1U;
-    
+    // MC_bb.DOCKING_SUCCESS = 1U;
+    PS_bb.dock_success = 1;
 }
 
 static void IR_Action_OnPacket2(void)

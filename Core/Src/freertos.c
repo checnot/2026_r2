@@ -310,12 +310,12 @@ void StartDefaultTask(void const * argument)
      *   h7_f1_spi_rx_ok_count / h7_f1_spi_last_ch / h7_f1_spi_last_frame
      *   ir_action_rx_count / ir_action_rx_frame / ir_action_docking_success_set_count
      */
-    c8_spi_poll_cnt++;
-    if (c8_spi_poll_cnt >= 5U)
-    {
-      c8_spi_poll_cnt = 0;
+//    c8_spi_poll_cnt++;
+//    if (c8_spi_poll_cnt >= 5U)
+//    {
+//      c8_spi_poll_cnt = 0;
       IR_Action_Poll();
-    }
+//    }
 
     debug_test_time += 0.001f;
 		// Screen_TestDisplay();
