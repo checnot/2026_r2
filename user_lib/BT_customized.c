@@ -3276,17 +3276,17 @@ static uint8_t JGCB_IsValidColumn(uint8_t col)
 static void JGCB_SetSudokuTarget(uint8_t col)
 {
     if (col == 1) {
-        CZ_SUDUKU_X = B_CHASSIS_SUDUKU_1_X;
-        CZ_SUDUKU_Y = B_CHASSIS_SUDUKU_1_Y;
-        CZ_SUDUKU_W = B_CHASSIS_SUDUKU_1_W;
+        CZ_SUDUKU_X = R_CHASSIS_SUDUKU_1_X;
+        CZ_SUDUKU_Y = R_CHASSIS_SUDUKU_1_Y;
+        CZ_SUDUKU_W = R_CHASSIS_SUDUKU_1_W;
     } else if (col == 2) {
-        CZ_SUDUKU_X = B_CHASSIS_SUDUKU_2_X;
-        CZ_SUDUKU_Y = B_CHASSIS_SUDUKU_2_Y;
-        CZ_SUDUKU_W = B_CHASSIS_SUDUKU_2_W;
+        CZ_SUDUKU_X = R_CHASSIS_SUDUKU_2_X;
+        CZ_SUDUKU_Y = R_CHASSIS_SUDUKU_2_Y;
+        CZ_SUDUKU_W = R_CHASSIS_SUDUKU_2_W;
     } else {
-        CZ_SUDUKU_X = B_CHASSIS_SUDUKU_3_X;
-        CZ_SUDUKU_Y = B_CHASSIS_SUDUKU_3_Y;
-        CZ_SUDUKU_W = B_CHASSIS_SUDUKU_3_W;
+        CZ_SUDUKU_X = R_CHASSIS_SUDUKU_3_X;
+        CZ_SUDUKU_Y = R_CHASSIS_SUDUKU_3_Y;
+        CZ_SUDUKU_W = R_CHASSIS_SUDUKU_3_W;
     }
 }
 
@@ -3309,9 +3309,9 @@ static void JGCB_RouteToWaitPoint(uint8_t clear_queue)
 {
     taskENTER_CRITICAL();
     chassis_route_point_add(&chassis_route_traj,
-                            B_CHASSIS_JGCB_WAIT_X,
-                            B_CHASSIS_JGCB_WAIT_Y,
-                            B_CHASSIS_JGCB_WAIT_W,
+                            R_CHASSIS_JGCB_WAIT_X,
+                            R_CHASSIS_JGCB_WAIT_Y,
+                            R_CHASSIS_JGCB_WAIT_W,
                             0,
                             clear_queue);
     taskEXIT_CRITICAL();
@@ -3331,7 +3331,7 @@ static void JGCB_RouteToSudoku(uint8_t col)
 static void JGCB_RouteSudokuForward(void)
 {
     taskENTER_CRITICAL();
-    chassis_route_point_add(&chassis_route_traj, CZ_SUDUKU_X, CZ_SUDUKU_Y - 450.0f, CZ_SUDUKU_W, 0, 0);
+    chassis_route_point_add(&chassis_route_traj, CZ_SUDUKU_X, CZ_SUDUKU_Y + 450.0f, CZ_SUDUKU_W, 0, 0);
     taskEXIT_CRITICAL();
 }
 
@@ -3347,23 +3347,23 @@ static void JGCB_RouteSudokuBack(void)
 static float JGCB_KfsCenterX(uint8_t kfs_index)
 {
     (void)kfs_index;
-    return B_CHASSIS_JGCB_KFS_CENTER_X;
+    return R_CHASSIS_JGCB_KFS_CENTER_X;
 }
 
 static float JGCB_KfsCenterY(uint8_t kfs_index)
 {
     if (kfs_index == 2) {
-        return B_CHASSIS_JGCB_KFS_2_CENTER_Y;
+        return R_CHASSIS_JGCB_KFS_2_CENTER_Y;
     } else if (kfs_index == 3) {
-        return B_CHASSIS_JGCB_KFS_3_CENTER_Y;
+        return R_CHASSIS_JGCB_KFS_3_CENTER_Y;
     }
-    return B_CHASSIS_JGCB_KFS_1_CENTER_Y;
+    return R_CHASSIS_JGCB_KFS_1_CENTER_Y;
 }
 
 /* R2 取块站位：X 比 KFS 中心小 900mm，Y 与 KFS 中心一致。 */
 static float JGCB_KfsPickX(uint8_t kfs_index)
 {
-    return JGCB_KfsCenterX(kfs_index) - B_CHASSIS_JGCB_KFS_PICK_OFFSET_X;
+    return JGCB_KfsCenterX(kfs_index) - R_CHASSIS_JGCB_KFS_PICK_OFFSET_X;
 }
 
 static float JGCB_KfsPickY(uint8_t kfs_index)
@@ -3378,7 +3378,7 @@ static void JGCB_RouteToKfsPick(uint8_t kfs_index)
     chassis_route_point_add(&chassis_route_traj,
                             JGCB_KfsPickX(kfs_index),
                             JGCB_KfsPickY(kfs_index),
-                            B_CHASSIS_JGCB_KFS_PICK_W,
+                            R_CHASSIS_JGCB_KFS_PICK_W,
                             0,
                             1);
     taskEXIT_CRITICAL();
@@ -3389,7 +3389,7 @@ static uint8_t JGCB_AtKfsPick(uint8_t kfs_index)
 {
     return chassis_if_arrived(JGCB_KfsPickX(kfs_index),
                               JGCB_KfsPickY(kfs_index),
-                              B_CHASSIS_JGCB_KFS_PICK_W);
+                              R_CHASSIS_JGCB_KFS_PICK_W);
 }
 
 static BT_Status Cond_Has_JGCB_Request(void)
@@ -3428,8 +3428,8 @@ static BT_Status Act_JGCB_Mission(void)
         {
             /* 从启动区进入坡道，预先把坡底和坡顶点入队。 */
             taskENTER_CRITICAL();
-            chassis_route_point_add(&chassis_route_traj, B_CHASSIS_SLOPE_START_X, B_CHASSIS_SLOPE_START_Y, B_CHASSIS_SLOPE_START_W, 0, 0);
-            chassis_route_point_add(&chassis_route_traj, B_CHASSIS_SLOPE_END_X, B_CHASSIS_SLOPE_END_Y, B_CHASSIS_SLOPE_END_W, 0, 0);
+            chassis_route_point_add(&chassis_route_traj, R_CHASSIS_SLOPE_START_X, R_CHASSIS_SLOPE_START_Y, R_CHASSIS_SLOPE_START_W, 0, 0);
+            chassis_route_point_add(&chassis_route_traj, R_CHASSIS_SLOPE_END_X, R_CHASSIS_SLOPE_END_Y, R_CHASSIS_SLOPE_END_W, 0, 0);
             taskEXIT_CRITICAL();
 
             JGCB_bb.state = JGCB_NAV_TO_SLOPE_END;
@@ -3440,19 +3440,19 @@ static BT_Status Act_JGCB_Mission(void)
         case JGCB_NAV_TO_SLOPE_END:
         {
             /* 接近坡道起点后启用上坡参数，到坡顶后恢复平地参数。 */
-            if (fabsf(Radar_Pos.reliable_x - B_CHASSIS_SLOPE_START_X) < 250.0f &&
-                fabsf(Radar_Pos.reliable_y - B_CHASSIS_SLOPE_START_Y) < 250.0f)
+            if (fabsf(Radar_Pos.reliable_x - R_CHASSIS_SLOPE_START_X) < 250.0f &&
+                fabsf(Radar_Pos.reliable_y - R_CHASSIS_SLOPE_START_Y) < 250.0f)
             {
                 chassis_route_set_slope_mode(1);
             }
 
-            if (chassis_if_arrived(B_CHASSIS_SLOPE_END_X, B_CHASSIS_SLOPE_END_Y, B_CHASSIS_SLOPE_END_W))
+            if (chassis_if_arrived(R_CHASSIS_SLOPE_END_X, R_CHASSIS_SLOPE_END_Y, R_CHASSIS_SLOPE_END_W))
             {
                 chassis_route_set_slope_mode(0);
                 chassis_route_set_rotate_slow(1);
 
                 taskENTER_CRITICAL();
-                chassis_route_point_add(&chassis_route_traj, B_CHASSIS_SLOPE_END_X, B_CHASSIS_SLOPE_END_Y, -90.0f, 0, 1);
+                chassis_route_point_add(&chassis_route_traj, R_CHASSIS_SLOPE_END_X, R_CHASSIS_SLOPE_END_Y, 90.0f, 0, 1);
                 taskEXIT_CRITICAL();
 
                 JGCB_bb.state = JGCB_ROTATE_90;
@@ -3469,7 +3469,7 @@ static BT_Status Act_JGCB_Mission(void)
         case JGCB_ROTATE_90:
         {
             /* 坡顶原地转向，随后带着预装 KFS 前往 CZ 等待点。 */
-            if (chassis_if_arrived(B_CHASSIS_SLOPE_END_X, B_CHASSIS_SLOPE_END_Y, -90.0f))
+            if (chassis_if_arrived(R_CHASSIS_SLOPE_END_X, R_CHASSIS_SLOPE_END_Y, 90.0f))
             {
                 chassis_route_set_rotate_slow(0);
 
@@ -3489,7 +3489,7 @@ static BT_Status Act_JGCB_Mission(void)
         case JGCB_NAV_TO_WAIT_POINT:
         {
             /* 等待到达 R1 红外指令的等待点。 */
-            if (chassis_if_arrived(B_CHASSIS_JGCB_WAIT_X, B_CHASSIS_JGCB_WAIT_Y, B_CHASSIS_JGCB_WAIT_W))
+            if (chassis_if_arrived(R_CHASSIS_JGCB_WAIT_X, R_CHASSIS_JGCB_WAIT_Y, R_CHASSIS_JGCB_WAIT_W))
             {
                 JGCB_bb.state = JGCB_WAIT_PLACE_CMD;
                 JGCB_bb.timer_ms = 0;
@@ -3505,7 +3505,7 @@ static BT_Status Act_JGCB_Mission(void)
         case JGCB_WAIT_PLACE_CMD:
         {
             /* 等待 R1 指令：列号=去对应列，上 R1=进入上平台分支。 */
-            if (!chassis_if_arrived(B_CHASSIS_JGCB_WAIT_X, B_CHASSIS_JGCB_WAIT_Y, B_CHASSIS_JGCB_WAIT_W)) {
+            if (!chassis_if_arrived(R_CHASSIS_JGCB_WAIT_X, R_CHASSIS_JGCB_WAIT_Y, R_CHASSIS_JGCB_WAIT_W)) {
                 JGCB_RouteToWaitPoint(1);
                 JGCB_bb.state = JGCB_NAV_TO_WAIT_POINT;
                 JGCB_bb.timer_ms = 0;
@@ -3620,7 +3620,7 @@ static BT_Status Act_JGCB_Mission(void)
         case JGCB_FORWARD_PUSH:
         {
             /* 等底盘前移到位后再关泵释放。 */
-            if (chassis_if_arrived(CZ_SUDUKU_X, CZ_SUDUKU_Y - 450.0f, CZ_SUDUKU_W))
+            if (chassis_if_arrived(CZ_SUDUKU_X, CZ_SUDUKU_Y + 450.0f, CZ_SUDUKU_W))
             {
                 JGCB_bb.state = JGCB_ARM_PLACE;
                 JGCB_bb.timer_ms = 0;
@@ -3738,7 +3738,7 @@ static BT_Status Act_JGCB_Mission(void)
         case JGCB_RETURN_WAIT_POINT:
         {
             /* 带着新 KFS 回等待点，等待下一次 R1 红外列命令。 */
-            if (chassis_if_arrived(B_CHASSIS_JGCB_WAIT_X, B_CHASSIS_JGCB_WAIT_Y, B_CHASSIS_JGCB_WAIT_W))
+            if (chassis_if_arrived(R_CHASSIS_JGCB_WAIT_X, R_CHASSIS_JGCB_WAIT_Y, R_CHASSIS_JGCB_WAIT_W))
             {
                 JGCB_bb.state = JGCB_WAIT_PLACE_CMD;
                 JGCB_bb.timer_ms = 0;
@@ -3769,7 +3769,7 @@ static BT_Status Act_JGCB_Mission(void)
             if (arm_if_arrived_xy(CZ_ARM_PLACE_L3_FWD_X, CZ_ARM_PLACE_L3_FWD_Y))
             {
                 taskENTER_CRITICAL();
-                chassis_route_point_add(&chassis_route_traj, B_CHASSIS_R1_STEP_APPROACH_X, B_CHASSIS_R1_STEP_APPROACH_Y, B_CHASSIS_R1_STEP_APPROACH_W, 0, 1);
+                chassis_route_point_add(&chassis_route_traj, R_CHASSIS_R1_STEP_APPROACH_X, R_CHASSIS_R1_STEP_APPROACH_Y, R_CHASSIS_R1_STEP_APPROACH_W, 0, 1);
                 taskEXIT_CRITICAL();
 
                 JGCB_bb.step_fsm_started = 0;
@@ -3789,9 +3789,9 @@ static BT_Status Act_JGCB_Mission(void)
             /* 使用已有 400mm 上台阶 FSM 登上 R1。 */
             if (!JGCB_bb.step_fsm_started)
             {
-                if (chassis_if_arrived(B_CHASSIS_R1_STEP_APPROACH_X,
-                                       B_CHASSIS_R1_STEP_APPROACH_Y,
-                                       B_CHASSIS_R1_STEP_APPROACH_W))
+                if (chassis_if_arrived(R_CHASSIS_R1_STEP_APPROACH_X,
+                                       R_CHASSIS_R1_STEP_APPROACH_Y,
+                                       R_CHASSIS_R1_STEP_APPROACH_W))
                 {
                     chassis_step_fsm_start(&g_step_fsm, STEP_UP_400);
                     JGCB_bb.step_fsm_started = 1;

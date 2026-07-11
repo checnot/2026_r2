@@ -330,23 +330,18 @@ void BT_PS_Request_MF_Start(void);
 
 /* ================================================ JGCB 预选赛行为树接口 ================================================ */
 
-/* JGCB 蓝区固定点位：等待点、场边 KFS 位置，实测后按需微调 */
-#define B_CHASSIS_JGCB_WAIT_X B_CHASSIS_CZ_CENTER_X
-#define B_CHASSIS_JGCB_WAIT_Y B_CHASSIS_CZ_CENTER_Y
-#define B_CHASSIS_JGCB_WAIT_W B_CHASSIS_CZ_CENTER_W
+/* JGCB 红区固定点位：等待点、场边 KFS 位置，实测后按需微调。 */
+#define R_CHASSIS_JGCB_WAIT_X R_CHASSIS_CZ_CENTER_X
+#define R_CHASSIS_JGCB_WAIT_Y R_CHASSIS_CZ_CENTER_Y
+#define R_CHASSIS_JGCB_WAIT_W R_CHASSIS_CZ_CENTER_W
 
-/* 场边 KFS 先按红区 Y 轴镜像给出默认值，蓝区实车需复测。 */
-#define B_CHASSIS_JGCB_KFS_CENTER_X 11825.0f
-#define B_CHASSIS_JGCB_KFS_1_CENTER_Y 1925.0f
-#define B_CHASSIS_JGCB_KFS_2_CENTER_Y 2675.0f
-#define B_CHASSIS_JGCB_KFS_3_CENTER_Y 3425.0f
-#define B_CHASSIS_JGCB_KFS_PICK_OFFSET_X 900.0f
-#define B_CHASSIS_JGCB_KFS_PICK_W 0.0f
-
-/* 红区台阶接近点等于红区 CZ 中心；蓝区按相同关系使用蓝区 CZ 中心。 */
-#define B_CHASSIS_R1_STEP_APPROACH_X B_CHASSIS_CZ_CENTER_X
-#define B_CHASSIS_R1_STEP_APPROACH_Y B_CHASSIS_CZ_CENTER_Y
-#define B_CHASSIS_R1_STEP_APPROACH_W B_CHASSIS_CZ_CENTER_W
+/* 场边 KFS 按蓝区对应点的 Y 轴镜像给出红区默认值，红区实车需复测。 */
+#define R_CHASSIS_JGCB_KFS_CENTER_X 11825.0f
+#define R_CHASSIS_JGCB_KFS_1_CENTER_Y -1925.0f
+#define R_CHASSIS_JGCB_KFS_2_CENTER_Y -2675.0f
+#define R_CHASSIS_JGCB_KFS_3_CENTER_Y -3425.0f
+#define R_CHASSIS_JGCB_KFS_PICK_OFFSET_X 900.0f
+#define R_CHASSIS_JGCB_KFS_PICK_W 0.0f
 #define JGCB_START_DELAY_MS 7000U /* 启动后等待 7 秒，再自主进入坡道 */
 
 typedef enum
