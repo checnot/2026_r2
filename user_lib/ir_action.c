@@ -67,33 +67,45 @@ static uint8_t IR_Action_MatchFrame(const uint8_t frame[H7_F1_SPI_IR_FRAME_LEN])
 
 static void IR_Action_OnPacket1(void)
 {
+    /* 1 号红外保持原用途：PS 对杆成功信号，不参与 JGCB。 */
     // MC_bb.DOCKING_SUCCESS = 1U;
     PS_bb.dock_success = 1;
 }
 
 static void IR_Action_OnPacket2(void)
 {
-    /* TODO: packet2 action. */
+    /* 2 号红外：R2 在 CZ 等待点收到后，进入上 R1 台阶流程。 */
+    JGCB_bb.r1_platform_cmd = 1U;
 }
 
 static void IR_Action_OnPacket3(void)
 {
-    /* TODO: packet3 action. */
+    /* 3 号红外：R2 已在 R1 平台上时，仅关气泵释放手中 KFS。 */
+    JGCB_bb.r1_place_cmd = 1U;
 }
 
 static void IR_Action_OnPacket4(void)
 {
-    /* TODO: packet4 action. */
+    /*
+     * 4 号红外：九宫格 X 最小列。
+     * JGCB 内部列号 3 对应 R_CHASSIS_SUDUKU_3_X(当前三列中的最小 X)。
+     */
+    JGCB_bb.ir_column_cmd = 3U;
 }
 
 static void IR_Action_OnPacket5(void)
 {
-    /* TODO: packet5 action. */
+    /* 5 号红外：九宫格中间列。 */
+    JGCB_bb.ir_column_cmd = 2U;
 }
 
 static void IR_Action_OnPacket6(void)
 {
-    /* TODO: packet6 action. */
+    /*
+     * 6 号红外：九宫格 X 最大列。
+     * JGCB 内部列号 1 对应 R_CHASSIS_SUDUKU_1_X(当前三列中的最大 X)。
+     */
+    JGCB_bb.ir_column_cmd = 1U;
 }
 
 static void IR_Action_Dispatch(uint8_t cmd)
