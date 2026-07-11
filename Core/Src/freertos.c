@@ -855,7 +855,7 @@ void entry_cmd_task(void const * argument)
   // BT_Init_R2_MC_Mission();
   // BT_PS_Init_Task();
   BT_JGCB_Init_Task();
-  mf_planner_ctx.map_color = RED_MAP;
+  mf_planner_ctx.map_color = BLUE_MAP;
 
   // task_flag = 1;
 
