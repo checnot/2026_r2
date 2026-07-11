@@ -272,21 +272,21 @@ typedef struct
 /* ================================================ 预选赛 MC 行为树 ================================================ */
 /* 独立状态机和黑板，不共用原 MC 段。对杆位置固定，与 MC 相同 */
 
-/* PS 蓝区预选赛使用蓝方第 4/5/6 个矛架。 */
-#define PS_RACK_1_X  B_CHASSIS_RACK_4_X
-#define PS_RACK_1_Y  B_CHASSIS_RACK_Y
-#define PS_RACK_1_W  B_CHASSIS_RACK_W
-#define PS_RACK_2_X  B_CHASSIS_RACK_5_X
-#define PS_RACK_2_Y  B_CHASSIS_RACK_Y
-#define PS_RACK_2_W  B_CHASSIS_RACK_W
-#define PS_RACK_3_X  B_CHASSIS_RACK_6_X
-#define PS_RACK_3_Y  B_CHASSIS_RACK_Y
-#define PS_RACK_3_W  B_CHASSIS_RACK_W
+/* PS 红区预选赛使用红方第 1/2/3 个矛架。 */
+#define PS_RACK_1_X  R_CHASSIS_RACK_1_X
+#define PS_RACK_1_Y  R_CHASSIS_RACK_Y_1
+#define PS_RACK_1_W  R_CHASSIS_RACK_W_1
+#define PS_RACK_2_X  R_CHASSIS_RACK_2_X
+#define PS_RACK_2_Y  R_CHASSIS_RACK_Y
+#define PS_RACK_2_W  R_CHASSIS_RACK_W
+#define PS_RACK_3_X  R_CHASSIS_RACK_3_X
+#define PS_RACK_3_Y  R_CHASSIS_RACK_Y
+#define PS_RACK_3_W  R_CHASSIS_RACK_W
 
 /* 对杆位置固定，与 MC 共用 */
-#define PS_DOCK_X  B_CHASSIS_DOCKING_X
-#define PS_DOCK_Y  B_CHASSIS_DOCKING_Y
-#define PS_DOCK_W  B_CHASSIS_DOCKING_W
+#define PS_DOCK_X  R_CHASSIS_DOCKING_X
+#define PS_DOCK_Y  R_CHASSIS_DOCKING_Y
+#define PS_DOCK_W  R_CHASSIS_DOCKING_W
 
 typedef enum
 {
@@ -331,23 +331,18 @@ void BT_PS_Request_MF_Start(void);
 
 /* ================================================ JGCB 预选赛行为树接口 ================================================ */
 
-/* JGCB 蓝区固定点位：等待点、场边 KFS 位置，实测后按需微调。 */
-#define B_CHASSIS_JGCB_WAIT_X B_CHASSIS_CZ_CENTER_X
-#define B_CHASSIS_JGCB_WAIT_Y B_CHASSIS_CZ_CENTER_Y
-#define B_CHASSIS_JGCB_WAIT_W B_CHASSIS_CZ_CENTER_W
+/* JGCB 红区固定点位：等待点、场边 KFS 位置，实测后按需微调。 */
+#define R_CHASSIS_JGCB_WAIT_X R_CHASSIS_CZ_CENTER_X
+#define R_CHASSIS_JGCB_WAIT_Y R_CHASSIS_CZ_CENTER_Y
+#define R_CHASSIS_JGCB_WAIT_W R_CHASSIS_CZ_CENTER_W
 
-/* 场边 KFS 蓝区默认点位，实车需复测。 */
-#define B_CHASSIS_JGCB_KFS_CENTER_X 11825.0f
-#define B_CHASSIS_JGCB_KFS_1_CENTER_Y 1925.0f
-#define B_CHASSIS_JGCB_KFS_2_CENTER_Y 2675.0f
-#define B_CHASSIS_JGCB_KFS_3_CENTER_Y 3425.0f
-#define B_CHASSIS_JGCB_KFS_PICK_OFFSET_X 900.0f
-#define B_CHASSIS_JGCB_KFS_PICK_W 0.0f
-
-/* 蓝区台阶接近点按与蓝区 CZ 中心相同的位置关系定义。 */
-#define B_CHASSIS_R1_STEP_APPROACH_X B_CHASSIS_CZ_CENTER_X
-#define B_CHASSIS_R1_STEP_APPROACH_Y B_CHASSIS_CZ_CENTER_Y
-#define B_CHASSIS_R1_STEP_APPROACH_W B_CHASSIS_CZ_CENTER_W
+/* 场边 KFS 按蓝区对应点的 Y 轴镜像给出红区默认值，红区实车需复测。 */
+#define R_CHASSIS_JGCB_KFS_CENTER_X 11825.0f
+#define R_CHASSIS_JGCB_KFS_1_CENTER_Y -1925.0f
+#define R_CHASSIS_JGCB_KFS_2_CENTER_Y -2675.0f
+#define R_CHASSIS_JGCB_KFS_3_CENTER_Y -3425.0f
+#define R_CHASSIS_JGCB_KFS_PICK_OFFSET_X 900.0f
+#define R_CHASSIS_JGCB_KFS_PICK_W 0.0f
 #define JGCB_START_DELAY_MS 7000U /* 启动后等待 7 秒，再自主进入坡道 */
 
 typedef enum
