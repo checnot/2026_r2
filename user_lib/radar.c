@@ -120,8 +120,8 @@ static void Radar_ParseTelemetry(char *payload, uint16_t len)
     if (sscanf(payload, "%f,%f,%f,%f,%f,%f",
                &tx, &ty, &tz, &tyaw, &tvx, &tvy) >= 6)
     {
-        Radar_Pos.radar_x   = 1000.0f * tx;
-        Radar_Pos.radar_y   = 1000.0f * ty;
+        Radar_Pos.radar_x   = 1000.0f * tx + (float)x_offset_by_key_times * X_OFFSET_BY_KEY;
+        Radar_Pos.radar_y   = 1000.0f * ty + (float)y_offset_by_key_times * Y_OFFSET_BY_KEY;
         Radar_Pos.radar_z   = 1000.0f * tz;
         Radar_Pos.radar_yaw = tyaw;
         Radar_Pos.radar_vx  = tvx;

@@ -19,7 +19,6 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "cmsis_os.h"
-#include "adc.h"
 #include "dma.h"
 #include "fdcan.h"
 #include "spi.h"
@@ -44,7 +43,7 @@
 #include "BT_customized.h"
 #include "camera.h"
 #include "H7_F1_spi.h"
-#include "Ana_keyboard.h"
+//#include "Ana_keyboard.h"
 #include "screen.h"
 #include "keyboard.h"
 /* USER CODE END Includes */
@@ -139,7 +138,7 @@ int main(void)
   MX_USART10_UART_Init();
   MX_UART8_Init();
   MX_SPI1_Init();
-  MX_ADC1_Init();
+  MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
 
   // H7(SPI1 Master) <-> F103C8T6(SPI1 Slave) 红外状态通信初始化
@@ -191,6 +190,11 @@ int main(void)
   memset(keyboard_buffer, 0, sizeof(keyboard_buffer));
   HAL_UARTEx_ReceiveToIdle_DMA(&huart8, keyboard_buffer, sizeof(keyboard_buffer));
   __HAL_DMA_DISABLE_IT(&hdma_uart8_rx, DMA_IT_HT);
+
+  // uart2 - keyboard2
+  memset(keyboard_2_buffer, 0, sizeof(keyboard_2_buffer));
+  HAL_UARTEx_ReceiveToIdle_DMA(&huart2, keyboard_2_buffer, sizeof(keyboard_2_buffer));
+  __HAL_DMA_DISABLE_IT(&hdma_usart2_rx, DMA_IT_HT);
 
   // 雷达卡尔曼滤波器初始化
   Kalman_Init(&Radar_Kalman_X, 0.0001f, 100.0f, 0.0f, 400.0f);

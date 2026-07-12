@@ -11,11 +11,11 @@
  * 
  * @brief 每次修改串口相关时，此处应该记录修改之后的串口配置，以便后续维护
  * 
- * @note 目前涉及的串口有 3，6，4，5，8，7，10
+ * @note 目前涉及的串口有 3，6，4，5，8，7，10，2
  * 
  * @note 用于 RS485 通信：3-4851 6-4952 4-4853
  * @note 用于雷达回传：5
- * @note 用于矩阵键盘回传：8
+ * @note 用于矩阵键盘回传：8 2
  * @note 用于调试输出：7
  * @note 用于 hi14 回传：10
  * 
@@ -156,6 +156,14 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
         __HAL_DMA_DISABLE_IT(&hdma_uart8_rx, DMA_IT_HT);
     }
 
+    // uart2-供第二矩阵键盘回传
+    if (huart->Instance == USART2)
+    {
+        keyboard_2_process();
+        memset(keyboard_2_buffer, 0, sizeof(keyboard_2_buffer));
+        HAL_UARTEx_ReceiveToIdle_DMA(&huart2, keyboard_2_buffer, sizeof(keyboard_2_buffer));
+        __HAL_DMA_DISABLE_IT(&hdma_usart2_rx, DMA_IT_HT);
+    }
 
     // uart7 - serial screen
     if (huart->Instance == UART7)

@@ -6,6 +6,7 @@
 // #include "chassis.h"
 #include "own_lib.h"
 #include "hi14.h"
+#include "keyboard.h"
 
 /* ========== HEU 帧协议常量 ========== */
 #define HEU_SYNC1           0x48  /* 'H' */

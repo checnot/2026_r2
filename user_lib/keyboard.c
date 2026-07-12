@@ -8,6 +8,14 @@ uint8_t key_last;   /* 上次按下的键，范围为：0~9, A~D, *, # */
 MF_CellType keyboard_mf_cell[MF_ROWS][MF_COLS]; /* MF 规划器使用的二维地图，row1~row4 由键盘维护 */
 uint8_t keyboard_kfs_screen_info[KEYBOARD_MF_KFS_COUNT]; /* 屏幕显示用的一维 KFS 状态，顺序与 12 个地图键一致 */
 
+uint8_t keyboard_2_buffer[KEYBOARD_BUFFER_SIZE];  /* UART2 矩阵键盘接收缓存区 */
+uint8_t key_2_now;    /* 第二键盘当前按下的键，范围为：1~16 */
+uint8_t key_2_last;   /* 第二键盘上次按下的键，范围为：1~16 */
+
+int16_t x_offset_by_key_times;  // 由第二键盘设置的x偏移次数
+int16_t y_offset_by_key_times;  // 由第二键盘设置的x偏移次数
+
+
 /**
  * @brief 将键盘模块回传的 1 字节原始码转换为可读按键字符。
  * @param raw UART8 收到的原始键值，范围通常为 0x01~0x10。
@@ -41,6 +49,23 @@ static bool Keyboard_DecodeRawKey(uint8_t raw, uint8_t* out_key)
     return true;
 }
 
+/**
+ * @brief 将第二矩阵键盘回传的 1 字节原始码转换为可读按键字符。
+ * @param raw UART2 收到的原始键值，范围通常为 0x01~0x10。
+ * @param out_key 输出按键字符，范围为 1~16。
+*/
+static bool Keyboard_2_DecodeRawKey(uint8_t raw, uint8_t* out_key)
+{
+    if (out_key == NULL) {
+        return false;
+    }
+
+    if (raw >= 1 && raw <= 16) {
+        *out_key = raw; // 第二键盘直接使用原始码作为按键值
+        return true;
+    }
+    return false;
+}
 
 /**
  * @brief 将 12 个地图按键映射到 MF 的 row/col 与屏幕数组下标。
@@ -162,3 +187,21 @@ void keyboard_process(void)
     key_now = decoded_key;
     Keyboard_MF_ProcessKey(key_now);
 }
+
+/**
+ * @brief 在 UART2 接收回调中处理第二矩阵键盘数据。
+ * @note 流程：原始码 -> 按键字符 -> key_2_now/key_2_last。第二键盘不参与 MF 地图。
+*/
+void keyboard_2_process(void)
+{
+    uint8_t decoded_key = 0;
+
+    /* 未知按键码直接忽略，避免错误数据污染地图。 */
+    if (!Keyboard_2_DecodeRawKey(keyboard_2_buffer[0], &decoded_key)) {
+        return;
+    }
+
+    key_2_last = key_2_now;
+    key_2_now = decoded_key;
+}
+
