@@ -3428,7 +3428,7 @@ static BT_Status Act_JGCB_Mission(void)
         {
             /* 从启动区进入坡道，预先把坡底和坡顶点入队。 */
             taskENTER_CRITICAL();
-            chassis_route_point_add(&chassis_route_traj, B_CHASSIS_SLOPE_START_X, B_CHASSIS_SLOPE_START_Y, B_CHASSIS_SLOPE_START_W, 0, 0);
+            chassis_route_point_add(&chassis_route_traj, B_CHASSIS_SLOPE_START_X, B_CHASSIS_SLOPE_START_Y, B_CHASSIS_SLOPE_START_W, 0, 1);
             chassis_route_point_add(&chassis_route_traj, B_CHASSIS_SLOPE_END_X, B_CHASSIS_SLOPE_END_Y, B_CHASSIS_SLOPE_END_W, 0, 0);
             taskEXIT_CRITICAL();
 

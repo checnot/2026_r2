@@ -853,8 +853,8 @@ void entry_cmd_task(void const * argument)
                          //  BT_MASTER_Start_Task(); // 启动行为树主控任务
   // BT_CZ_Init_Task();
   // BT_Init_R2_MC_Mission();
-  BT_PS_Init_Task();
-  // BT_JGCB_Init_Task();
+  // BT_PS_Init_Task();
+  BT_JGCB_Init_Task();
   mf_planner_ctx.map_color = BLUE_MAP;
 
   // task_flag = 1;
@@ -931,11 +931,12 @@ void entry_cmd_task(void const * argument)
     key_2_last = 0;
   }
 
-  /* PS 启动模式：A 从1号矛头，B 从2号，C 从3号，D 直接进入 MF。 */
-  /* JGCB 启动模式： A 从坡道下方正常延时启动；
-                    B 在CZ区重试区默认手上有块；
-                    C 在CZ区重试区默认手上没块，直接去取地上的2号KFS；
-                    D 在CZ区重试区默认手上没块，直接去取地上的3号KFS*/
+  /* JGCB 蓝方启动模式：
+   * A：坡道下方，预装 KFS，延时后自主上坡；
+   * B：CZ 重试区，手上有 KFS；
+   * C：CZ 重试区，手空，从场边 2 号 KFS 继续；
+   * D：CZ 重试区，手空，从场边 3 号 KFS 继续。
+   */
 
 
 
@@ -952,25 +953,14 @@ void entry_cmd_task(void const * argument)
     // CZ_bb.r1_platform_cmd = 1;
     // CZ_bb.r1_place_cmd = 0;
     
-    /* PS 蓝区预选赛启动流程：A/B/C 对应第 4/5/6 个蓝方矛架，D 直接进入 MF。 */
     if (task_flag == 1)
-      BT_PS_Start_Task();           /* A：从第 4 个蓝方矛架开始 */
+      BT_JGCB_Start_Task();
     else if (task_flag == 2)
-      BT_PS_Start_Task_FromRack(1); /* B：从第 5 个蓝方矛架开始 */
+      BT_JGCB_Start_Task_FromRetry(1, 2);
     else if (task_flag == 3)
-      BT_PS_Start_Task_FromRack(2); /* C：从第 6 个蓝方矛架开始 */
+      BT_JGCB_Start_Task_FromRetry(0, 2);
     else if (task_flag == 4)
-      BT_PS_Start_MF_Direct();      /* D：跳过抓矛，直接进入蓝图 MF */
-
-    /* JGCB 启动流程保留但当前不启用。 */
-    // if (task_flag == 1)
-    //   BT_JGCB_Start_Task();
-    // else if (task_flag == 2)
-    //   BT_JGCB_Start_Task_FromRetry(1, 2);
-    // else if (task_flag == 3)
-    //   BT_JGCB_Start_Task_FromRetry(0, 2);
-    // else if (task_flag == 4)
-    //   BT_JGCB_Start_Task_FromRetry(0, 3);
+      BT_JGCB_Start_Task_FromRetry(0, 3);
 
     task_flag = 0;
   }
@@ -1006,8 +996,8 @@ void entry_cmd_task(void const * argument)
 
     /* 各TICK */
 
-    // BT_JGCB_Tick();
-    BT_PS_Tick(); // 每1ms调用，内部降频10ms，行为树PS预选赛任务周期调用
+    BT_JGCB_Tick(); // 每1ms调用，内部降频10ms，行为树JGCB蓝方任务周期调用
+    // BT_PS_Tick();
     // BT_MASTER_Tick(); // 每1ms调用，内部降频10ms，行为树主控任务周期调用
     // BT_Customized_Tick1ms_CZ();
     osDelay(1);
