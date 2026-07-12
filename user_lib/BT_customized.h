@@ -272,21 +272,21 @@ typedef struct
 /* ================================================ 预选赛 MC 行为树 ================================================ */
 /* 独立状态机和黑板，不共用原 MC 段。对杆位置固定，与 MC 相同 */
 
-/* PS 蓝区预选赛使用蓝方第 4/5/6 个矛架。 */
-#define PS_RACK_1_X  B_CHASSIS_RACK_4_X
-#define PS_RACK_1_Y  B_CHASSIS_RACK_Y
-#define PS_RACK_1_W  B_CHASSIS_RACK_W
-#define PS_RACK_2_X  B_CHASSIS_RACK_5_X
-#define PS_RACK_2_Y  B_CHASSIS_RACK_Y
-#define PS_RACK_2_W  B_CHASSIS_RACK_W
-#define PS_RACK_3_X  B_CHASSIS_RACK_6_X
-#define PS_RACK_3_Y  B_CHASSIS_RACK_Y
-#define PS_RACK_3_W  B_CHASSIS_RACK_W
+/* PS 红区预选赛使用红方第 4/5/6 个矛架。 */
+#define PS_RACK_1_X  R_CHASSIS_RACK_4_X
+#define PS_RACK_1_Y  R_CHASSIS_RACK_Y
+#define PS_RACK_1_W  R_CHASSIS_RACK_W
+#define PS_RACK_2_X  R_CHASSIS_RACK_5_X
+#define PS_RACK_2_Y  R_CHASSIS_RACK_Y
+#define PS_RACK_2_W  R_CHASSIS_RACK_W
+#define PS_RACK_3_X  R_CHASSIS_RACK_6_X
+#define PS_RACK_3_Y  R_CHASSIS_RACK_Y
+#define PS_RACK_3_W  R_CHASSIS_RACK_W
 
 /* 对杆位置固定，与 MC 共用 */
-#define PS_DOCK_X  B_CHASSIS_DOCKING_X
-#define PS_DOCK_Y  B_CHASSIS_DOCKING_Y
-#define PS_DOCK_W  B_CHASSIS_DOCKING_W
+#define PS_DOCK_X  R_CHASSIS_DOCKING_X
+#define PS_DOCK_Y  R_CHASSIS_DOCKING_Y
+#define PS_DOCK_W  R_CHASSIS_DOCKING_W
 
 typedef enum
 {

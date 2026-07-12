@@ -1154,7 +1154,7 @@ static BT_Status Act_MF_Init_And_Plan(void)
     // }
 
     /* 使用键盘预输入地图装载 row1~row4 的 KFS 分布。 */
-    if (!MFPlanner_PreInputLoadCells(&mf_planner_ctx, BLUE_MAP,
+    if (!MFPlanner_PreInputLoadCells(&mf_planner_ctx, RED_MAP,
                                      (const MF_CellType (*)[MF_COLS])keyboard_mf_cell)) {
         mf_exec_state = MF_EXEC_FAILED;
         mf_exec_timer_ms = 0;
@@ -2900,7 +2900,7 @@ static BT_Status Act_PS_MC_Mission(void)
             if (chassis_if_arrived(ps_rack[r].x, ps_rack[r].y, ps_rack[r].w))
             {
                 PS_bb.pos_stable_times++;
-                if (PS_bb.pos_stable_times > B_RACK_STABLE_TIMES_CONDITION)
+                if (PS_bb.pos_stable_times > R_RACK_STABLE_TIMES_CONDITION)
                 {
                     
                     clamp.retractable_flag = 1;
@@ -3006,7 +3006,7 @@ static BT_Status Act_PS_MC_Mission(void)
             if (chassis_if_arrived(PS_DOCK_X, PS_DOCK_Y, PS_DOCK_W))
             {  
 							PS_bb.pos_stable_times++;
-                if (PS_bb.pos_stable_times > B_RACK_STABLE_TIMES_CONDITION)
+                if (PS_bb.pos_stable_times > R_RACK_STABLE_TIMES_CONDITION)
                 { 
 							  clamp.lift_flag = 0;
                 chassis_set_lock(1);
@@ -3041,9 +3041,9 @@ static BT_Status Act_PS_MC_Mission(void)
         {
             taskENTER_CRITICAL();
             chassis_route_point_add(&chassis_route_traj,
-                                    B_CHASSIS_HOME_MC_X,
-                                    B_CHASSIS_HOME_MC_Y,
-                                    B_CHASSIS_HOME_MC_W,
+                                    R_CHASSIS_HOME_MC_X,
+                                    R_CHASSIS_HOME_MC_Y,
+                                    R_CHASSIS_HOME_MC_W,
                                     0,
                                     0);
             taskEXIT_CRITICAL();
@@ -3057,12 +3057,12 @@ static BT_Status Act_PS_MC_Mission(void)
 
         case PS_MC_WAIT_START:
         {
-            if (chassis_if_arrived(B_CHASSIS_HOME_MC_X,
-                                   B_CHASSIS_HOME_MC_Y,
-                                   B_CHASSIS_HOME_MC_W))
+            if (chassis_if_arrived(R_CHASSIS_HOME_MC_X,
+                                   R_CHASSIS_HOME_MC_Y,
+                                   R_CHASSIS_HOME_MC_W))
             {
                 PS_bb.pos_stable_times++;
-                if (PS_bb.pos_stable_times > B_RACK_STABLE_TIMES_CONDITION)
+                if (PS_bb.pos_stable_times > R_RACK_STABLE_TIMES_CONDITION)
                 {
                     chassis_set_lock(1);
                     PS_bb.state = PS_MC_WAIT_MF_CMD;
