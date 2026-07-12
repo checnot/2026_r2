@@ -25,9 +25,13 @@
 // extern DMA_HandleTypeDef hdma_usart10_tx;
 // extern DMA_HandleTypeDef hdma_usart10_rx;
 
-//引入uart8-camera
+//引入uart8-keyboard
 extern DMA_HandleTypeDef hdma_uart8_tx;
 extern DMA_HandleTypeDef hdma_uart8_rx;
+
+// //引入usart2供 keyboard2
+extern DMA_HandleTypeDef hdma_usart2_tx;
+extern DMA_HandleTypeDef hdma_usart2_rx;
 
 // //引入uart10供 hi14
 extern DMA_HandleTypeDef hdma_usart10_tx;

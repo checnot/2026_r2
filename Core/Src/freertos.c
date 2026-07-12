@@ -49,7 +49,7 @@
 #include "lift.h"
 #include "H7_F1_spi.h"
 #include "ir_action.h"
-#include "Ana_keyboard.h"
+//#include "Ana_keyboard.h"
 #include "screen.h"
 #include "keyboard.h"
 /* USER CODE END Includes */
@@ -879,9 +879,7 @@ void entry_cmd_task(void const * argument)
       Merlin_SetBlock(screen_index, keyboard_kfs_screen_info[screen_index]);
     }
   }
-
-
-  /* 按键定义 */
+  /* 按键启动部分 */
   if (key_now == 'A')
   {
     task_flag = 1;
@@ -907,6 +905,31 @@ void entry_cmd_task(void const * argument)
     key_last = 0;
   }
 
+  /* 按键-雷达偏移部分 */
+  if(key_2_now == 1)
+  {
+    x_offset_by_key_times += 1;
+    key_2_now = 0;
+    key_2_last = 0;
+  }
+  else if(key_2_now == 5)
+  {
+    x_offset_by_key_times -= 1;
+    key_2_now = 0;
+    key_2_last = 0;
+  }
+  else if(key_2_now == 9)
+  {
+    y_offset_by_key_times += 1;
+    key_2_now = 0;
+    key_2_last = 0;
+  }
+  else if(key_2_now == 13)
+  {
+    y_offset_by_key_times -= 1;
+    key_2_now = 0;
+    key_2_last = 0;
+  }
 
   /* PS 启动模式：A 从1号矛头，B 从2号，C 从3号，D 直接进入 MF。 */
   /* JGCB 启动模式： A 从坡道下方正常延时启动；
