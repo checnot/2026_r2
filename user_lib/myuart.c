@@ -1,4 +1,4 @@
-﻿#include "myuart.h"
+#include "myuart.h"
 #include "screen.h"
 
 
@@ -122,8 +122,8 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
     // uart5-供雷达(0x20)+摄像头网格(0x10)接收 (HEU 单串口多路复用)
     if (huart->Instance == UART5)
     {
-        // Data_process_String(( char *)Rec_Data);
-        Radar_ProcessBuffer(Rec_Data, Size);    /* 雷达遥测 src=0x20 */
+         Data_process_String(( char *)Rec_Data);
+        //Radar_ProcessBuffer(Rec_Data, Size);    /* 雷达遥测 src=0x20 */
         Camera_ProcessBuffer(Rec_Data, Size);   /* 摄像头网格 src=0x10 */
         memset(Rec_Data, 0, sizeof(Rec_Data));
         HAL_UARTEx_ReceiveToIdle_DMA(&huart5, Rec_Data, sizeof(Rec_Data));
