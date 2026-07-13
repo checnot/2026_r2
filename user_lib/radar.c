@@ -146,8 +146,8 @@ void Data_process_String(char *str)
         char *data_ptr = strpbrk(header_ptr + 2, "0123456789+-");
         if (data_ptr && sscanf(data_ptr, "%f,%f,%f", &temp_a, &temp_b, &temp_c) >= 3)
         {
-            Radar_Pos.radar_x = 1000.0f * temp_a;
-            Radar_Pos.radar_y = 1000.0f * temp_b + 25.0f;
+            Radar_Pos.radar_x = 1000.0f * temp_a + (float)x_offset_by_key_times * X_OFFSET_BY_KEY;
+            Radar_Pos.radar_y = 1000.0f * temp_b + (float)y_offset_by_key_times * Y_OFFSET_BY_KEY;
             //Radar_Pos.radar_z = 1000.0f * temp_c;
             Radar_Pos.radar_yaw = temp_c;
             Radar_Pos.hi14_yaw = hipnuc_raw.hi91.yaw;
