@@ -3086,6 +3086,7 @@ static BT_Status Act_PS_MC_Mission(void)
                 return BT_RUNNING;
 
             PS_bb.mf_req = 0;
+            clamp.rotate_flag = 0;  /* MC区任务完成将夹爪旋转收回 */
             chassis_set_lock(0);
             PS_bb.state = PS_MC_ENTER_MF;
             return BT_RUNNING;
