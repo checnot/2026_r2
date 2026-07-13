@@ -198,13 +198,13 @@
 #define B_CHASSIS_CZ_CENTER_Y 3000.0f         /* 蓝区 对抗区中央 Y (mm) */
 #define B_CHASSIS_CZ_CENTER_W -90.0f          /* 蓝区 对抗区中央 W (deg) */
 #define B_CHASSIS_SUDUKU_1_X 11290.0f         /* 蓝区 九宫格第一列 X (mm) */
-#define B_CHASSIS_SUDUKU_1_Y 600.0f           /* 蓝区 九宫格第一列 Y (mm) */
+#define B_CHASSIS_SUDUKU_1_Y 1200.0f           /* 蓝区 九宫格第一列 Y (mm) */
 #define B_CHASSIS_SUDUKU_1_W -90.0f            /* 蓝区 九宫格第一列 W (deg) */
 #define B_CHASSIS_SUDUKU_2_X 10750.0f         /* 蓝区 九宫格第二列 X (mm) */
-#define B_CHASSIS_SUDUKU_2_Y 600.0f           /* 蓝区 九宫格第二列 Y (mm) */
+#define B_CHASSIS_SUDUKU_2_Y 1200.0f           /* 蓝区 九宫格第二列 Y (mm) */
 #define B_CHASSIS_SUDUKU_2_W -90.0f            /* 蓝区 九宫格第二列 W (deg) */
 #define B_CHASSIS_SUDUKU_3_X 10210.0f         /* 蓝区 九宫格第三列 X (mm) */
-#define B_CHASSIS_SUDUKU_3_Y 600.0f           /* 蓝区 九宫格第三列 Y (mm) */
+#define B_CHASSIS_SUDUKU_3_Y 1200.0f           /* 蓝区 九宫格第三列 Y (mm) */
 #define B_CHASSIS_SUDUKU_3_W -90.0f            /* 蓝区 九宫格第三列 W (deg) */
 
 /* ============================== 底盘路径预设可配置参数（按需微调） ============================== */
@@ -632,7 +632,7 @@ void BT_Customized_Tick1ms_MF(void);
 /* 对抗区机械臂放块坐标 */
 #define CZ_ARM_PLACE_1_X 0.25f       /* 对抗区放块机械臂抬高目标 X */
 #define CZ_ARM_PLACE_1_Y 0.85f       /* 对抗区放块机械臂抬高目标 Y */
-#define CZ_ARM_PLACE_PITCH 30.0f       /* 对抗区放块机械臂抬高目标 pitch */
+#define CZ_ARM_PLACE_PITCH 20.0f       /* 对抗区放块机械臂抬高目标 pitch */
 #define CZ_ARM_PLACE_2_X 0.25f       /* 对抗区放块机械臂前伸放置目标 X */
 #define CZ_ARM_PLACE_2_Y 0.85f       /* 对抗区放块机械臂前伸放置目标 Y */
 #define CZ_ARM_PLACE_TIME 500    /* 放块停留时间 (ms) */
