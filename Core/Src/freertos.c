@@ -957,7 +957,7 @@ void entry_cmd_task(void const * argument)
     // CZ_bb.r1_platform_cmd = 1;
     // CZ_bb.r1_place_cmd = 0;
     
-    /* PS 蓝区预选赛启动流程：A/B/C 对应第 4/5/6 个蓝方矛架，D 直接进入 MF。 */
+    /* PS 蓝区预选赛启动流程：A/B/C 对应第 4/5/6 个蓝方矛架。 */
     if (task_flag == 1)
       BT_PS_Start_Task();           /* A：从第 4 个蓝方矛架开始 */
     else if (task_flag == 2)
@@ -965,7 +965,13 @@ void entry_cmd_task(void const * argument)
     else if (task_flag == 3)
       BT_PS_Start_Task_FromRack(2); /* C：从第 6 个蓝方矛架开始 */
     else if (task_flag == 4)
-      BT_PS_Start_MF_Direct();      /* D：跳过抓矛，直接进入蓝图 MF */
+    {
+      /* D：未启动 PS 时直接重试 MF；完成 MC 回到重试区后确认进入 MF。 */
+      if (!PS_bb.req_start)
+        BT_PS_Start_MF_Direct();
+      else if (PS_bb.state == PS_MC_WAIT_MF_CMD)
+        BT_PS_Request_MF_Start();
+    }
 
     /* JGCB 启动流程保留但当前不启用。 */
     // if (task_flag == 1)

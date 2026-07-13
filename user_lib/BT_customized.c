@@ -2872,7 +2872,12 @@ static BT_Status Act_PS_MC_Mission(void)
             /* 原地自转：先转到目标 yaw，再平移去矛架 */
             uint8_t r = PS_bb.round_count;
             taskENTER_CRITICAL();
-            chassis_route_point_add(&chassis_route_traj, 1000.0f,1000.0f, ps_rack[r].w, 0, 1);
+            chassis_route_point_add(&chassis_route_traj,
+                                    Radar_Pos.reliable_x + 100.0f,
+                                    Radar_Pos.reliable_y,
+                                    ps_rack[r].w,
+                                    2000,
+                                    0);
             taskEXIT_CRITICAL();
             PS_bb.state = PS_MC_NAV_TO_RACK;
             PS_bb.timer_ms = 0;
@@ -3086,6 +3091,7 @@ static BT_Status Act_PS_MC_Mission(void)
                 return BT_RUNNING;
 
             PS_bb.mf_req = 0;
+            clamp.rotate_flag = 0;  /* MC区完成，进入 MF 前收回夹爪旋转 */
             chassis_set_lock(0);
             PS_bb.state = PS_MC_ENTER_MF;
             return BT_RUNNING;
