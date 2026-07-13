@@ -526,7 +526,7 @@ extern ArmBackMode arm_back_mode;
 #define PICK_PRE_REST_X 0.2f             /* 机械臂预待机位置 X */
 #define PICK_PRE_REST_Y 0.4f             /* 机械臂预待机位置 Y */
 #define PICK_REST_X     0.215f            /* 机械臂待机位置 X */
-#define PICK_REST_Y     0.25f             /* 机械臂待机位置 Y */
+#define PICK_REST_Y     0.5f             /* 机械臂待机位置 Y */
 
 
 #define PICK_HANDS_UP_X 0.15f       /* 演示用抬手坐标 */
