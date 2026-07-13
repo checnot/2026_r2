@@ -273,13 +273,13 @@ typedef struct
 /* 独立状态机和黑板，不共用原 MC 段。对杆位置固定，与 MC 相同 */
 
 /* PS 红区预选赛使用红方第 4/5/6 个矛架。 */
-#define PS_RACK_1_X  R_CHASSIS_RACK_4_X
-#define PS_RACK_1_Y  R_CHASSIS_RACK_Y
-#define PS_RACK_1_W  R_CHASSIS_RACK_W
-#define PS_RACK_2_X  R_CHASSIS_RACK_5_X
+#define PS_RACK_1_X  R_CHASSIS_RACK_1_X
+#define PS_RACK_1_Y  R_CHASSIS_RACK_Y_1
+#define PS_RACK_1_W  R_CHASSIS_RACK_W_1
+#define PS_RACK_2_X  R_CHASSIS_RACK_2_X
 #define PS_RACK_2_Y  R_CHASSIS_RACK_Y
 #define PS_RACK_2_W  R_CHASSIS_RACK_W
-#define PS_RACK_3_X  R_CHASSIS_RACK_6_X
+#define PS_RACK_3_X  R_CHASSIS_RACK_3_X
 #define PS_RACK_3_Y  R_CHASSIS_RACK_Y
 #define PS_RACK_3_W  R_CHASSIS_RACK_W
 
