@@ -339,8 +339,8 @@ void BT_PS_Request_MF_Start(void);
 /* 场边 KFS 蓝区默认点位，实车需复测。 */
 #define B_CHASSIS_JGCB_KFS_CENTER_X 11825.0f
 #define B_CHASSIS_JGCB_KFS_1_CENTER_Y 1925.0f
-#define B_CHASSIS_JGCB_KFS_2_CENTER_Y 2675.0f
-#define B_CHASSIS_JGCB_KFS_3_CENTER_Y 3425.0f
+#define B_CHASSIS_JGCB_KFS_2_CENTER_Y 2625.0f
+#define B_CHASSIS_JGCB_KFS_3_CENTER_Y 3325.0f
 #define B_CHASSIS_JGCB_KFS_PICK_OFFSET_X 900.0f
 #define B_CHASSIS_JGCB_KFS_PICK_W 0.0f
 
@@ -538,11 +538,11 @@ extern ArmBackMode arm_back_mode;
 #define PICK_N200_TARGET_X 0.83f         /* ！！！！待测试！！！！！-200抓取点 X */
 #define PICK_N200_TARGET_Y -0.10f         /* ！！！！待测试！！！！！-200抓取点 Y */
 
-#define PICK_0_APR_X_1 0.405f             /* 0预抓取点1 X */
+#define PICK_0_APR_X_1 0.61f             /* 0预抓取点1 X */
 #define PICK_0_APR_Y_1 0.4f          /* 0预抓取点1 Y */
 // #define PICK_0_APR_X_2 0.5f             /* 0预抓取点2 X */
 // #define PICK_0_APR_Y_2 0.5f             /* 0预抓取点2 Y */
-#define PICK_0_TARGET_X 0.405f            /* 0抓取点 X */
+#define PICK_0_TARGET_X 0.61f            /* 0抓取点 X */
 #define PICK_0_TARGET_Y 0.1f            /* 0抓取点 Y */
 
 #define PICK_P200_APR_X_1 0.568f     /* +200预抓取点1 X */

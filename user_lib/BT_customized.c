@@ -3366,9 +3366,13 @@ static float JGCB_KfsPickX(uint8_t kfs_index)
     return JGCB_KfsCenterX(kfs_index) - B_CHASSIS_JGCB_KFS_PICK_OFFSET_X;
 }
 
+/**
+ * @brief R2 取块站位：Y 比 KFS 中心小 110mm，保证机械臂伸出后能抓到 KFS。
+ * @note 
+*/
 static float JGCB_KfsPickY(uint8_t kfs_index)
 {
-    return JGCB_KfsCenterY(kfs_index);
+    return (JGCB_KfsCenterY(kfs_index));
 }
 
 /* 下发前往场边指定 KFS 的取块点。 */
