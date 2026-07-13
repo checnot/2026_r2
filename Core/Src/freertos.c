@@ -809,6 +809,9 @@ void entry_clamp(void const * argument)
   m3508_parameter_init(&m3508_fdcan2[0], 10.0f, 0.0f, 2.0f, 0.5f, 0.0f, 0.2f);
   m3508_parameter_init(&m3508_fdcan2[1], 6.0f, 0.0f, 2.0f, 0.5f, 0.0f, 0.2f);
   m3508_parameter_init(&m3508_fdcan2[2], 5.0f, 0.0f, 2.0f, 0.5f, 0.0f, 0.2f);
+  // m3508_parameter_init(&m3508_fdcan2[0], 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+  // m3508_parameter_init(&m3508_fdcan2[1], 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+  // m3508_parameter_init(&m3508_fdcan2[2], 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
 
   // 标志位初始化
   clamp.catch_flag = 0;
