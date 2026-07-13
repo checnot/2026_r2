@@ -74,7 +74,7 @@ static void IR_Action_OnPacket1(void)
 
 static void IR_Action_OnPacket2(void)
 {
-    /* 2 号红外：R2 在 CZ 等待点收到后，进入上 R1 台阶流程。 */
+    /* 2 号红外：第一次到上 R1 预备点，第二次确认后才真正上台阶。 */
     JGCB_bb.r1_platform_cmd = 1U;
 }
 

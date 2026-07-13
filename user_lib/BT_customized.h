@@ -333,8 +333,13 @@ void BT_PS_Request_MF_Start(void);
 
 /* JGCB 蓝区固定点位：等待点、场边 KFS 位置，实测后按需微调。 */
 #define B_CHASSIS_JGCB_WAIT_X B_CHASSIS_CZ_CENTER_X
-#define B_CHASSIS_JGCB_WAIT_Y B_CHASSIS_CZ_CENTER_Y
-#define B_CHASSIS_JGCB_WAIT_W B_CHASSIS_CZ_CENTER_W
+#define B_CHASSIS_JGCB_WAIT_Y 2000.0f
+#define B_CHASSIS_JGCB_WAIT_W -45.0f
+
+/* 上 R1 预备点暂与等待点重合，后续实车标定时只需修改这三个宏。 */
+#define B_CHASSIS_JGCB_R1_STEP_PREP_X B_CHASSIS_JGCB_WAIT_X
+#define B_CHASSIS_JGCB_R1_STEP_PREP_Y B_CHASSIS_JGCB_WAIT_Y
+#define B_CHASSIS_JGCB_R1_STEP_PREP_W -90.0f
 
 /* 场边 KFS 蓝区默认点位，实车需复测。 */
 #define B_CHASSIS_JGCB_KFS_CENTER_X 11825.0f
@@ -345,10 +350,6 @@ void BT_PS_Request_MF_Start(void);
 #define B_CHASSIS_JGCB_KFS_PICK_OFFSET_Y 30.0f
 #define B_CHASSIS_JGCB_KFS_PICK_W 0.0f
 
-/* 蓝区台阶接近点按与蓝区 CZ 中心相同的位置关系定义。 */
-#define B_CHASSIS_R1_STEP_APPROACH_X B_CHASSIS_CZ_CENTER_X
-#define B_CHASSIS_R1_STEP_APPROACH_Y B_CHASSIS_CZ_CENTER_Y
-#define B_CHASSIS_R1_STEP_APPROACH_W B_CHASSIS_CZ_CENTER_W
 #define JGCB_START_DELAY_MS 7000U /* 启动后等待 7 秒，再自主进入坡道 */
 
 typedef enum
@@ -372,9 +373,10 @@ typedef enum
     JGCB_PICK_KFS,
     JGCB_PICK_KFS_WAIT,
     JGCB_RETURN_WAIT_POINT,
+    JGCB_NAV_TO_R1_STEP_PREP,
+    JGCB_WAIT_R1_STEP_CMD,
     JGCB_ARM_RAISE_FOR_R1,
-    JGCB_ARM_RAISE_FOR_R1_WAIT,
-    JGCB_NAV_TO_R1_PLATFORM,
+    JGCB_STEP_UP_R1,
     JGCB_ON_R1_WAIT_PLACE_CMD,
     JGCB_ON_R1_PLACE,
     JGCB_ON_R1_PUMP_WAIT,
@@ -398,7 +400,7 @@ typedef struct
     uint8_t step_fsm_started;     /* 上 R1 台阶 FSM 是否已启动 */
     uint8_t platform_route_sent;  /* 上 R1 过程中底盘锁止是否已处理 */
     uint8_t ir_column_cmd;        /* 外部写入：1/2/3=放对应列，0=无命令 */
-    uint8_t r1_platform_cmd;      /* 外部写入：允许上 R1 */
+    uint8_t r1_platform_cmd;      /* 外部写入：2号红外；预备点前往/上R1确认 */
     uint8_t r1_place_cmd;         /* 外部写入：在 R1 上释放 KFS */
 } JGCB_Blackboard;
 

@@ -3317,6 +3317,19 @@ static void JGCB_RouteToWaitPoint(uint8_t clear_queue)
     taskEXIT_CRITICAL();
 }
 
+/* 第一次 2 号红外后前往上 R1 预备点。 */
+static void JGCB_RouteToR1StepPrep(uint8_t clear_queue)
+{
+    taskENTER_CRITICAL();
+    chassis_route_point_add(&chassis_route_traj,
+                            B_CHASSIS_JGCB_R1_STEP_PREP_X,
+                            B_CHASSIS_JGCB_R1_STEP_PREP_Y,
+                            B_CHASSIS_JGCB_R1_STEP_PREP_W,
+                            0,
+                            clear_queue);
+    taskEXIT_CRITICAL();
+}
+
 /* 下发前往指定九宫格列前方的底盘路径。 */
 static void JGCB_RouteToSudoku(uint8_t col)
 {
@@ -3518,7 +3531,9 @@ static BT_Status Act_JGCB_Mission(void)
 
             if (JGCB_bb.r1_platform_cmd && JGCB_bb.held_kfs) {
                 JGCB_bb.r1_platform_cmd = 0;
-                JGCB_bb.state = JGCB_ARM_RAISE_FOR_R1;
+                JGCB_bb.r1_place_cmd = 0;
+                JGCB_RouteToR1StepPrep(1);
+                JGCB_bb.state = JGCB_NAV_TO_R1_STEP_PREP;
                 JGCB_bb.timer_ms = 0;
                 return BT_RUNNING;
             }
@@ -3754,58 +3769,74 @@ static BT_Status Act_JGCB_Mission(void)
             return BT_RUNNING;
         }
 
-        case JGCB_ARM_RAISE_FOR_R1:
+        case JGCB_NAV_TO_R1_STEP_PREP:
         {
-            /* 收到上 R1 命令后，先把 KFS 抬高到平台放块姿态。 */
-            taskENTER_CRITICAL();
-            arm_queue_add_point(&arm_traj, CZ_ARM_PLACE_L3_X, CZ_ARM_PLACE_L3_Y, 0, ARM_PUMP_KEEP, CZ_ARM_PLACE_PITCH/180.0f*PI);
-            arm_queue_add_point(&arm_traj, CZ_ARM_PLACE_L3_FWD_X, CZ_ARM_PLACE_L3_FWD_Y, 0, ARM_PUMP_KEEP, CZ_ARM_PLACE_PITCH/180.0f*PI);
-            taskEXIT_CRITICAL();
-
-            JGCB_bb.state = JGCB_ARM_RAISE_FOR_R1_WAIT;
-            JGCB_bb.timer_ms = 0;
-            return BT_RUNNING;
-        }
-
-        case JGCB_ARM_RAISE_FOR_R1_WAIT:
-        {
-            /* 机械臂到位后，前往 R1 平台接近点。 */
-            if (arm_if_arrived_xy(CZ_ARM_PLACE_L3_FWD_X, CZ_ARM_PLACE_L3_FWD_Y))
+            /* 第一次 2 号红外只到上 R1 预备点，不启动抬升和上台阶。 */
+            if (chassis_if_arrived(B_CHASSIS_JGCB_R1_STEP_PREP_X,
+                                   B_CHASSIS_JGCB_R1_STEP_PREP_Y,
+                                   B_CHASSIS_JGCB_R1_STEP_PREP_W))
             {
-                taskENTER_CRITICAL();
-                chassis_route_point_add(&chassis_route_traj, B_CHASSIS_R1_STEP_APPROACH_X, B_CHASSIS_R1_STEP_APPROACH_Y, B_CHASSIS_R1_STEP_APPROACH_W, 0, 1);
-                taskEXIT_CRITICAL();
-
-                JGCB_bb.step_fsm_started = 0;
-                JGCB_bb.platform_route_sent = 0;
-                JGCB_bb.state = JGCB_NAV_TO_R1_PLATFORM;
+                JGCB_bb.state = JGCB_WAIT_R1_STEP_CMD;
                 JGCB_bb.timer_ms = 0;
             }
-            else if (++JGCB_bb.timer_ms * 10 >= CZ_ARM_PLACE_TIMEOUT_MS)
+            else if (++JGCB_bb.timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS)
             {
                 return BT_FAILURE;
             }
             return BT_RUNNING;
         }
 
-        case JGCB_NAV_TO_R1_PLATFORM:
+        case JGCB_WAIT_R1_STEP_CMD:
         {
-            /* 使用已有 400mm 上台阶 FSM 登上 R1。 */
+            /* 第二次 2 号红外才确认上 R1；其他列号指令则改去对应九宫格列。 */
+            /* 3 号仅在已上 R1 后才有效，预备阶段收到时不保留到后续流程。 */
+            if (JGCB_bb.r1_place_cmd)
+            {
+                JGCB_bb.r1_place_cmd = 0;
+            }
+
+            if (JGCB_bb.r1_platform_cmd && JGCB_bb.held_kfs)
+            {
+                JGCB_bb.r1_platform_cmd = 0;
+                JGCB_bb.state = JGCB_ARM_RAISE_FOR_R1;
+                JGCB_bb.timer_ms = 0;
+                return BT_RUNNING;
+            }
+
+            if (JGCB_ConsumePlaceColumn())
+            {
+                JGCB_RouteToSudoku(JGCB_bb.active_col);
+                JGCB_bb.arm_raise_sent = 0;
+                JGCB_bb.state = JGCB_NAV_TO_SUDUKU;
+                JGCB_bb.timer_ms = 0;
+                JGCB_bb.pos_stable_times = 0;
+            }
+            return BT_RUNNING;
+        }
+
+        case JGCB_ARM_RAISE_FOR_R1:
+        {
+            /* 在预备点确认上 R1 后，抬臂和台阶 FSM 同步开始。 */
+            taskENTER_CRITICAL();
+            arm_queue_add_point(&arm_traj, CZ_ARM_PLACE_L3_X, CZ_ARM_PLACE_L3_Y, 0, ARM_PUMP_KEEP, CZ_ARM_PLACE_PITCH/180.0f*PI);
+            arm_queue_add_point(&arm_traj, CZ_ARM_PLACE_L3_FWD_X, CZ_ARM_PLACE_L3_FWD_Y, 0, ARM_PUMP_KEEP, CZ_ARM_PLACE_PITCH/180.0f*PI);
+            taskEXIT_CRITICAL();
+
+            JGCB_bb.step_fsm_started = 0;
+            JGCB_bb.platform_route_sent = 0;
+            JGCB_bb.state = JGCB_STEP_UP_R1;
+            JGCB_bb.timer_ms = 0;
+            return BT_RUNNING;
+        }
+
+        case JGCB_STEP_UP_R1:
+        {
+            /* 预备点就是上台阶起点，不再追加台阶接近点导航。 */
             if (!JGCB_bb.step_fsm_started)
             {
-                if (chassis_if_arrived(B_CHASSIS_R1_STEP_APPROACH_X,
-                                       B_CHASSIS_R1_STEP_APPROACH_Y,
-                                       B_CHASSIS_R1_STEP_APPROACH_W))
-                {
-                    chassis_step_fsm_start(&g_step_fsm, STEP_UP_400);
-                    JGCB_bb.step_fsm_started = 1;
-                    JGCB_bb.timer_ms = 0;
-                }
-                else if (++JGCB_bb.timer_ms * 10 >= CHASSIS_ROUTE_TIMEOUT_MS * 2)
-                {
-                    return BT_FAILURE;
-                }
-                return BT_RUNNING;
+                chassis_step_fsm_start(&g_step_fsm, STEP_UP_400);
+                JGCB_bb.step_fsm_started = 1;
+                JGCB_bb.timer_ms = 0;
             }
 
             BT_Status step_status = chassis_step_fsm_tick(&g_step_fsm);
