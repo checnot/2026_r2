@@ -342,6 +342,7 @@ void BT_PS_Request_MF_Start(void);
 #define B_CHASSIS_JGCB_KFS_2_CENTER_Y 2625.0f
 #define B_CHASSIS_JGCB_KFS_3_CENTER_Y 3325.0f
 #define B_CHASSIS_JGCB_KFS_PICK_OFFSET_X 900.0f
+#define B_CHASSIS_JGCB_KFS_PICK_OFFSET_Y 30.0f
 #define B_CHASSIS_JGCB_KFS_PICK_W 0.0f
 
 /* 蓝区台阶接近点按与蓝区 CZ 中心相同的位置关系定义。 */
@@ -538,12 +539,12 @@ extern ArmBackMode arm_back_mode;
 #define PICK_N200_TARGET_X 0.83f         /* ！！！！待测试！！！！！-200抓取点 X */
 #define PICK_N200_TARGET_Y -0.10f         /* ！！！！待测试！！！！！-200抓取点 Y */
 
-#define PICK_0_APR_X_1 0.61f             /* 0预抓取点1 X */
+#define PICK_0_APR_X_1 0.71f             /* 0预抓取点1 X */
 #define PICK_0_APR_Y_1 0.4f          /* 0预抓取点1 Y */
 // #define PICK_0_APR_X_2 0.5f             /* 0预抓取点2 X */
 // #define PICK_0_APR_Y_2 0.5f             /* 0预抓取点2 Y */
-#define PICK_0_TARGET_X 0.61f            /* 0抓取点 X */
-#define PICK_0_TARGET_Y 0.1f            /* 0抓取点 Y */
+#define PICK_0_TARGET_X 0.71f            /* 0抓取点 X */
+#define PICK_0_TARGET_Y 0.05f            /* 0抓取点 Y */
 
 #define PICK_P200_APR_X_1 0.568f     /* +200预抓取点1 X */
 #define PICK_P200_APR_Y_1 0.11f     /* +200预抓取点1 Y */
@@ -632,7 +633,7 @@ void BT_Customized_Tick1ms_MF(void);
 /* 对抗区机械臂放块坐标 */
 #define CZ_ARM_PLACE_1_X 0.25f       /* 对抗区放块机械臂抬高目标 X */
 #define CZ_ARM_PLACE_1_Y 0.85f       /* 对抗区放块机械臂抬高目标 Y */
-#define CZ_ARM_PLACE_PITCH 20.0f       /* 对抗区放块机械臂抬高目标 pitch */
+#define CZ_ARM_PLACE_PITCH 27.5f       /* 对抗区放块机械臂抬高目标 pitch */
 #define CZ_ARM_PLACE_2_X 0.25f       /* 对抗区放块机械臂前伸放置目标 X */
 #define CZ_ARM_PLACE_2_Y 0.85f       /* 对抗区放块机械臂前伸放置目标 Y */
 #define CZ_ARM_PLACE_TIME 500    /* 放块停留时间 (ms) */
@@ -658,7 +659,7 @@ void BT_Customized_Tick1ms_MF(void);
 #define CZ_ARM_PLACE_L3_Y 0.90f          /* 🟡 九宫格第三层机械臂抬升 Y (比第一层更高) */
 #define CZ_ARM_PLACE_L3_FWD_X 0.4f      /* 🟡 九宫格第三层机械臂前送 X (往前伸) */
 #define CZ_ARM_PLACE_L3_FWD_Y 0.90f      /* 🟡 九宫格第三层机械臂前送 Y */
-#define CZ_ARM_PLACE_L3_PITCH 20.0f      /* 🟡 九宫格第三层 pitch */
+#define CZ_ARM_PLACE_L3_PITCH 30.0f      /* 🟡 九宫格第三层 pitch */
 
 /* 对抗区任务状态机 */
 typedef enum
