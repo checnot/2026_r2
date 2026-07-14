@@ -154,7 +154,7 @@
 #define B_CHASSIS_RACK_W -180.0f                 /* 蓝区 取矛头位置 W (deg) */
 
 // 与R1的对接位置（暂定该位置，后续可重设）
-#define B_CHASSIS_DOCKING_X 1315.0f           /* 蓝区 对接位置 X (mm) */
+#define B_CHASSIS_DOCKING_X 1165.0f           /* 蓝区 对接位置 X (mm) */
 #define B_CHASSIS_DOCKING_Y 1520.0f           /* 蓝区 对接位置 Y (mm) */
 #define B_CHASSIS_DOCKING_W 0.0f           /* 蓝区 对接位置 W (deg) */
 
