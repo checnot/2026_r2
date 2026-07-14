@@ -3600,38 +3600,16 @@ static BT_Status Act_JGCB_Mission(void)
 
         case JGCB_ARM_RAISE_WAIT:
         {
-            /* 机械臂到位后，等待 R1 再次发送同一列命令。 */
+            /* 机械臂到位后直接前移到真实放块点。 */
             if (arm_if_arrived_xy(CZ_ARM_PLACE_1_X, CZ_ARM_PLACE_1_Y))
             {
-                JGCB_bb.state = JGCB_WAIT_PUSH_CMD;
+                JGCB_RouteSudokuForward();
+                JGCB_bb.state = JGCB_FORWARD_PUSH;
                 JGCB_bb.timer_ms = 0;
             }
             else if (++JGCB_bb.timer_ms * 10 >= CZ_ARM_PLACE_TIMEOUT_MS)
             {
                 return BT_FAILURE;
-            }
-            return BT_RUNNING;
-        }
-
-        case JGCB_WAIT_PUSH_CMD:
-        {
-            /*
-             * 在列前再次收到同列信号才前移放块；
-             * 若收到另一列信号，则取消当前列选择并改去新列前方准备。
-             */
-            if (JGCB_bb.ir_column_cmd == JGCB_bb.active_col) {
-                JGCB_bb.ir_column_cmd = 0;
-                JGCB_RouteSudokuForward();
-                JGCB_bb.state = JGCB_FORWARD_PUSH;
-                JGCB_bb.timer_ms = 0;
-            }
-            else if (JGCB_IsValidColumn(JGCB_bb.ir_column_cmd))
-            {
-                JGCB_bb.active_col = JGCB_bb.ir_column_cmd;
-                JGCB_bb.ir_column_cmd = 0;
-                JGCB_RouteToSudoku(JGCB_bb.active_col);
-                JGCB_bb.state = JGCB_NAV_TO_SUDUKU;
-                JGCB_bb.timer_ms = 0;
             }
             return BT_RUNNING;
         }

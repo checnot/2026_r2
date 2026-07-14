@@ -16,6 +16,8 @@
 #include "camera.h"
 //================== 客制化头文件 ==================
 
+
+
 /* ------------ 机械臂预设可配置参数（按需微调） ------------ */
 
 #define ARM_PICK_P200_APPROACH_X_1 0.30f         /* 预抓取上方点1 X */
@@ -54,6 +56,8 @@
 #define B_CLAMP_TO_CHASSIS_CENTER_DIST 132.0f /* 夹爪中心到底盘中心的X方向距离 (mm) */
 #define R_RACK_STABLE_TIMES_CONDITION 100      /* 取矛头时到达目标位置次数，保证稳定抓取（降低以加速） */
 #define B_RACK_STABLE_TIMES_CONDITION 50      /* 取矛头时到达目标位置次数，保证稳定抓取 */
+
+
 
 /* ===== 伸缩堵转保护参数 ===== */
 #define R_EXT_MAX_RETRIES    1             /* 同一位置最大重试次数 */
@@ -126,13 +130,14 @@
 #define R_CHASSIS_CZ_CENTER_Y -3055.0f        /* 红区 对抗区扫描 Y (mm) */
 #define R_CHASSIS_CZ_CENTER_W 90.0f           /* 红区 对抗区扫描 W (deg) */
 
-#define R_CHASSIS_SUDUKU_1_X 11310.0f         /* 红区 九宫格第一列 X (mm) */
+
+#define R_CHASSIS_SUDUKU_1_X 11360.0f         /* 红区 九宫格第一列 X (mm) */
 #define R_CHASSIS_SUDUKU_1_Y -1200.0f          /* 红区 九宫格第一列 Y (mm) */
 #define R_CHASSIS_SUDUKU_1_W 90.0f            /* 红区 九宫格第一列 W (deg) */
-#define R_CHASSIS_SUDUKU_2_X 10770.0f         /* 红区 九宫格第二列 X (mm) */
+#define R_CHASSIS_SUDUKU_2_X 10820.0f         /* 红区 九宫格第二列 X (mm) */
 #define R_CHASSIS_SUDUKU_2_Y -1200.0f          /* 红区 九宫格第二列 Y (mm) */
 #define R_CHASSIS_SUDUKU_2_W 90.0f            /* 红区 九宫格第二列 W (deg) */
-#define R_CHASSIS_SUDUKU_3_X 10230.0f         /* 红区 九宫格第三列 X (mm) */
+#define R_CHASSIS_SUDUKU_3_X 10280.0f         /* 红区 九宫格第三列 X (mm) */
 #define R_CHASSIS_SUDUKU_3_Y -1200.0f          /* 红区 九宫格第三列 Y (mm) */
 #define R_CHASSIS_SUDUKU_3_W 90.0f            /* 红区 九宫格第三列 W (deg) */
 
@@ -197,13 +202,13 @@
 #define B_CHASSIS_CZ_CENTER_X 10750.0f        /* 蓝区 对抗区中央 X (mm) */
 #define B_CHASSIS_CZ_CENTER_Y 3000.0f         /* 蓝区 对抗区中央 Y (mm) */
 #define B_CHASSIS_CZ_CENTER_W -90.0f          /* 蓝区 对抗区中央 W (deg) */
-#define B_CHASSIS_SUDUKU_1_X 11290.0f         /* 蓝区 九宫格第一列 X (mm) */
+#define B_CHASSIS_SUDUKU_1_X 11340.0f         /* 蓝区 九宫格第一列 X (mm) */
 #define B_CHASSIS_SUDUKU_1_Y 1200.0f           /* 蓝区 九宫格第一列 Y (mm) */
 #define B_CHASSIS_SUDUKU_1_W -90.0f            /* 蓝区 九宫格第一列 W (deg) */
-#define B_CHASSIS_SUDUKU_2_X 10750.0f         /* 蓝区 九宫格第二列 X (mm) */
+#define B_CHASSIS_SUDUKU_2_X 10800.0f         /* 蓝区 九宫格第二列 X (mm) */
 #define B_CHASSIS_SUDUKU_2_Y 1200.0f           /* 蓝区 九宫格第二列 Y (mm) */
 #define B_CHASSIS_SUDUKU_2_W -90.0f            /* 蓝区 九宫格第二列 W (deg) */
-#define B_CHASSIS_SUDUKU_3_X 10210.0f         /* 蓝区 九宫格第三列 X (mm) */
+#define B_CHASSIS_SUDUKU_3_X 10260.0f         /* 蓝区 九宫格第三列 X (mm) */
 #define B_CHASSIS_SUDUKU_3_Y 1200.0f           /* 蓝区 九宫格第三列 Y (mm) */
 #define B_CHASSIS_SUDUKU_3_W -90.0f            /* 蓝区 九宫格第三列 W (deg) */
 
@@ -350,7 +355,7 @@ void BT_PS_Request_MF_Start(void);
 #define B_CHASSIS_JGCB_KFS_PICK_OFFSET_Y 30.0f
 #define B_CHASSIS_JGCB_KFS_PICK_W 0.0f
 
-#define JGCB_START_DELAY_MS 7000U /* 启动后等待 7 秒，再自主进入坡道 */
+#define JGCB_START_DELAY_MS 200 /* 启动后等待 7 秒，再自主进入坡道 */
 
 typedef enum
 {
@@ -364,7 +369,6 @@ typedef enum
     JGCB_NAV_TO_SUDUKU,
     JGCB_ARM_RAISE,
     JGCB_ARM_RAISE_WAIT,
-    JGCB_WAIT_PUSH_CMD,
     JGCB_FORWARD_PUSH,
     JGCB_ARM_PLACE,
     JGCB_PUMP_WAIT,
@@ -635,11 +639,11 @@ void BT_Customized_Tick1ms_MF(void);
 /* 对抗区机械臂放块坐标 */
 #define CZ_ARM_PLACE_1_X 0.25f       /* 对抗区放块机械臂抬高目标 X */
 #define CZ_ARM_PLACE_1_Y 0.85f       /* 对抗区放块机械臂抬高目标 Y */
-#define CZ_ARM_PLACE_PITCH 27.5f       /* 对抗区放块机械臂抬高目标 pitch */
+#define CZ_ARM_PLACE_PITCH 20.5f       /* 对抗区放块机械臂抬高目标 pitch */
 #define CZ_ARM_PLACE_2_X 0.25f       /* 对抗区放块机械臂前伸放置目标 X */
 #define CZ_ARM_PLACE_2_Y 0.85f       /* 对抗区放块机械臂前伸放置目标 Y */
 #define CZ_ARM_PLACE_TIME 500    /* 放块停留时间 (ms) */
-#define CZ_ARM_PLACE_TIMEOUT_MS 8000 /* 放块超时时间 (ms) */
+#define CZ_ARM_PLACE_TIMEOUT_MS 30000 /* 放块超时时间 (ms) */
 #define CZ_PUMP_WAIT_MS 2500      /* 关气泵后等待时间 (ms) */
 
 /* R1 平台等待 & 九宫格第三层坐标 (🟡需实测填入真实值) */
@@ -658,10 +662,10 @@ void BT_Customized_Tick1ms_MF(void);
 #define R_CHASSIS_R1_PLATFORM_Y -5000.0f /* 🟡 R1平台上面 Y */
 #define R_CHASSIS_R1_PLATFORM_W 0.0f     /* 🟡 R1平台上面 W */
 #define CZ_ARM_PLACE_L3_X 0.1f          /* 🟡 九宫格第三层机械臂抬升 X */
-#define CZ_ARM_PLACE_L3_Y 0.90f          /* 🟡 九宫格第三层机械臂抬升 Y (比第一层更高) */
-#define CZ_ARM_PLACE_L3_FWD_X 0.4f      /* 🟡 九宫格第三层机械臂前送 X (往前伸) */
-#define CZ_ARM_PLACE_L3_FWD_Y 0.90f      /* 🟡 九宫格第三层机械臂前送 Y */
-#define CZ_ARM_PLACE_L3_PITCH 30.0f      /* 🟡 九宫格第三层 pitch */
+#define CZ_ARM_PLACE_L3_Y 0.95f          /* 🟡 九宫格第三层机械臂抬升 Y (比第一层更高) */
+#define CZ_ARM_PLACE_L3_FWD_X 0.1f      /* 🟡 九宫格第三层机械臂前送 X (往前伸) */
+#define CZ_ARM_PLACE_L3_FWD_Y 0.95f      /* 🟡 九宫格第三层机械臂前送 Y */
+#define CZ_ARM_PLACE_L3_PITCH 40.0f      /* 🟡 九宫格第三层 pitch */
 
 /* 对抗区任务状态机 */
 typedef enum
