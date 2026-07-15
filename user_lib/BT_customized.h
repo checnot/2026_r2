@@ -272,21 +272,21 @@ typedef struct
 /* ================================================ 预选赛 MC 行为树 ================================================ */
 /* 独立状态机和黑板，不共用原 MC 段。对杆位置固定，与 MC 相同 */
 
-/* PS 红区流程使用红方矛架。 */
-#define PS_RACK_1_X  R_CHASSIS_RACK_1_X
-#define PS_RACK_1_Y  R_CHASSIS_RACK_Y_1
-#define PS_RACK_1_W  R_CHASSIS_RACK_W_1
-#define PS_RACK_2_X  R_CHASSIS_RACK_2_X
-#define PS_RACK_2_Y  R_CHASSIS_RACK_Y
-#define PS_RACK_2_W  R_CHASSIS_RACK_W
-#define PS_RACK_3_X  R_CHASSIS_RACK_3_X
-#define PS_RACK_3_Y  R_CHASSIS_RACK_Y
-#define PS_RACK_3_W  R_CHASSIS_RACK_W
+/* PS 蓝区流程使用蓝方矛架。 */
+#define PS_RACK_1_X  B_CHASSIS_RACK_1_X
+#define PS_RACK_1_Y  B_CHASSIS_RACK_Y
+#define PS_RACK_1_W  B_CHASSIS_RACK_W
+#define PS_RACK_2_X  B_CHASSIS_RACK_2_X
+#define PS_RACK_2_Y  B_CHASSIS_RACK_Y
+#define PS_RACK_2_W  B_CHASSIS_RACK_W
+#define PS_RACK_3_X  B_CHASSIS_RACK_3_X
+#define PS_RACK_3_Y  B_CHASSIS_RACK_Y
+#define PS_RACK_3_W  B_CHASSIS_RACK_W
 
 /* 对杆位置固定，与 MC 共用 */
-#define PS_DOCK_X  R_CHASSIS_DOCKING_X
-#define PS_DOCK_Y  R_CHASSIS_DOCKING_Y
-#define PS_DOCK_W  R_CHASSIS_DOCKING_W
+#define PS_DOCK_X  B_CHASSIS_DOCKING_X
+#define PS_DOCK_Y  B_CHASSIS_DOCKING_Y
+#define PS_DOCK_W  B_CHASSIS_DOCKING_W
 
 typedef enum
 {
@@ -334,7 +334,7 @@ void BT_PS_Request_MF_Start(void);
 
 /* ================================================ 主赛 CZ/JGCB 行为树接口 ================================================ */
 
-/* 当前活动主赛路径使用红区点位。 */
+/* 当前活动主赛路径使用蓝区点位。 */
 #define B_CHASSIS_JGCB_WAIT_X B_CHASSIS_CZ_CENTER_X
 #define B_CHASSIS_JGCB_WAIT_Y B_CHASSIS_CZ_CENTER_Y
 #define B_CHASSIS_JGCB_WAIT_W B_CHASSIS_CZ_CENTER_W
