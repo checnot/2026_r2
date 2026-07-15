@@ -3207,6 +3207,7 @@ static BT_Status Act_PS_MC_Mission(void)
                 PS_bb.pos_stable_times++;
                 if (PS_bb.pos_stable_times > R_RACK_STABLE_TIMES_CONDITION)
                 {
+                    PS_bb.mf_req = 0;
                     chassis_set_lock(1);
                     PS_bb.state = PS_MC_WAIT_MF_CMD;
                     PS_bb.timer_ms = 0;
@@ -3228,7 +3229,6 @@ static BT_Status Act_PS_MC_Mission(void)
             if (PS_bb.mf_req == 0)
                 return BT_RUNNING;
 
-            PS_bb.mf_req = 0;
             clamp.rotate_flag = 0;  /* MC 区任务完成，将夹爪旋转收回 */
             chassis_set_lock(0);
             PS_bb.state = PS_MC_ENTER_MF;
