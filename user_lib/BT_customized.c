@@ -1160,7 +1160,7 @@ static BT_Status Act_MF_Init_And_Plan(void)
     // }
 
     /* 使用键盘预输入地图装载 row1~row4 的 KFS 分布。 */
-    if (!MFPlanner_PreInputLoadCells(&mf_planner_ctx, RED_MAP,
+    if (!MFPlanner_PreInputLoadCells(&mf_planner_ctx, BLUE_MAP,
                                      (const MF_CellType (*)[MF_COLS])keyboard_mf_cell)) {
         mf_exec_state = MF_EXEC_FAILED;
         mf_exec_timer_ms = 0;
@@ -3014,7 +3014,7 @@ static BT_Status Act_PS_MC_Mission(void)
             if (chassis_if_arrived(ps_rack[r].x, ps_rack[r].y, ps_rack[r].w))
             {
                 PS_bb.pos_stable_times++;
-                if (PS_bb.pos_stable_times > R_RACK_STABLE_TIMES_CONDITION)
+                if (PS_bb.pos_stable_times > B_RACK_STABLE_TIMES_CONDITION)
                 {
                     
                     clamp.retractable_flag = 1;
@@ -3141,7 +3141,7 @@ static BT_Status Act_PS_MC_Mission(void)
             if (chassis_if_arrived(PS_DOCK_X, PS_DOCK_Y, PS_DOCK_W))
             {  
 							PS_bb.pos_stable_times++;
-                if (PS_bb.pos_stable_times > R_RACK_STABLE_TIMES_CONDITION)
+                if (PS_bb.pos_stable_times > B_RACK_STABLE_TIMES_CONDITION)
                 { 
 							  clamp.lift_flag = 0;
                 chassis_set_lock(1);
@@ -3184,9 +3184,9 @@ static BT_Status Act_PS_MC_Mission(void)
         {
             taskENTER_CRITICAL();
             chassis_route_point_add(&chassis_route_traj,
-                                    R_CHASSIS_HOME_MC_X,
-                                    R_CHASSIS_HOME_MC_Y,
-                                    R_CHASSIS_HOME_MC_W,
+                                    B_CHASSIS_HOME_MC_X,
+                                    B_CHASSIS_HOME_MC_Y,
+                                    B_CHASSIS_HOME_MC_W,
                                     0,
                                     0);
             taskEXIT_CRITICAL();
@@ -3200,12 +3200,12 @@ static BT_Status Act_PS_MC_Mission(void)
 
         case PS_MC_WAIT_START:
         {
-            if (chassis_if_arrived(R_CHASSIS_HOME_MC_X,
-                                   R_CHASSIS_HOME_MC_Y,
-                                   R_CHASSIS_HOME_MC_W))
+            if (chassis_if_arrived(B_CHASSIS_HOME_MC_X,
+                                   B_CHASSIS_HOME_MC_Y,
+                                   B_CHASSIS_HOME_MC_W))
             {
                 PS_bb.pos_stable_times++;
-                if (PS_bb.pos_stable_times > R_RACK_STABLE_TIMES_CONDITION)
+                if (PS_bb.pos_stable_times > B_RACK_STABLE_TIMES_CONDITION)
                 {
                     PS_bb.mf_req = 0;
                     chassis_set_lock(1);
@@ -3435,17 +3435,17 @@ static uint8_t JGCB_IsValidColumn(uint8_t col)
 static void JGCB_SetSudokuTarget(uint8_t col)
 {
     if (col == 1) {
-        CZ_SUDUKU_X = R_CHASSIS_SUDUKU_1_X;
-        CZ_SUDUKU_Y = R_CHASSIS_SUDUKU_1_Y;
-        CZ_SUDUKU_W = R_CHASSIS_SUDUKU_1_W;
+        CZ_SUDUKU_X = B_CHASSIS_SUDUKU_1_X;
+        CZ_SUDUKU_Y = B_CHASSIS_SUDUKU_1_Y;
+        CZ_SUDUKU_W = B_CHASSIS_SUDUKU_1_W;
     } else if (col == 2) {
-        CZ_SUDUKU_X = R_CHASSIS_SUDUKU_2_X;
-        CZ_SUDUKU_Y = R_CHASSIS_SUDUKU_2_Y;
-        CZ_SUDUKU_W = R_CHASSIS_SUDUKU_2_W;
+        CZ_SUDUKU_X = B_CHASSIS_SUDUKU_2_X;
+        CZ_SUDUKU_Y = B_CHASSIS_SUDUKU_2_Y;
+        CZ_SUDUKU_W = B_CHASSIS_SUDUKU_2_W;
     } else {
-        CZ_SUDUKU_X = R_CHASSIS_SUDUKU_3_X;
-        CZ_SUDUKU_Y = R_CHASSIS_SUDUKU_3_Y;
-        CZ_SUDUKU_W = R_CHASSIS_SUDUKU_3_W;
+        CZ_SUDUKU_X = B_CHASSIS_SUDUKU_3_X;
+        CZ_SUDUKU_Y = B_CHASSIS_SUDUKU_3_Y;
+        CZ_SUDUKU_W = B_CHASSIS_SUDUKU_3_W;
     }
 }
 
@@ -3468,9 +3468,9 @@ static void JGCB_RouteToWaitPoint(uint8_t clear_queue)
 {
     taskENTER_CRITICAL();
     chassis_route_point_add(&chassis_route_traj,
-                            R_CHASSIS_JGCB_WAIT_X,
-                            R_CHASSIS_JGCB_WAIT_Y,
-                            R_CHASSIS_JGCB_WAIT_W,
+                            B_CHASSIS_JGCB_WAIT_X,
+                            B_CHASSIS_JGCB_WAIT_Y,
+                            B_CHASSIS_JGCB_WAIT_W,
                             0,
                             clear_queue);
     taskEXIT_CRITICAL();
@@ -3481,9 +3481,9 @@ static void JGCB_RouteToR1StepPrep(uint8_t clear_queue)
 {
     taskENTER_CRITICAL();
     chassis_route_point_add(&chassis_route_traj,
-                            R_CHASSIS_JGCB_R1_STEP_PREP_X,
-                            R_CHASSIS_JGCB_R1_STEP_PREP_Y,
-                            R_CHASSIS_JGCB_R1_STEP_PREP_W,
+                            B_CHASSIS_JGCB_R1_STEP_PREP_X,
+                            B_CHASSIS_JGCB_R1_STEP_PREP_Y,
+                            B_CHASSIS_JGCB_R1_STEP_PREP_W,
                             0,
                             clear_queue);
     taskEXIT_CRITICAL();
@@ -3551,8 +3551,8 @@ static BT_Status Act_JGCB_Mission(void)
         {
             /* 从启动区进入坡道，预先把坡底和坡顶点入队。 */
             taskENTER_CRITICAL();
-            chassis_route_point_add(&chassis_route_traj, R_CHASSIS_SLOPE_START_X, R_CHASSIS_SLOPE_START_Y, R_CHASSIS_SLOPE_START_W, 0, 1);
-            chassis_route_point_add(&chassis_route_traj, R_CHASSIS_SLOPE_END_X, R_CHASSIS_SLOPE_END_Y, R_CHASSIS_SLOPE_END_W, 0, 0);
+            chassis_route_point_add(&chassis_route_traj, B_CHASSIS_SLOPE_START_X, B_CHASSIS_SLOPE_START_Y, B_CHASSIS_SLOPE_START_W, 0, 1);
+            chassis_route_point_add(&chassis_route_traj, B_CHASSIS_SLOPE_END_X, B_CHASSIS_SLOPE_END_Y, B_CHASSIS_SLOPE_END_W, 0, 0);
             taskEXIT_CRITICAL();
 
             JGCB_bb.state = JGCB_NAV_TO_SLOPE_END;
@@ -3563,19 +3563,19 @@ static BT_Status Act_JGCB_Mission(void)
         case JGCB_NAV_TO_SLOPE_END:
         {
             /* 接近坡道起点后启用上坡参数，到坡顶后恢复平地参数。 */
-            if (fabsf(Radar_Pos.reliable_x - R_CHASSIS_SLOPE_START_X) < 250.0f &&
-                fabsf(Radar_Pos.reliable_y - R_CHASSIS_SLOPE_START_Y) < 250.0f)
+            if (fabsf(Radar_Pos.reliable_x - B_CHASSIS_SLOPE_START_X) < 250.0f &&
+                fabsf(Radar_Pos.reliable_y - B_CHASSIS_SLOPE_START_Y) < 250.0f)
             {
                 chassis_route_set_slope_mode(1);
             }
 
-            if (chassis_if_arrived(R_CHASSIS_SLOPE_END_X, R_CHASSIS_SLOPE_END_Y, R_CHASSIS_SLOPE_END_W))
+            if (chassis_if_arrived(B_CHASSIS_SLOPE_END_X, B_CHASSIS_SLOPE_END_Y, B_CHASSIS_SLOPE_END_W))
             {
                 chassis_route_set_slope_mode(0);
                 chassis_route_set_rotate_slow(1);
 
                 taskENTER_CRITICAL();
-                chassis_route_point_add(&chassis_route_traj, R_CHASSIS_SLOPE_END_X, R_CHASSIS_SLOPE_END_Y, 90.0f, 0, 1);
+                chassis_route_point_add(&chassis_route_traj, B_CHASSIS_SLOPE_END_X, B_CHASSIS_SLOPE_END_Y, -90.0f, 0, 1);
                 taskEXIT_CRITICAL();
 
                 JGCB_bb.state = JGCB_ROTATE_90;
@@ -3592,7 +3592,7 @@ static BT_Status Act_JGCB_Mission(void)
         case JGCB_ROTATE_90:
         {
             /* 坡顶原地转向，随后带着预装 KFS 前往 CZ 等待点。 */
-            if (chassis_if_arrived(R_CHASSIS_SLOPE_END_X, R_CHASSIS_SLOPE_END_Y, 90.0f))
+            if (chassis_if_arrived(B_CHASSIS_SLOPE_END_X, B_CHASSIS_SLOPE_END_Y, -90.0f))
             {
                 chassis_route_set_rotate_slow(0);
 
@@ -3612,7 +3612,7 @@ static BT_Status Act_JGCB_Mission(void)
         case JGCB_NAV_TO_WAIT_POINT:
         {
             /* 等待到达 R1 红外指令的等待点。 */
-            if (chassis_if_arrived(R_CHASSIS_JGCB_WAIT_X, R_CHASSIS_JGCB_WAIT_Y, R_CHASSIS_JGCB_WAIT_W))
+            if (chassis_if_arrived(B_CHASSIS_JGCB_WAIT_X, B_CHASSIS_JGCB_WAIT_Y, B_CHASSIS_JGCB_WAIT_W))
             {
                 JGCB_bb.state = JGCB_WAIT_PLACE_CMD;
                 JGCB_bb.timer_ms = 0;
@@ -3628,7 +3628,7 @@ static BT_Status Act_JGCB_Mission(void)
         case JGCB_WAIT_PLACE_CMD:
         {
             /* 等待 R1 指令：列号=去对应列，上 R1=进入上平台分支。 */
-            if (!chassis_if_arrived(R_CHASSIS_JGCB_WAIT_X, R_CHASSIS_JGCB_WAIT_Y, R_CHASSIS_JGCB_WAIT_W)) {
+            if (!chassis_if_arrived(B_CHASSIS_JGCB_WAIT_X, B_CHASSIS_JGCB_WAIT_Y, B_CHASSIS_JGCB_WAIT_W)) {
                 JGCB_RouteToWaitPoint(1);
                 JGCB_bb.state = JGCB_NAV_TO_WAIT_POINT;
                 JGCB_bb.timer_ms = 0;
@@ -3858,7 +3858,7 @@ static BT_Status Act_JGCB_Mission(void)
         case JGCB_RETURN_WAIT_POINT:
         {
             /* 带着新 KFS 回等待点，等待下一次 R1 红外列命令。 */
-            if (chassis_if_arrived(R_CHASSIS_JGCB_WAIT_X, R_CHASSIS_JGCB_WAIT_Y, R_CHASSIS_JGCB_WAIT_W))
+            if (chassis_if_arrived(B_CHASSIS_JGCB_WAIT_X, B_CHASSIS_JGCB_WAIT_Y, B_CHASSIS_JGCB_WAIT_W))
             {
                 JGCB_bb.state = JGCB_WAIT_PLACE_CMD;
                 JGCB_bb.timer_ms = 0;
@@ -3873,9 +3873,9 @@ static BT_Status Act_JGCB_Mission(void)
         case JGCB_NAV_TO_R1_STEP_PREP:
         {
             /* 第一次 2 号红外只到 R1 预备点，不启动抬升和上台阶。 */
-            if (chassis_if_arrived(R_CHASSIS_JGCB_R1_STEP_PREP_X,
-                                   R_CHASSIS_JGCB_R1_STEP_PREP_Y,
-                                   R_CHASSIS_JGCB_R1_STEP_PREP_W))
+            if (chassis_if_arrived(B_CHASSIS_JGCB_R1_STEP_PREP_X,
+                                   B_CHASSIS_JGCB_R1_STEP_PREP_Y,
+                                   B_CHASSIS_JGCB_R1_STEP_PREP_W))
             {
                 JGCB_bb.state = JGCB_WAIT_R1_STEP_CMD;
                 JGCB_bb.timer_ms = 0;

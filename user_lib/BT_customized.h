@@ -272,21 +272,21 @@ typedef struct
 /* ================================================ 预选赛 MC 行为树 ================================================ */
 /* 独立状态机和黑板，不共用原 MC 段。对杆位置固定，与 MC 相同 */
 
-/* PS 红区流程使用红方第 4/5/6 个矛架。 */
-#define PS_RACK_1_X  R_CHASSIS_RACK_1_X
-#define PS_RACK_1_Y  R_CHASSIS_RACK_Y_1
-#define PS_RACK_1_W  R_CHASSIS_RACK_W_1
-#define PS_RACK_2_X  R_CHASSIS_RACK_2_X
-#define PS_RACK_2_Y  R_CHASSIS_RACK_Y
-#define PS_RACK_2_W  R_CHASSIS_RACK_W
-#define PS_RACK_3_X  R_CHASSIS_RACK_3_X
-#define PS_RACK_3_Y  R_CHASSIS_RACK_Y
-#define PS_RACK_3_W  R_CHASSIS_RACK_W
+/* PS 蓝区流程使用蓝方矛架。 */
+#define PS_RACK_1_X  B_CHASSIS_RACK_1_X
+#define PS_RACK_1_Y  B_CHASSIS_RACK_Y
+#define PS_RACK_1_W  B_CHASSIS_RACK_W
+#define PS_RACK_2_X  B_CHASSIS_RACK_2_X
+#define PS_RACK_2_Y  B_CHASSIS_RACK_Y
+#define PS_RACK_2_W  B_CHASSIS_RACK_W
+#define PS_RACK_3_X  B_CHASSIS_RACK_3_X
+#define PS_RACK_3_Y  B_CHASSIS_RACK_Y
+#define PS_RACK_3_W  B_CHASSIS_RACK_W
 
 /* 对杆位置固定，与 MC 共用 */
-#define PS_DOCK_X  R_CHASSIS_DOCKING_X
-#define PS_DOCK_Y  R_CHASSIS_DOCKING_Y
-#define PS_DOCK_W  R_CHASSIS_DOCKING_W
+#define PS_DOCK_X  B_CHASSIS_DOCKING_X
+#define PS_DOCK_Y  B_CHASSIS_DOCKING_Y
+#define PS_DOCK_W  B_CHASSIS_DOCKING_W
 
 typedef enum
 {
@@ -334,7 +334,7 @@ void BT_PS_Request_MF_Start(void);
 
 /* ================================================ 主赛 CZ/JGCB 行为树接口 ================================================ */
 
-/* 保留蓝区等待点定义；当前活动主赛路径使用下方红区点位。 */
+/* 当前活动主赛路径使用蓝区点位。 */
 #define B_CHASSIS_JGCB_WAIT_X B_CHASSIS_CZ_CENTER_X
 #define B_CHASSIS_JGCB_WAIT_Y B_CHASSIS_CZ_CENTER_Y
 #define B_CHASSIS_JGCB_WAIT_W B_CHASSIS_CZ_CENTER_W
@@ -343,6 +343,9 @@ void BT_PS_Request_MF_Start(void);
 #define B_CHASSIS_R1_STEP_APPROACH_X B_CHASSIS_CZ_CENTER_X
 #define B_CHASSIS_R1_STEP_APPROACH_Y B_CHASSIS_CZ_CENTER_Y
 #define B_CHASSIS_R1_STEP_APPROACH_W B_CHASSIS_CZ_CENTER_W
+#define B_CHASSIS_JGCB_R1_STEP_PREP_X B_CHASSIS_R1_STEP_APPROACH_X
+#define B_CHASSIS_JGCB_R1_STEP_PREP_Y B_CHASSIS_R1_STEP_APPROACH_Y
+#define B_CHASSIS_JGCB_R1_STEP_PREP_W B_CHASSIS_R1_STEP_APPROACH_W
 
 /* JGCB 红区固定点位，按蓝方已调通点位镜像换算。 */
 #define R_CHASSIS_JGCB_WAIT_X R_CHASSIS_CZ_CENTER_X
@@ -534,7 +537,7 @@ extern ArmBackMode arm_back_mode;
 #define PICK_PRE_REST_X 0.2f             /* 机械臂预待机位置 X */
 #define PICK_PRE_REST_Y 0.4f             /* 机械臂预待机位置 Y */
 #define PICK_REST_X     0.215f            /* 机械臂待机位置 X */
-#define PICK_REST_Y     0.25f             /* 机械臂待机位置 Y */
+#define PICK_REST_Y     0.5f             /* 机械臂待机位置 Y */
 
 
 #define PICK_HANDS_UP_X 0.15f       /* 演示用抬手坐标 */

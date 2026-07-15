@@ -11,7 +11,7 @@
 #define CLAMP_LIFT_SPECIAL_POSITION2 -430000 //  抓取矛头位置
 
 #define CLAMP_ROTATE_MAX_POSITION 103000    // 旋转最大角度位置，竖直放置为0
-#define CLAMP_EXTEND_MAX_POSITION -324000    // 伸缩最大位置
+#define CLAMP_EXTEND_MAX_POSITION -346000    // 伸缩最大位置
 
 typedef struct
 {
