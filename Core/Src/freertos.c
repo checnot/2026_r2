@@ -851,7 +851,7 @@ void entry_cmd_task(void const * argument)
   /* USER CODE BEGIN entry_cmd_task */
 
   BT_MASTER_Init_Task();
-  mf_planner_ctx.map_color = BLUE_MAP;
+  mf_planner_ctx.map_color = RED_MAP;
 
   // task_flag = 1;
 

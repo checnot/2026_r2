@@ -88,7 +88,7 @@ static void IR_Action_OnPacket4(void)
 {
     /*
      * 4 号红外：九宫格 X 最小列。
-     * JGCB 内部列号 3 对应 B_CHASSIS_SUDUKU_3_X(当前三列中的最小 X)。
+     * JGCB 内部列号 3 对应 R_CHASSIS_SUDUKU_3_X(当前三列中的最小 X)。
      */
     JGCB_bb.ir_column_cmd = 3U;
 }
@@ -103,7 +103,7 @@ static void IR_Action_OnPacket6(void)
 {
     /*
      * 6 号红外：九宫格 X 最大列。
-     * JGCB 内部列号 1 对应 B_CHASSIS_SUDUKU_1_X(当前三列中的最大 X)。
+     * JGCB 内部列号 1 对应 R_CHASSIS_SUDUKU_1_X(当前三列中的最大 X)。
      */
     JGCB_bb.ir_column_cmd = 1U;
 }
