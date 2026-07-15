@@ -335,6 +335,7 @@ BT_Status chassis_step_fsm_tick(ChassisStepFSM *fsm)
             step_wheel_stop();
             /* 收回后支撑柱（全部收回） */
             chassis_lift_queue_add_point(&chassis_lift_traj, LIFT_RETRACT_HEIGHT, LIFT_RETRACT_HEIGHT, 0);
+            chassis_set_lock(1);
             fsm->state = STEP_UP_WAIT_REAR_RETRACT;
             fsm->timer_ms = 0;
         } else if (fsm->timer_ms * 10 >= STEP_SUBSTATE_TIMEOUT_MS) {
@@ -346,6 +347,7 @@ BT_Status chassis_step_fsm_tick(ChassisStepFSM *fsm)
     /* ---------- 等待后柱收回 ---------- */
     case STEP_UP_WAIT_REAR_RETRACT:
         if (lift_both_arrived(LIFT_RETRACT_HEIGHT)) {
+            chassis_set_lock(0);
             /* 全部收回，上台阶完成（安全前移暂弃用） */
             fsm->state = STEP_UP_CHASSIS_FORWARD;
             fsm->timer_ms = 0;

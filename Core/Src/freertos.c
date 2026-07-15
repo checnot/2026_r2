@@ -97,9 +97,7 @@ float vx, vy, vw = 0.0f;         // 用于测试的底盘速度变量
 float speed = 0.0f;              // 用于测试的速度变量
 uint8_t catch_flag = 0;          // 测试用：夹爪开合标志位
 int32_t rotate_target_angle = 0; // 测试用：夹爪旋转目标角度
-uint8_t CZ_task = 0;             //测试用：CZ任务请求
-uint8_t MC_task = 0;             //测试用：MC任务请求
-uint8_t task_flag = 0;           // 测试用：总开关，控制是否执行BT_Combined_Task_Tree_Root函数
+uint8_t task_flag = 0;           // A/B/C/D 主赛启动与断电重试入口
 float debug_speed;               // 用于测试的速度变量
 int16_t leidai_speed_1 = 300;    //由于雷达建图的低速
 int16_t leidai_speed_2 = 1000;    //由于雷达建图的高速
@@ -852,12 +850,7 @@ void entry_cmd_task(void const * argument)
 {
   /* USER CODE BEGIN entry_cmd_task */
 
-  // BT_MASTER_Init_Task(); // 初始化行为树任务
-                         //  BT_MASTER_Start_Task(); // 启动行为树主控任务
-  // BT_CZ_Init_Task();
-  // BT_Init_R2_MC_Mission();
-  BT_PS_Init_Task();
-  // BT_JGCB_Init_Task();
+  BT_MASTER_Init_Task();
   mf_planner_ctx.map_color = RED_MAP;
 
   // task_flag = 1;
@@ -934,73 +927,38 @@ void entry_cmd_task(void const * argument)
     key_2_last = 0;
   }
 
-  /* PS 启动模式：A 从1号矛头，B 从2号，C 从3号，D 直接进入 MF。 */
-  /* JGCB 启动模式： A 从坡道下方正常延时启动；
-                    B 在CZ区重试区默认手上有块；
-                    C 在CZ区重试区默认手上没块，直接去取地上的2号KFS；
-                    D 在CZ区重试区默认手上没块，直接去取地上的3号KFS*/
+  /* 主赛重试入口：A=MC/全流程，B=MF，C=CZ存一拿一，D=CZ只拿一块。 */
 
 
 
 
   if (task_flag != 0)
   {
-    /* 主行为树启动流程 */
-    // BT_MASTER_Start_Task();
-    // BT_CZ_Start_Task();
-    // CZ_bb.req_start = 1;
-    // CZ_bb.seq_mem_idx = 0;
-    // CZ_bb.cz_mission_state = CZ_WAIT_R1_PLATFORM;
-    // CZ_bb.cz_timer_ms = 0;
-    // CZ_bb.r1_platform_cmd = 1;
-    // CZ_bb.r1_place_cmd = 0;
-    
-    /* PS 红区预选赛启动流程：A/B/C 对应第 4/5/6 个红方矛架。 */
-    if (task_flag == 1)
-      BT_PS_Start_Task();           /* A：从第 4 个红方矛架开始 */
-    else if (task_flag == 2)
-      BT_PS_Start_Task_FromRack(1); /* B：从第 5 个红方矛架开始 */
-    else if (task_flag == 3)
-      BT_PS_Start_Task_FromRack(2); /* C：从第 6 个红方矛架开始 */
+    /* 所有入口均汇入同一个 MASTER，运行期间忽略新的重启键。 */
+    if (task_flag == 1 && !BT_MASTER_IsRunning())
+    {
+      /* A：全流程启动 / MC 区断电重试，只取一个端头。 */
+      BT_MASTER_Start_Task();
+    }
+    else if (task_flag == 2 && !BT_MASTER_IsRunning())
+    {
+      /* B：操作手完成 MF 地图预输入后，从 MF 区开始全流程。 */
+      BT_MASTER_Start_FromMF();
+    }
+    else if (task_flag == 3 && !BT_MASTER_IsRunning())
+    {
+      /* C：CZ 重试，车身存一块且机械臂持一块。 */
+      BT_MASTER_Start_FromCZ(1U, 1U);
+    }
     else if (task_flag == 4)
     {
-      /*
-       * D 的双用途：
-       * 1. 刚上电、PS 尚未启动时，直接从当前重试位置进入 MF；
-       * 2. 完成全部抓矛并回到重试区后，只在等待 MF 命令状态放行。
-       * 其余 PS 运行阶段忽略 D，避免中断当前抓矛流程。
-       */
-      if (!PS_bb.req_start)
-        BT_PS_Start_MF_Direct();
-      else if (PS_bb.state == PS_MC_WAIT_MF_CMD)
-        BT_PS_Request_MF_Start();
+      /* D 在 MC 等待态用于放行 MF；空闲时用于 CZ 无存块重试。 */
+      if (!BT_MASTER_Request_MF_Start() && !BT_MASTER_IsRunning())
+        BT_MASTER_Start_FromCZ(0U, 1U);
     }
-
-    /* JGCB 启动流程保留但当前不启用。 */
-    // if (task_flag == 1)
-    //   BT_JGCB_Start_Task();
-    // else if (task_flag == 2)
-    //   BT_JGCB_Start_Task_FromRetry(1, 2);
-    // else if (task_flag == 3)
-    //   BT_JGCB_Start_Task_FromRetry(0, 2);
-    // else if (task_flag == 4)
-    //   BT_JGCB_Start_Task_FromRetry(0, 3);
 
     task_flag = 0;
   }
-    // if (MC_task == 1)
-    // {
-    //   //BT_Start_R2_MC_Mission();
-    //  BT_PS_Start_Task();
-    //   MC_task=0;
-    // }
-    // BT_PS_Tick();
-   // BT_Customized_Tick1ms_R2_MC();
-    //  if(CZ_task == 1)
-    //  {
-    //   BT_CZ_Start_Task();
-    //   CZ_task = 0;
-    //  };
     // if(debug_flag == 1)
     // {
     //   debug_flag = 0;
@@ -1018,12 +976,7 @@ void entry_cmd_task(void const * argument)
     // }
     
 
-    /* 各TICK */
-
-    // BT_JGCB_Tick();
-    BT_PS_Tick(); // 每1ms调用，内部降频10ms，行为树PS预选赛任务周期调用
-    // BT_MASTER_Tick(); // 每1ms调用，内部降频10ms，行为树主控任务周期调用
-    // BT_Customized_Tick1ms_CZ();
+    BT_MASTER_Tick(); /* 1ms 调用，内部降频到 10ms，串行推进 MC -> MF -> CZ。 */
     osDelay(1);
   }
   /* USER CODE END entry_cmd_task */

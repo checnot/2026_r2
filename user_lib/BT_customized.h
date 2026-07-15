@@ -122,17 +122,17 @@
 #define R_CHASSIS_CZ_INIT_X 11500.0f          /* 红区 重试区 X (mm) */
 #define R_CHASSIS_CZ_INIT_Y -5500.0f          /* 红区 重试区 Y (mm) */
 #define R_CHASSIS_CZ_INIT_W 90.0f             /* 红区 重试区 W (deg) */
-#define R_CHASSIS_CZ_CENTER_X 11080.0f        /* 红区 对抗区扫描 X (mm) */
-#define R_CHASSIS_CZ_CENTER_Y -3055.0f        /* 红区 对抗区扫描 Y (mm) */
+#define R_CHASSIS_CZ_CENTER_X 10750.0f        /* 红区 对抗区扫描 X (mm) */
+#define R_CHASSIS_CZ_CENTER_Y -2000.0f        /* 红区 对抗区扫描 Y (mm) */
 #define R_CHASSIS_CZ_CENTER_W 90.0f           /* 红区 对抗区扫描 W (deg) */
 
-#define R_CHASSIS_SUDUKU_1_X 11310.0f         /* 红区 九宫格第一列 X (mm) */
+#define R_CHASSIS_SUDUKU_1_X 11290.0f         /* 红区 九宫格第一列 X (mm) */
 #define R_CHASSIS_SUDUKU_1_Y -1200.0f          /* 红区 九宫格第一列 Y (mm) */
 #define R_CHASSIS_SUDUKU_1_W 90.0f            /* 红区 九宫格第一列 W (deg) */
-#define R_CHASSIS_SUDUKU_2_X 10770.0f         /* 红区 九宫格第二列 X (mm) */
+#define R_CHASSIS_SUDUKU_2_X 10750.0f         /* 红区 九宫格第二列 X (mm) */
 #define R_CHASSIS_SUDUKU_2_Y -1200.0f          /* 红区 九宫格第二列 Y (mm) */
 #define R_CHASSIS_SUDUKU_2_W 90.0f            /* 红区 九宫格第二列 W (deg) */
-#define R_CHASSIS_SUDUKU_3_X 10230.0f         /* 红区 九宫格第三列 X (mm) */
+#define R_CHASSIS_SUDUKU_3_X 10210.0f         /* 红区 九宫格第三列 X (mm) */
 #define R_CHASSIS_SUDUKU_3_Y -1200.0f          /* 红区 九宫格第三列 Y (mm) */
 #define R_CHASSIS_SUDUKU_3_W 90.0f            /* 红区 九宫格第三列 W (deg) */
 
@@ -272,7 +272,7 @@ typedef struct
 /* ================================================ 预选赛 MC 行为树 ================================================ */
 /* 独立状态机和黑板，不共用原 MC 段。对杆位置固定，与 MC 相同 */
 
-/* PS 红区预选赛使用红方第 4/5/6 个矛架。 */
+/* PS 红区流程使用红方第 4/5/6 个矛架。 */
 #define PS_RACK_1_X  R_CHASSIS_RACK_1_X
 #define PS_RACK_1_Y  R_CHASSIS_RACK_Y_1
 #define PS_RACK_1_W  R_CHASSIS_RACK_W_1
@@ -314,6 +314,7 @@ typedef struct
     uint8_t dock_success;    /* 对杆完成标志，由外部置位 */
     uint8_t mf_req;
     uint8_t round_count;
+    uint8_t round_limit;          /* 本次 MC 流程需要完成的取矛次数 */
     uint8_t ext_jam_retries;
     uint32_t ext_timer_ms;         /* 伸出计时器 (ms)，超时未到位则重试 */
     int32_t last_ext_angle;        /* 上一Tick的伸出电机角度，用于堵转检测 */
@@ -325,30 +326,35 @@ extern PS_MC_Blackboard PS_bb;
 void BT_PS_Start_Task(void);
 void BT_PS_Start_Task_FromRack(uint8_t rack_index);
 void BT_PS_Start_MF_Direct(void);
+void BT_PS_Start_MC_Only(void);
 void BT_PS_Init_Task(void);
 void BT_PS_Tick(void);
 void BT_PS_Request_MF_Start(void);
 
-/* ================================================ JGCB 预选赛行为树接口 ================================================ */
+/* ================================================ 主赛 CZ/JGCB 行为树接口 ================================================ */
 
-/* JGCB 蓝区固定点位：等待点、场边 KFS 位置，实测后按需微调。 */
+/* 保留蓝区等待点定义；当前活动主赛路径使用下方红区点位。 */
 #define B_CHASSIS_JGCB_WAIT_X B_CHASSIS_CZ_CENTER_X
 #define B_CHASSIS_JGCB_WAIT_Y B_CHASSIS_CZ_CENTER_Y
 #define B_CHASSIS_JGCB_WAIT_W B_CHASSIS_CZ_CENTER_W
-
-/* 场边 KFS 蓝区默认点位，实车需复测。 */
-#define B_CHASSIS_JGCB_KFS_CENTER_X 11825.0f
-#define B_CHASSIS_JGCB_KFS_1_CENTER_Y 1925.0f
-#define B_CHASSIS_JGCB_KFS_2_CENTER_Y 2675.0f
-#define B_CHASSIS_JGCB_KFS_3_CENTER_Y 3425.0f
-#define B_CHASSIS_JGCB_KFS_PICK_OFFSET_X 900.0f
-#define B_CHASSIS_JGCB_KFS_PICK_W 0.0f
 
 /* 蓝区台阶接近点按与蓝区 CZ 中心相同的位置关系定义。 */
 #define B_CHASSIS_R1_STEP_APPROACH_X B_CHASSIS_CZ_CENTER_X
 #define B_CHASSIS_R1_STEP_APPROACH_Y B_CHASSIS_CZ_CENTER_Y
 #define B_CHASSIS_R1_STEP_APPROACH_W B_CHASSIS_CZ_CENTER_W
-#define JGCB_START_DELAY_MS 7000U /* 启动后等待 7 秒，再自主进入坡道 */
+
+/* JGCB 红区固定点位，按蓝方已调通点位镜像换算。 */
+#define R_CHASSIS_JGCB_WAIT_X R_CHASSIS_CZ_CENTER_X
+#define R_CHASSIS_JGCB_WAIT_Y R_CHASSIS_CZ_CENTER_Y
+#define R_CHASSIS_JGCB_WAIT_W 135.0f
+#define R_CHASSIS_JGCB_R1_STEP_APPROACH_X R_CHASSIS_R1_STEP_APPROACH_X
+#define R_CHASSIS_JGCB_R1_STEP_APPROACH_Y R_CHASSIS_R1_STEP_APPROACH_Y
+#define R_CHASSIS_JGCB_R1_STEP_APPROACH_W R_CHASSIS_R1_STEP_APPROACH_W
+/* 红方沿用已标定的台阶接近点作为两次 2 号红外之间的 R1 预备点。 */
+#define R_CHASSIS_JGCB_R1_STEP_PREP_X R_CHASSIS_JGCB_R1_STEP_APPROACH_X
+#define R_CHASSIS_JGCB_R1_STEP_PREP_Y R_CHASSIS_JGCB_R1_STEP_APPROACH_Y
+#define R_CHASSIS_JGCB_R1_STEP_PREP_W R_CHASSIS_JGCB_R1_STEP_APPROACH_W
+#define JGCB_START_DELAY_MS 200U /* 启动后等待 0.2 秒，再自主进入坡道 */
 
 typedef enum
 {
@@ -362,18 +368,18 @@ typedef enum
     JGCB_NAV_TO_SUDUKU,
     JGCB_ARM_RAISE,
     JGCB_ARM_RAISE_WAIT,
-    JGCB_WAIT_PUSH_CMD,
     JGCB_FORWARD_PUSH,
     JGCB_ARM_PLACE,
     JGCB_PUMP_WAIT,
     JGCB_BACK_FROM_SUDUKU,
-    JGCB_NAV_TO_KFS,
-    JGCB_PICK_KFS,
-    JGCB_PICK_KFS_WAIT,
+    JGCB_PICK_STORED_F2B,
+    JGCB_PICK_STORED_PICK,
+    JGCB_PICK_STORED_B2F,
     JGCB_RETURN_WAIT_POINT,
+    JGCB_NAV_TO_R1_STEP_PREP,
+    JGCB_WAIT_R1_STEP_CMD,
     JGCB_ARM_RAISE_FOR_R1,
-    JGCB_ARM_RAISE_FOR_R1_WAIT,
-    JGCB_NAV_TO_R1_PLATFORM,
+    JGCB_STEP_UP_R1,
     JGCB_ON_R1_WAIT_PLACE_CMD,
     JGCB_ON_R1_PLACE,
     JGCB_ON_R1_PUMP_WAIT,
@@ -389,21 +395,21 @@ typedef struct
     uint32_t timer_ms;            /* 10ms tick 计时 */
     uint16_t pos_stable_times;    /* 到位稳定计数 */
     uint8_t placed_count;         /* 已放入九宫格的 KFS 数量 */
-    uint8_t held_kfs;             /* 0=无块，1=预装块，2/3=场边 KFS 编号 */
-    uint8_t next_kfs_index;       /* 下一个要取的场边 KFS：先 2 后 3 */
+    uint8_t held_kfs;             /* 0=机械臂无块，1=机械臂持有一个 KFS */
+    uint8_t stored_kfs;           /* 0=车身无存块，1=车身存有一个 KFS */
     uint8_t active_col;           /* 当前要放的九宫格列：1/2/3 */
     uint8_t arm_raise_sent;       /* 去九宫格途中是否已提前下发抬臂轨迹 */
-    uint8_t pick_sent;            /* 取块机械臂轨迹是否已下发 */
     uint8_t step_fsm_started;     /* 上 R1 台阶 FSM 是否已启动 */
     uint8_t platform_route_sent;  /* 上 R1 过程中底盘锁止是否已处理 */
     uint8_t ir_column_cmd;        /* 外部写入：1/2/3=放对应列，0=无命令 */
-    uint8_t r1_platform_cmd;      /* 外部写入：允许上 R1 */
+    uint8_t r1_platform_cmd;      /* 外部写入：2号红外；预备点前往/上R1确认 */
     uint8_t r1_place_cmd;         /* 外部写入：在 R1 上释放 KFS */
 } JGCB_Blackboard;
 
 extern JGCB_Blackboard JGCB_bb;
 void BT_JGCB_Start_Task(void);
-void BT_JGCB_Start_Task_FromRetry(uint8_t held_kfs, uint8_t next_kfs_index);
+void BT_JGCB_Start_Task_WithPayload(uint8_t stored_kfs, uint8_t held_kfs);
+void BT_JGCB_Start_Task_FromRetry(uint8_t stored_kfs, uint8_t held_kfs);
 void BT_JGCB_Init_Task(void);
 void BT_JGCB_Tick(void);
 
@@ -434,10 +440,12 @@ typedef struct
 /* ---------- MF 专用参数宏（需实测调整） ---------- */
 
 #define R1_KFS_ALL_NUM 3
-#define R2_KFS_ALL_NEED 2 /* 主赛需要拾取的 R2KFS 总数量 */
+#define R2_KFS_ALL_NUM 4  /* 主赛地图中的 R2 KFS 总数量 */
+#define R2_KFS_ALL_NEED 2 /* 主赛沿用存一拿一流程，实际带走 2 个 R2 KFS */
 #define FAKE_KFS_ALL_NUM 1
 
 #define PS_R1_KFS_ALL_NUM 2
+#define PS_R2_KFS_ALL_NUM 2
 #define PS_R2_KFS_ALL_NEED 2 /* 预选赛 MF 区需要拾取的 R2KFS 总数量 */
 #define PS_FAKE_KFS_ALL_NUM 1
 
@@ -635,9 +643,9 @@ void BT_Customized_Tick1ms_MF(void);
 #define CZ_ARM_PLACE_PITCH 30.0f       /* 对抗区放块机械臂抬高目标 pitch */
 #define CZ_ARM_PLACE_2_X 0.25f       /* 对抗区放块机械臂前伸放置目标 X */
 #define CZ_ARM_PLACE_2_Y 0.85f       /* 对抗区放块机械臂前伸放置目标 Y */
-#define CZ_ARM_PLACE_TIME 500    /* 放块停留时间 (ms) */
+#define CZ_ARM_PLACE_TIME 1500    /* 放块停留时间 (ms) */
 #define CZ_ARM_PLACE_TIMEOUT_MS 8000 /* 放块超时时间 (ms) */
-#define CZ_PUMP_WAIT_MS 2500      /* 关气泵后等待时间 (ms) */
+#define CZ_PUMP_WAIT_MS 1500      /* 关气泵后等待时间 (ms) */
 
 /* R1 平台等待 & 九宫格第三层坐标 (🟡需实测填入真实值) */
 #define R_CHASSIS_R1_WAIT_X 10750.0f     /* 🟡 RED R1平台等待点 X */
@@ -734,6 +742,10 @@ void BT_Customized_Tick1ms_CZ(void);
 
 
 void BT_MASTER_Start_Task(void);
+void BT_MASTER_Start_FromMF(void);
+void BT_MASTER_Start_FromCZ(uint8_t stored_kfs, uint8_t held_kfs);
+uint8_t BT_MASTER_Request_MF_Start(void);
+uint8_t BT_MASTER_IsRunning(void);
 
 void BT_MASTER_Init_Task(void);
 
