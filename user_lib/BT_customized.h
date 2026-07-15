@@ -122,17 +122,17 @@
 #define R_CHASSIS_CZ_INIT_X 11500.0f          /* 红区 重试区 X (mm) */
 #define R_CHASSIS_CZ_INIT_Y -5500.0f          /* 红区 重试区 Y (mm) */
 #define R_CHASSIS_CZ_INIT_W 90.0f             /* 红区 重试区 W (deg) */
-#define R_CHASSIS_CZ_CENTER_X 11080.0f        /* 红区 对抗区扫描 X (mm) */
-#define R_CHASSIS_CZ_CENTER_Y -3055.0f        /* 红区 对抗区扫描 Y (mm) */
+#define R_CHASSIS_CZ_CENTER_X 10750.0f        /* 红区 对抗区扫描 X (mm) */
+#define R_CHASSIS_CZ_CENTER_Y -2000.0f        /* 红区 对抗区扫描 Y (mm) */
 #define R_CHASSIS_CZ_CENTER_W 90.0f           /* 红区 对抗区扫描 W (deg) */
 
-#define R_CHASSIS_SUDUKU_1_X 11310.0f         /* 红区 九宫格第一列 X (mm) */
+#define R_CHASSIS_SUDUKU_1_X 11290.0f         /* 红区 九宫格第一列 X (mm) */
 #define R_CHASSIS_SUDUKU_1_Y -1200.0f          /* 红区 九宫格第一列 Y (mm) */
 #define R_CHASSIS_SUDUKU_1_W 90.0f            /* 红区 九宫格第一列 W (deg) */
-#define R_CHASSIS_SUDUKU_2_X 10770.0f         /* 红区 九宫格第二列 X (mm) */
+#define R_CHASSIS_SUDUKU_2_X 10750.0f         /* 红区 九宫格第二列 X (mm) */
 #define R_CHASSIS_SUDUKU_2_Y -1200.0f          /* 红区 九宫格第二列 Y (mm) */
 #define R_CHASSIS_SUDUKU_2_W 90.0f            /* 红区 九宫格第二列 W (deg) */
-#define R_CHASSIS_SUDUKU_3_X 10230.0f         /* 红区 九宫格第三列 X (mm) */
+#define R_CHASSIS_SUDUKU_3_X 10210.0f         /* 红区 九宫格第三列 X (mm) */
 #define R_CHASSIS_SUDUKU_3_Y -1200.0f          /* 红区 九宫格第三列 Y (mm) */
 #define R_CHASSIS_SUDUKU_3_W 90.0f            /* 红区 九宫格第三列 W (deg) */
 
@@ -349,20 +349,25 @@ void BT_PS_Request_MF_Start(void);
 #define B_CHASSIS_R1_STEP_APPROACH_Y B_CHASSIS_CZ_CENTER_Y
 #define B_CHASSIS_R1_STEP_APPROACH_W B_CHASSIS_CZ_CENTER_W
 
-/* JGCB 红区固定点位。场边 KFS 的 Y 由蓝区点位镜像得到，实车需复测。 */
+/* JGCB 红区固定点位，按蓝方已调通点位镜像换算。 */
 #define R_CHASSIS_JGCB_WAIT_X R_CHASSIS_CZ_CENTER_X
 #define R_CHASSIS_JGCB_WAIT_Y R_CHASSIS_CZ_CENTER_Y
-#define R_CHASSIS_JGCB_WAIT_W R_CHASSIS_CZ_CENTER_W
+#define R_CHASSIS_JGCB_WAIT_W 135.0f
 #define R_CHASSIS_JGCB_KFS_CENTER_X 11825.0f
 #define R_CHASSIS_JGCB_KFS_1_CENTER_Y (-1925.0f)
-#define R_CHASSIS_JGCB_KFS_2_CENTER_Y (-2675.0f)
-#define R_CHASSIS_JGCB_KFS_3_CENTER_Y (-3425.0f)
+#define R_CHASSIS_JGCB_KFS_2_CENTER_Y (-2625.0f)
+#define R_CHASSIS_JGCB_KFS_3_CENTER_Y (-3325.0f)
 #define R_CHASSIS_JGCB_KFS_PICK_OFFSET_X 900.0f
+#define R_CHASSIS_JGCB_KFS_PICK_OFFSET_Y 30.0f
 #define R_CHASSIS_JGCB_KFS_PICK_W 0.0f
 #define R_CHASSIS_JGCB_R1_STEP_APPROACH_X R_CHASSIS_R1_STEP_APPROACH_X
 #define R_CHASSIS_JGCB_R1_STEP_APPROACH_Y R_CHASSIS_R1_STEP_APPROACH_Y
 #define R_CHASSIS_JGCB_R1_STEP_APPROACH_W R_CHASSIS_R1_STEP_APPROACH_W
-#define JGCB_START_DELAY_MS 7000U /* 启动后等待 7 秒，再自主进入坡道 */
+/* 红方沿用已标定的台阶接近点作为两次 2 号红外之间的 R1 预备点。 */
+#define R_CHASSIS_JGCB_R1_STEP_PREP_X R_CHASSIS_JGCB_R1_STEP_APPROACH_X
+#define R_CHASSIS_JGCB_R1_STEP_PREP_Y R_CHASSIS_JGCB_R1_STEP_APPROACH_Y
+#define R_CHASSIS_JGCB_R1_STEP_PREP_W R_CHASSIS_JGCB_R1_STEP_APPROACH_W
+#define JGCB_START_DELAY_MS 200U /* 启动后等待 0.2 秒，再自主进入坡道 */
 
 typedef enum
 {
@@ -376,7 +381,6 @@ typedef enum
     JGCB_NAV_TO_SUDUKU,
     JGCB_ARM_RAISE,
     JGCB_ARM_RAISE_WAIT,
-    JGCB_WAIT_PUSH_CMD,
     JGCB_FORWARD_PUSH,
     JGCB_ARM_PLACE,
     JGCB_PUMP_WAIT,
@@ -385,9 +389,10 @@ typedef enum
     JGCB_PICK_KFS,
     JGCB_PICK_KFS_WAIT,
     JGCB_RETURN_WAIT_POINT,
+    JGCB_NAV_TO_R1_STEP_PREP,
+    JGCB_WAIT_R1_STEP_CMD,
     JGCB_ARM_RAISE_FOR_R1,
-    JGCB_ARM_RAISE_FOR_R1_WAIT,
-    JGCB_NAV_TO_R1_PLATFORM,
+    JGCB_STEP_UP_R1,
     JGCB_ON_R1_WAIT_PLACE_CMD,
     JGCB_ON_R1_PLACE,
     JGCB_ON_R1_PUMP_WAIT,
@@ -411,7 +416,7 @@ typedef struct
     uint8_t step_fsm_started;     /* 上 R1 台阶 FSM 是否已启动 */
     uint8_t platform_route_sent;  /* 上 R1 过程中底盘锁止是否已处理 */
     uint8_t ir_column_cmd;        /* 外部写入：1/2/3=放对应列，0=无命令 */
-    uint8_t r1_platform_cmd;      /* 外部写入：允许上 R1 */
+    uint8_t r1_platform_cmd;      /* 外部写入：2号红外；预备点前往/上R1确认 */
     uint8_t r1_place_cmd;         /* 外部写入：在 R1 上释放 KFS */
 } JGCB_Blackboard;
 
@@ -539,7 +544,7 @@ extern ArmBackMode arm_back_mode;
 #define PICK_PRE_REST_X 0.2f             /* 机械臂预待机位置 X */
 #define PICK_PRE_REST_Y 0.4f             /* 机械臂预待机位置 Y */
 #define PICK_REST_X     0.215f            /* 机械臂待机位置 X */
-#define PICK_REST_Y     0.25f             /* 机械臂待机位置 Y */
+#define PICK_REST_Y     0.5f             /* 机械臂待机位置 Y */
 
 
 #define PICK_HANDS_UP_X 0.15f       /* 演示用抬手坐标 */
@@ -552,11 +557,11 @@ extern ArmBackMode arm_back_mode;
 #define PICK_N200_TARGET_X 0.83f         /* ！！！！待测试！！！！！-200抓取点 X */
 #define PICK_N200_TARGET_Y -0.10f         /* ！！！！待测试！！！！！-200抓取点 Y */
 
-#define PICK_0_APR_X_1 0.405f             /* 0预抓取点1 X */
+#define PICK_0_APR_X_1 0.71f             /* 0预抓取点1 X */
 #define PICK_0_APR_Y_1 0.4f          /* 0预抓取点1 Y */
 // #define PICK_0_APR_X_2 0.5f             /* 0预抓取点2 X */
 // #define PICK_0_APR_Y_2 0.5f             /* 0预抓取点2 Y */
-#define PICK_0_TARGET_X 0.405f            /* 0抓取点 X */
+#define PICK_0_TARGET_X 0.71f            /* 0抓取点 X */
 #define PICK_0_TARGET_Y 0.1f            /* 0抓取点 Y */
 
 #define PICK_P200_APR_X_1 0.568f     /* +200预抓取点1 X */
@@ -649,9 +654,9 @@ void BT_Customized_Tick1ms_MF(void);
 #define CZ_ARM_PLACE_PITCH 30.0f       /* 对抗区放块机械臂抬高目标 pitch */
 #define CZ_ARM_PLACE_2_X 0.25f       /* 对抗区放块机械臂前伸放置目标 X */
 #define CZ_ARM_PLACE_2_Y 0.85f       /* 对抗区放块机械臂前伸放置目标 Y */
-#define CZ_ARM_PLACE_TIME 500    /* 放块停留时间 (ms) */
+#define CZ_ARM_PLACE_TIME 1500    /* 放块停留时间 (ms) */
 #define CZ_ARM_PLACE_TIMEOUT_MS 8000 /* 放块超时时间 (ms) */
-#define CZ_PUMP_WAIT_MS 2500      /* 关气泵后等待时间 (ms) */
+#define CZ_PUMP_WAIT_MS 1500      /* 关气泵后等待时间 (ms) */
 
 /* R1 平台等待 & 九宫格第三层坐标 (🟡需实测填入真实值) */
 #define R_CHASSIS_R1_WAIT_X 10750.0f     /* 🟡 RED R1平台等待点 X */
