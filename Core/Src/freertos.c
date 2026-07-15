@@ -940,10 +940,14 @@ void entry_cmd_task(void const * argument)
       /* A：全流程启动 / MC 区断电重试，只取一个端头。 */
       BT_MASTER_Start_Task();
     }
-    else if (task_flag == 2 && !BT_MASTER_IsRunning())
+    else if (task_flag == 2)
     {
-      /* B：操作手完成 MF 地图预输入后，从 MF 区开始全流程。 */
-      BT_MASTER_Start_FromMF();
+      /*
+       * B：MC 已回重试区并等待 MF 时，放行进入 MF；
+       * MASTER 已停止（例如 MF 失败清理后）时，从 MF 区重新开始。
+       */
+      if (!BT_MASTER_Request_MF_Start() && !BT_MASTER_IsRunning())
+        BT_MASTER_Start_FromMF();
     }
     else if (task_flag == 3 && !BT_MASTER_IsRunning())
     {
