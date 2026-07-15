@@ -2966,7 +2966,7 @@ static BT_Status Act_PS_MC_Mission(void)
 
         case PS_MC_IDLE:
         {
-            /* 启动入口已写入 round_count：A=0，B=1，C=2。 */
+            /* 启动入口已写入成功数量和当前矛架索引。 */
             PS_bb.state = PS_bb.direct_mf ? PS_MC_ENTER_MF : PS_MC_CLAMP_INIT;
             PS_bb.timer_ms = 0;
             return BT_RUNNING;
@@ -2984,7 +2984,7 @@ static BT_Status Act_PS_MC_Mission(void)
         case PS_MC_SELF_ROTATE:
         {
             /* 原地自转：先转到目标 yaw，再平移去矛架 */
-            uint8_t r = PS_bb.round_count;
+            uint8_t r = PS_bb.rack_index;
             taskENTER_CRITICAL();
             chassis_route_point_add(&chassis_route_traj, Radar_Pos.reliable_x + 100.0f, Radar_Pos.reliable_y, ps_rack[r].w, 2000, 0);
             taskEXIT_CRITICAL();
@@ -2995,7 +2995,7 @@ static BT_Status Act_PS_MC_Mission(void)
 
         case PS_MC_NAV_TO_RACK:
         {
-            uint8_t r = PS_bb.round_count;
+            uint8_t r = PS_bb.rack_index;
             taskENTER_CRITICAL();
             chassis_route_point_add(&chassis_route_traj, ps_rack[r].x, ps_rack[r].y, ps_rack[r].w, 0, 0);
             taskEXIT_CRITICAL();
@@ -3010,7 +3010,7 @@ static BT_Status Act_PS_MC_Mission(void)
 
         case PS_MC_RACK_PICK:
         {
-            uint8_t r = PS_bb.round_count;
+            uint8_t r = PS_bb.rack_index;
             if (chassis_if_arrived(ps_rack[r].x, ps_rack[r].y, ps_rack[r].w))
             {
                 PS_bb.pos_stable_times++;
@@ -3036,9 +3036,21 @@ static BT_Status Act_PS_MC_Mission(void)
                             }
                             else
                             {
+                                /* 夹取失败：缩回并切换到下一矛架，三处循环直到成功。 */
                                 clamp.catch_flag = 0;
                                 clamp.retractable_flag = 0;
                                 osDelay(300);
+                                PS_bb.rack_index = (uint8_t)((PS_bb.rack_index + 1U) % 3U);
+                                taskENTER_CRITICAL();
+                                chassis_route_point_add(&chassis_route_traj,
+                                                        ps_rack[PS_bb.rack_index].x,
+                                                        ps_rack[PS_bb.rack_index].y,
+                                                        ps_rack[PS_bb.rack_index].w,
+                                                        0,
+                                                        0);
+                                taskEXIT_CRITICAL();
+                                PS_bb.ext_jam_retries = 0;
+                                PS_bb.ext_timer_ms = 0;
                                 PS_bb.pos_stable_times = 0;
                             }
                         }
@@ -3049,7 +3061,7 @@ static BT_Status Act_PS_MC_Mission(void)
             {
                 /*
                  * 夹爪伸出中，若电机Angle_Sum连续不变（堵转/撞歪），
-                 * 计时超时后缩回重试，超过最大重试次数则放弃本次抓取。
+                 * 计时超时后缩回重试，超过最大重试次数则切换下一矛架继续循环。
                  * 若电机恢复转动则清零计时。
                  */
                 int32_t cur_angle = m3508_fdcan2[1].Angle_Sum;
@@ -3075,12 +3087,21 @@ static BT_Status Act_PS_MC_Mission(void)
                         PS_bb.ext_timer_ms = 0;
                         if (PS_bb.ext_jam_retries >= B_EXT_MAX_RETRIES)
                         {
-                            /* 已重试过最大次数，放弃本次抓取，重新从底盘稳定开始等待 */
+                            /* 当前架已重试到上限：切换下一架，三处循环但不增加成功数量。 */
                             PS_bb.ext_jam_retries = 0;
                             PS_bb.ext_timer_ms = 0;
                             PS_bb.pos_stable_times = 0;
                             clamp.catch_flag = 0;
                             clamp.retractable_flag = 0;
+                            PS_bb.rack_index = (uint8_t)((PS_bb.rack_index + 1U) % 3U);
+                            taskENTER_CRITICAL();
+                            chassis_route_point_add(&chassis_route_traj,
+                                                    ps_rack[PS_bb.rack_index].x,
+                                                    ps_rack[PS_bb.rack_index].y,
+                                                    ps_rack[PS_bb.rack_index].w,
+                                                    0,
+                                                    0);
+                            taskEXIT_CRITICAL();
                             osDelay(300);
                         }
                         else
@@ -3146,7 +3167,15 @@ static BT_Status Act_PS_MC_Mission(void)
         case PS_MC_ROUND_CHECK:
         {
             PS_bb.round_count++;
-            PS_bb.state = (PS_bb.round_count >= PS_bb.round_limit) ? PS_MC_NAV_TO_START : PS_MC_CLAMP_INIT;
+            if (PS_bb.round_count >= PS_bb.round_limit)
+            {
+                PS_bb.state = PS_MC_NAV_TO_START;
+            }
+            else
+            {
+                PS_bb.rack_index = (uint8_t)((PS_bb.rack_index + 1U) % 3U);
+                PS_bb.state = PS_MC_CLAMP_INIT;
+            }
             PS_bb.timer_ms = 0;
             return BT_RUNNING;
         }
@@ -3275,6 +3304,7 @@ static BT_Status Act_PS_FinishCleanup(void)
     PS_bb.dock_success = 0;
     PS_bb.mf_req = 0;
     PS_bb.round_count = 0;
+    PS_bb.rack_index = 0;
     PS_bb.round_limit = 3;
     PS_bb.ext_jam_retries = 0;
     PS_bb.ext_timer_ms = 0;
@@ -3315,6 +3345,7 @@ void BT_PS_Start_Task_FromRack(uint8_t rack_index)
     PS_bb.dock_success = 0;
     PS_bb.mf_req = 0;
     PS_bb.round_count = (rack_index <= 2U) ? rack_index : 0U;
+    PS_bb.rack_index = (rack_index <= 2U) ? rack_index : 0U;
     PS_bb.round_limit = 3;
     PS_bb.ext_jam_retries = 0;
     PS_bb.ext_timer_ms = 0;
@@ -3347,6 +3378,7 @@ void BT_PS_Init_Task(void)
     PS_bb.dock_success = 0;
     PS_bb.mf_req = 0;
     PS_bb.round_count = 0;
+    PS_bb.rack_index = 0;
     PS_bb.round_limit = 3;
     PS_bb.ext_jam_retries = 0;
     PS_bb.ext_timer_ms = 0;

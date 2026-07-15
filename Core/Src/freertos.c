@@ -317,7 +317,7 @@ void StartDefaultTask(void const * argument)
 
     debug_test_time += 0.001f;
 		// Screen_TestDisplay();
-    osDelay(40); // 25Hz
+    osDelay(10); // 100Hz
   }
   /* USER CODE END StartDefaultTask */
 }

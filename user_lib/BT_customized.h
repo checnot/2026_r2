@@ -313,7 +313,8 @@ typedef struct
     uint8_t pick_success;
     uint8_t dock_success;    /* 对杆完成标志，由外部置位 */
     uint8_t mf_req;
-    uint8_t round_count;
+    uint8_t round_count;          /* 已完成的成功夹取/对接数量 */
+    uint8_t rack_index;           /* 当前尝试的矛架索引，失败时循环推进 */
     uint8_t round_limit;          /* 本次 MC 流程需要完成的取矛次数 */
     uint8_t ext_jam_retries;
     uint32_t ext_timer_ms;         /* 伸出计时器 (ms)，超时未到位则重试 */
@@ -650,7 +651,7 @@ void BT_Customized_Tick1ms_MF(void);
 /* R1 平台等待 & 九宫格第三层坐标 (🟡需实测填入真实值) */
 #define R_CHASSIS_R1_WAIT_X 10750.0f     /* 🟡 RED R1平台等待点 X */
 #define R_CHASSIS_R1_WAIT_Y -2000.0f     /* 🟡 R1平台等待点 Y */
-#define R_CHASSIS_R1_WAIT_W 90.0f         /* 🟡 R1平台等待点 W */
+#define R_CHASSIS_R1_WAIT_W 135.0f         /* 🟡 R1平台等待点 W */
 // #define R_CHASSIS_R1_STEP_APPROACH_X 10750.0f  /* 🟡 台阶接近点 X (台阶边缘前) */
 // #define R_CHASSIS_R1_STEP_APPROACH_Y -2000.0f /* 🟡 台阶接近点 Y */
 // #define R_CHASSIS_R1_STEP_APPROACH_W 90.0f     /* 🟡 台阶接近点 W (面朝台阶方向) */
