@@ -51,7 +51,7 @@
  * 通用参数（红蓝区共用数值）
 **************************************** */
 #define R_CLAMP_TO_CHASSIS_CENTER_DIST 111.25f /* 夹爪中心到底盘中心的X方向距离 (mm) */
-#define B_CLAMP_TO_CHASSIS_CENTER_DIST 132.0f /* 夹爪中心到底盘中心的X方向距离 (mm) */
+#define B_CLAMP_TO_CHASSIS_CENTER_DIST 111.25f /* 夹爪中心到底盘中心的X方向距离 (mm) */
 #define R_RACK_STABLE_TIMES_CONDITION 100      /* 取矛头时到达目标位置次数，保证稳定抓取（降低以加速） */
 #define B_RACK_STABLE_TIMES_CONDITION 50      /* 取矛头时到达目标位置次数，保证稳定抓取 */
 
@@ -150,7 +150,7 @@
 #define B_CHASSIS_RACK_4_X 1050.0f + B_CLAMP_TO_CHASSIS_CENTER_DIST /* 蓝区 第四个矛头位置 X (mm) */
 #define B_CHASSIS_RACK_5_X 1250.0f + B_CLAMP_TO_CHASSIS_CENTER_DIST /* 蓝区 第五个矛头位置 X (mm) */
 #define B_CHASSIS_RACK_6_X 1450.0f + B_CLAMP_TO_CHASSIS_CENTER_DIST /* 蓝区 第六个矛头位置 X (mm) */
-#define B_CHASSIS_RACK_Y 607.0f               /* 蓝区 取矛头位置 Y (mm) */
+#define B_CHASSIS_RACK_Y 590.0f               /* 蓝区 取矛头位置 Y (mm) */
 #define B_CHASSIS_RACK_W -180.0f                 /* 蓝区 取矛头位置 W (deg) */
 
 // 与R1的对接位置（暂定该位置，后续可重设）
