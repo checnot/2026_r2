@@ -195,8 +195,8 @@
 #define B_CHASSIS_CZ_INIT_Y 5500.0f           /* 蓝区 重试区 Y (mm) */
 #define B_CHASSIS_CZ_INIT_W -90.0f             /* 蓝区 重试区 W (deg) */
 #define B_CHASSIS_CZ_CENTER_X 10750.0f        /* 蓝区 对抗区中央 X (mm) */
-#define B_CHASSIS_CZ_CENTER_Y 3000.0f         /* 蓝区 对抗区中央 Y (mm) */
-#define B_CHASSIS_CZ_CENTER_W -90.0f          /* 蓝区 对抗区中央 W (deg) */
+#define B_CHASSIS_CZ_CENTER_Y 2500.0f         /* 蓝区 对抗区中央 Y (mm) */
+#define B_CHASSIS_CZ_CENTER_W -135.0f          /* 蓝区 对抗区中央 W (deg) */
 #define B_CHASSIS_SUDUKU_1_X 11290.0f         /* 蓝区 九宫格第一列 X (mm) */
 #define B_CHASSIS_SUDUKU_1_Y 600.0f           /* 蓝区 九宫格第一列 Y (mm) */
 #define B_CHASSIS_SUDUKU_1_W -90.0f            /* 蓝区 九宫格第一列 W (deg) */

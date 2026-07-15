@@ -13,7 +13,7 @@ uint8_t key_2_now;    /* 第二键盘当前按下的键，范围为：1~16 */
 uint8_t key_2_last;   /* 第二键盘上次按下的键，范围为：1~16 */
 
 int16_t x_offset_by_key_times;  // 由第二键盘设置的x偏移次数
-int16_t y_offset_by_key_times;  // 由第二键盘设置的x偏移次数
+int16_t y_offset_by_key_times;  // 由第二键盘设置的y偏移次数
 
 
 /**
